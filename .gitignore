@@ -1,0 +1,3 @@
+gridbenchmark
+/.*
+!/.gitignore
