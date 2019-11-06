@@ -41,7 +41,7 @@ class Benchmark {
 	coord3 size;
 	dim3 _numblocks;
 	std::string name;
-	bool error;
+	bool error = false;
 	benchmark_result_t results;
 
 	/** Subclasses (benchmarks) must at least overwrite this function an perform
@@ -56,7 +56,7 @@ class Benchmark {
 	/** Compares the value in each cell of this->output grid with the given
 	 * reference grid and returns true only if all the cells match (up to the
 	 * optionally given tolerance). */
-	virtual bool verify(Grid<value_t, coord3> *reference, double tol=1e-8);
+	virtual bool verify(Grid<value_t, coord3> *reference, Grid<value_t, coord3> *other=NULL, double tol=1e-8);
 
 	// Setup and teardown are called when the benchmark is initialized, only once
 	virtual void setup() {};
@@ -78,19 +78,17 @@ class Benchmark {
 // IMPLEMENTATIONS
 
 template<typename value_t>
-Benchmark<value_t>::Benchmark() :
-error(false) {}
+Benchmark<value_t>::Benchmark() {}
 
 template<typename value_t>
-Benchmark<value_t>::Benchmark(coord3 size)
-: size(size) {}
+Benchmark<value_t>::Benchmark(coord3 size) : size(size) {}
 
 
 template<typename value_t>
 void Benchmark<value_t>::post() {
-    if(cudaPeekAtLastError() != cudaSuccess) {
-        this->error = true;
-    }
+    //if(cudaPeekAtLastError() != cudaSuccess) {
+    //    this->error = true;
+    //}
 }
 
 template<typename value_t>
@@ -149,14 +147,17 @@ benchmark_result_t Benchmark<value_t>::execute(int runs, bool quiet) {
 }
 
 template<typename value_t>
-bool Benchmark<value_t>::verify(Grid<value_t, coord3> *reference, double tol) {
-    if(this->output->dimensions != reference->dimensions) {
+bool Benchmark<value_t>::verify(Grid<value_t, coord3> *reference, Grid<value_t, coord3> *other, double tol) {
+    if(!other) {
+        other = this->output;
+    }
+    if(other->dimensions != reference->dimensions) {
         return false;
     }
-    for(int x=0; x<this->output->dimensions.x; x++) {
-        for(int y=0; y<this->output->dimensions.y; y++) {
-            for(int z=0; z<this->output->dimensions.z; z++) {
-                if(abs((*this->output)[coord3(x, y, z)] - (*reference)[coord3(x, y, z)]) > tol) {
+    for(int x=0; x<other->dimensions.x; x++) {
+        for(int y=0; y<other->dimensions.y; y++) {
+            for(int z=0; z<other->dimensions.z; z++) {
+                if(abs((*other)[coord3(x, y, z)] - (*reference)[coord3(x, y, z)]) > tol) {
                     return false;
                 }
             }

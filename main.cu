@@ -10,6 +10,7 @@
 
 #include "benchmarks/benchmark.cu"
 #include "benchmarks/hdiff-ref.cu"
+#include "benchmarks/hdiff-cpu-unstr.cu"
 #include "benchmarks/hdiff-cuda.cu"
 #include "benchmarks/hdiff-cuda-seq.cu"
 #include "benchmarks/hdiff-cuda-unstr.cu"
@@ -62,7 +63,7 @@ Benchmark<double> *create_benchmark(benchmark_type_t type, int N, int M, int L, 
         ret = new HdiffReferenceBenchmark(size);
         break;
         case hdiff_ref_unstr:
-        ret = new HdiffReferenceBenchmark(size, UnstructuredGrid);
+        ret = new HdiffCPUUnstrBenchmark(size);
         break;
         case hdiff_cuda_regular:
         ret = new HdiffCudaBenchmark(size);
@@ -130,14 +131,13 @@ void prettyprint(benchmark_list_t *benchmarks, bool header=true) {
                bench->results.kernel.avg,
                bench->results.kernel.min,
                bench->results.kernel.max,
-               (bench->results.error ? ", (Verification failed)" : ""));
+               (bench->error ? ", (Error)" : ""));
     }
 }
 
 /** Create the benchmark described in bench_info, execute it and then return
  * its performance metrics. */
 Benchmark<double> *run_benchmark(benchmark_info_t bench_info, bool quiet=false) {
-    static Grid<double, coord3> *hdiff_reference_out;
     Benchmark<double> *bench = create_benchmark(bench_info.type,
                                         bench_info.N, bench_info.M, bench_info.L,
                                         bench_info.numblocks_N, bench_info.numblocks_M, bench_info.numblocks_L);
@@ -146,23 +146,6 @@ Benchmark<double> *run_benchmark(benchmark_info_t bench_info, bool quiet=false) 
         fprintf(stderr, "%17s, %4d, %4d, %4d, %11d, %11d, %11d, %4d\n", bench->name.c_str(), bench_info.N, bench_info.M, bench_info.L, bench_info.numblocks_N, bench_info.numblocks_M, bench_info.numblocks_L, bench_info.runs);
     }
     bench->execute(bench_info.runs, !bench_info.print || quiet);
-    if(bench_info.type == hdiff_ref) {
-        hdiff_reference_out = bench->output;
-    } else if(bench_info.type == hdiff_ref_unstr 
-        || bench_info.type == hdiff_cuda_regular
-        || bench_info.type == hdiff_cuda_sequential
-        || bench_info.type == hdiff_cuda_unstr) {
-        if(!hdiff_reference_out) {
-            HdiffReferenceBenchmark *refbench = new HdiffReferenceBenchmark(coord3(bench_info.N, bench_info.M, bench_info.L));
-            refbench->setup();
-            refbench->calc_ref();
-            hdiff_reference_out = refbench->output;
-        }
-        bool valid = bench->verify(hdiff_reference_out);
-        if(!valid) {
-            bench->results.error = true;
-        }
-    }
     return bench;
 }
 

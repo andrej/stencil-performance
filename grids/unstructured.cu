@@ -44,9 +44,13 @@ virtual public Coord3BaseGrid<value_t> {
      * neighbors of coord. */
     int neighbor_pointer(coord3 coord, coord3 offs);
 
-    /** Create an unstructured grid with regular neighborship relations
-     * and return a pointer to it. */
-    static UnstructuredGrid3D<value_t> *create_regular(coord3 dimensions);
+    /** "Fake" a regular grid by adding the neighborship relations that a
+     * regular grid would have, i.e. add top, left, right, bottom, front and
+     * back neighbors as in a regular grid. */
+    void add_regular_neighbors();
+
+    /** Return a new grid with regular neighborship relations. */
+    static UnstructuredGrid3D<value_t> *create_regular(coord3 dims);
 
 };
 
@@ -126,26 +130,32 @@ void UnstructuredGrid3D<value_t>::del_neighbor(coord3 A, coord3 offs) {
 }
 
 template<typename value_t>
-UnstructuredGrid3D<value_t> *UnstructuredGrid3D<value_t>::create_regular(coord3 dims) {
-    UnstructuredGrid3D<value_t> *grid = new UnstructuredGrid3D(dims);
+void UnstructuredGrid3D<value_t>::add_regular_neighbors() {
+    coord3 dims = this->dimensions;
     for(int z = 0; z<dims.z; z++) {
         for(int y = 0; y<dims.y; y++) {
             for(int x = 1; x<dims.x; x++) {
-                grid->add_neighbor(coord3(x, y, z), coord3(x-1, y, z), coord3(-1, 0, 0));
+                this->add_neighbor(coord3(x, y, z), coord3(x-1, y, z), coord3(-1, 0, 0));
             }
             for(int x = 0; x<dims.x-1; x++) {
-                grid->add_neighbor(coord3(x, y, z), coord3(x+1, y, z), coord3(0, 1, 0));
+                this->add_neighbor(coord3(x, y, z), coord3(x+1, y, z), coord3(0, 1, 0));
             }
         }
         for(int x = 0; x<dims.x; x++) {
             for(int y = 1; y<dims.y; y++) {
-                grid->add_neighbor(coord3(x, y, z), coord3(x, y-1, z), coord3(0, -1, 0));
+                this->add_neighbor(coord3(x, y, z), coord3(x, y-1, z), coord3(0, -1, 0));
             }
             for(int y = 0; y<dims.y-1; y++) {
-                grid->add_neighbor(coord3(x, y, z), coord3(x, y+1, z), coord3(0, 1, 0));
+                this->add_neighbor(coord3(x, y, z), coord3(x, y+1, z), coord3(0, 1, 0));
             }
         }
     }
+}
+
+template<typename value_t>
+UnstructuredGrid3D<value_t> *UnstructuredGrid3D<value_t>::create_regular(coord3 dims) {
+    UnstructuredGrid3D<value_t> *grid = new UnstructuredGrid3D<value_t>(dims);
+    grid->add_regular_neighbors();
     return grid;
 }
 

@@ -95,7 +95,7 @@ namespace HdiffCudaSequential {
 
 /** This is the reference implementation for the horizontal diffusion kernel, 
  * which is executed on the CPU and used to verify other implementations. */
-class HdiffCudaSequentialBenchmark : public HdiffReferenceBenchmark {
+class HdiffCudaSequentialBenchmark : public HdiffBaseBenchmark {
 
     public:
 
@@ -106,16 +106,10 @@ class HdiffCudaSequentialBenchmark : public HdiffReferenceBenchmark {
     // As in hdiff_stencil_variant.h
     virtual void run();
     virtual void setup();
+    virtual void teardown();
     virtual void post();
     
     dim3 gridsize(coord3 blocksize, coord3 start, coord3 step, coord3 stop);
-
-    //CudaRegularGrid3D<double> *input;
-    //CudaRegularGrid3D<double> *output;
-    //CudaRegularGrid3D<double> *coeff;
-    //CudaRegularGrid3D<double> *lap;
-    //CudaRegularGrid3D<double> *flx;
-    //CudaRegularGrid3D<double> *fly;
 
     // Return info struct for kernels
     HdiffCudaSequential::Info get_info();
@@ -124,9 +118,10 @@ class HdiffCudaSequentialBenchmark : public HdiffReferenceBenchmark {
 
 // IMPLEMENTATIONS
 
-HdiffCudaSequentialBenchmark::HdiffCudaSequentialBenchmark(coord3 size)
-: HdiffReferenceBenchmark(size, RegularGrid) {
+HdiffCudaSequentialBenchmark::HdiffCudaSequentialBenchmark(coord3 size) :
+HdiffBaseBenchmark(size) {
     this->name = "hdiff-cuda-seq";
+    this->error = false;
 }
 
 void HdiffCudaSequentialBenchmark::run() {
@@ -202,8 +197,17 @@ void HdiffCudaSequentialBenchmark::setup() {
     this->lap = new CudaRegularGrid3D<double>(this->size);
     this->flx = new CudaRegularGrid3D<double>(this->size);
     this->fly = new CudaRegularGrid3D<double>(this->size);
-    this->inner_size = this->size - 2*this->halo;
-    this->HdiffReferenceBenchmark::populate_grids();
+    this->HdiffBaseBenchmark::setup();
+}
+
+void HdiffCudaSequentialBenchmark::teardown() {
+    this->input->deallocate();
+    this->output->deallocate();
+    this->coeff->deallocate();
+    this->lap->deallocate();
+    this->flx->deallocate();
+    this->fly->deallocate();
+    this->HdiffBaseBenchmark::teardown();
 }
 
 HdiffCudaSequential::Info HdiffCudaSequentialBenchmark::get_info() {
@@ -213,6 +217,7 @@ HdiffCudaSequential::Info HdiffCudaSequentialBenchmark::get_info() {
 
 void HdiffCudaSequentialBenchmark::post() {
     this->Benchmark::post();
+    this->HdiffBaseBenchmark::post();
 }
 
 #endif

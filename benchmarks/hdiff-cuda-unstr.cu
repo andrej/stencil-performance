@@ -24,7 +24,11 @@ namespace HdiffCudaUnstr {
     void kernel_idxvars(Info info,
                         CudaGridInfo<double> in,
                         CudaGridInfo<double> out,
-                        CudaGridInfo<double> coeff) {
+                        CudaGridInfo<double> coeff
+                        #ifdef HDIFF_DEBUG
+                        , CudaGridInfo<double> dbg_lap
+                        #endif
+                        ) {
         const int i = threadIdx.x + blockIdx.x*blockDim.x + info.halo.x;
         const int j = threadIdx.y + blockIdx.y*blockDim.y + info.halo.y;
         if(i < info.halo.x || j < info.halo.y || i-info.halo.x > info.inner_size.x || j-info.halo.y > info.inner_size.y) {
@@ -94,6 +98,14 @@ namespace HdiffCudaUnstr {
                 CUDA_UNSTR(in, coord)
                 - CUDA_UNSTR(coeff, coord) * (flx_ij - flx_imj + fly_ij - fly_ijm);
             
+            // DEBUG: Output intermediate results as well
+            // Disable this for better performance
+            #ifdef HDIFF_DEBUG
+            CUDA_UNSTR(dbg_lap, coord) = lap_ij;
+            CUDA_UNSTR_NEIGH(dbg_lap, coord, -1, 0, 0) = lap_imj;
+            CUDA_UNSTR_NEIGH(dbg_lap, coord, 0, -1, 0) = lap_ijm;
+            #endif
+
             n_0_0_0       += in.strides.z;
             n_0_n1_0      += in.strides.z;
             n_0_n2_0      += in.strides.z;
@@ -115,7 +127,7 @@ namespace HdiffCudaUnstr {
 
 /** This is the reference implementation for the horizontal diffusion kernel, 
  * which is executed on the CPU and used to verify other implementations. */
-class HdiffCudaUnstrBenchmark : public HdiffReferenceBenchmark {
+class HdiffCudaUnstrBenchmark : public HdiffBaseBenchmark {
 
     public:
 
@@ -125,6 +137,7 @@ class HdiffCudaUnstrBenchmark : public HdiffReferenceBenchmark {
     // As in hdiff_stencil_variant.h
     virtual void run();
     virtual void setup();
+    virtual void teardown();
     virtual void post();
 
     // Return info struct for kernels
@@ -134,9 +147,10 @@ class HdiffCudaUnstrBenchmark : public HdiffReferenceBenchmark {
 
 // IMPLEMENTATIONS
 
-HdiffCudaUnstrBenchmark::HdiffCudaUnstrBenchmark(coord3 size)
-: HdiffReferenceBenchmark(size, UnstructuredGrid) {
+HdiffCudaUnstrBenchmark::HdiffCudaUnstrBenchmark(coord3 size) :
+HdiffBaseBenchmark(size) {
     this->name = "hdiff-cuda-unstr";
+    this->error = false;
 }
 
 void HdiffCudaUnstrBenchmark::run() {
@@ -145,6 +159,9 @@ void HdiffCudaUnstrBenchmark::run() {
         (dynamic_cast<CudaUnstructuredGrid3D<double>*>(this->input))->get_gridinfo(),
         (dynamic_cast<CudaUnstructuredGrid3D<double>*>(this->output))->get_gridinfo(),
         (dynamic_cast<CudaUnstructuredGrid3D<double>*>(this->coeff))->get_gridinfo()
+        #ifdef HDIFF_DEBUG
+        , (dynamic_cast<CudaUnstructuredGrid3D<double>*>(this->lap))->get_gridinfo()
+        #endif
     );
     if(cudaDeviceSynchronize() != cudaSuccess) {
         this->error = true;
@@ -152,24 +169,33 @@ void HdiffCudaUnstrBenchmark::run() {
 }
 
 void HdiffCudaUnstrBenchmark::setup() {
-    this->input = new CudaUnstructuredGrid3D<double>(this->size);
-    this->output = new CudaUnstructuredGrid3D<double>(this->size);
-    this->coeff = new CudaUnstructuredGrid3D<double>(this->size);
-    this->lap = new CudaUnstructuredGrid3D<double>(this->size);
-    this->flx = new CudaUnstructuredGrid3D<double>(this->size);
-    this->fly = new CudaUnstructuredGrid3D<double>(this->size);
-    this->inner_size = this->size - 2*this->halo;
-    this->HdiffReferenceBenchmark::populate_grids();
+    this->input = CudaUnstructuredGrid3D<double>::create_regular(this->size);
+    this->output = CudaUnstructuredGrid3D<double>::create_regular(this->size);
+    this->coeff = CudaUnstructuredGrid3D<double>::create_regular(this->size);
+    this->lap = CudaUnstructuredGrid3D<double>::create_regular(this->size);
+    this->flx = CudaUnstructuredGrid3D<double>::create_regular(this->size);
+    this->fly = CudaUnstructuredGrid3D<double>::create_regular(this->size);
+    this->HdiffBaseBenchmark::setup();
+}
+
+void HdiffCudaUnstrBenchmark::teardown() {
+    this->input->deallocate();
+    this->output->deallocate();
+    this->coeff->deallocate();
+    this->lap->deallocate();
+    this->flx->deallocate();
+    this->fly->deallocate();
+    this->HdiffBaseBenchmark::teardown();
+}
+
+void HdiffCudaUnstrBenchmark::post() {
+    this->Benchmark::post();
+    this->HdiffBaseBenchmark::post();
 }
 
 HdiffCudaUnstr::Info HdiffCudaUnstrBenchmark::get_info() {
     return { .halo = this->halo,
              .inner_size = this->input->dimensions-2*this->halo};
-}
-
-void HdiffCudaUnstrBenchmark::post() {
-    this->Benchmark::post();
-    this->HdiffReferenceBenchmark::post();
 }
 
 #endif
