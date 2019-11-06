@@ -27,7 +27,8 @@ typedef enum {all_benchs,
               hdiff_ref_unstr,
               hdiff_cuda_regular,
               hdiff_cuda_sequential,
-              hdiff_cuda_unstr,
+              hdiff_cuda_unstr_naive,
+              hdiff_cuda_unstr_idxvars,
               unspecified} 
 benchmark_type_t;
 
@@ -51,7 +52,8 @@ void get_benchmark_identifiers(std::map<std::string, benchmark_type_t> *ret) {
     (*ret)["hdiff-ref-unstr"] = hdiff_ref_unstr;
     (*ret)["hdiff-cuda-regular"] = hdiff_cuda_regular;
     (*ret)["hdiff-cuda-seq"] = hdiff_cuda_sequential;
-    (*ret)["hdiff-cuda-unstr"] = hdiff_cuda_unstr;
+    (*ret)["hdiff-cuda-unstr"] = hdiff_cuda_unstr_naive;
+    (*ret)["hdiff-cuda-unstr-idxvars"] = hdiff_cuda_unstr_idxvars;
 }
 
 /** Create the benchmark class for one of the available types. */
@@ -71,8 +73,11 @@ Benchmark<double> *create_benchmark(benchmark_type_t type, int N, int M, int L, 
         case hdiff_cuda_sequential:
         ret = new HdiffCudaSequentialBenchmark(size);
         break;
-        case hdiff_cuda_unstr:
+        case hdiff_cuda_unstr_naive:
         ret = new HdiffCudaUnstrBenchmark(size);
+        break;
+        case hdiff_cuda_unstr_idxvars:
+        ret = new HdiffCudaUnstrBenchmark(size, HdiffCudaUnstr::Idxvars);
         break;
     }
     ret->_numblocks = dim3(numblocks_N, numblocks_M, numblocks_L);

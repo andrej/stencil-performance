@@ -18,11 +18,9 @@ class HdiffBaseBenchmark :  public Benchmark<double> {
     HdiffBaseBenchmark(coord3 size);
 
     Grid<double, coord3> *coeff = NULL;
-    #ifdef HDIFF_DEBUG
     Grid<double, coord3> *lap = NULL;
     Grid<double, coord3> *flx = NULL;
     Grid<double, coord3> *fly = NULL;
-    #endif
 
     // reference grids used for verification
     // in debug mode, we keep a grid for each intermediate step to aid
