@@ -1,5 +1,8 @@
 #ifndef HDIFF_CUDA_SEQ_H
 #define HDIFF_CUDA_SEQ_H
+#include <sstream>
+#include <string>
+#include <stdexcept>
 #include "benchmarks/benchmark.cu"
 #include "coord3.cu"
 #include "grids/grid.cu"
@@ -8,7 +11,6 @@
 namespace HdiffCudaSequential {
 
     /** Information about this benchmark for use in the kernels. */
-    __device__ __host__
     struct Info {
         coord3 halo;
         coord3 inner_size;
@@ -33,6 +35,7 @@ namespace HdiffCudaSequential {
         // the plus ones are because the reference implementation runs to isize + 1 ..
         int grid_size = (gridDim.x*blockDim.x) * (gridDim.y*blockDim.y) * (gridDim.z*blockDim.z); // size of grid in # total threads (like this one)
         for(int l = 0; l < data_size; l += grid_size) {
+            // FIXME l unused (breaks things for too large data sets)
             CUDA_REGULAR(lap, coord3(i, j, k)) = 
                 4 * CUDA_REGULAR(in, coord3(i, j, k)) 
                 - (CUDA_REGULAR(in, coord3(i-1, j, k)) 
@@ -127,8 +130,10 @@ HdiffBaseBenchmark(size) {
 void HdiffCudaSequentialBenchmark::run() {
     #define CALL_KERNEL(knl_func, nblocks, nthreads, ...) \
     knl_func<<<nblocks, nthreads>>>(__VA_ARGS__); \
-    if (cudaPeekAtLastError() != cudaSuccess) { \
-        assert(false); \
+    if (cudaGetLastError() != cudaSuccess) { \
+        std::ostringstream msg; \
+        msg << "Unable to run kernel '" #knl_func "' with (" << nblocks.x << ", " << nblocks.y << ", " << nblocks.z << ") blocks and (" << nthreads.x << ", " << nthreads.y << ", " << nthreads.z << ") threads."; \
+        throw std::runtime_error(msg.str()); \
     }
     dim3 nthreads = this->numthreads();
     coord3 _nthreads = coord3(nthreads.x, nthreads.y, nthreads.z);
@@ -149,6 +154,9 @@ void HdiffCudaSequentialBenchmark::run() {
                 (dynamic_cast<CudaRegularGrid3D<double> *>(this->input))->get_gridinfo(),
                 (dynamic_cast<CudaRegularGrid3D<double> *>(this->lap))->get_gridinfo(),
                 (dynamic_cast<CudaRegularGrid3D<double> *>(this->flx))->get_gridinfo());
+    if (cudaDeviceSynchronize() != cudaSuccess) {
+        assert(false);
+    }
     // Fly does not depend on Flx, so no need to synchronize here.
     dim3 nblocks_fly = this->gridsize(_nthreads, coord3(0, -1, 0), coord3(1, 1, 1), this->inner_size);
     CALL_KERNEL(HdiffCudaSequential::kernel_fly, \

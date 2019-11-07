@@ -10,7 +10,6 @@
 namespace HdiffCudaRegular {
 
     /** Information about this benchmark for use in the kernels. */
-    __device__ __host__
     struct Info {
         coord3 halo;
         coord3 inner_size;
@@ -23,20 +22,22 @@ namespace HdiffCudaRegular {
                        CudaGridInfo<double> coeff
                        #ifdef HDIFF_DEBUG
                        , CudaGridInfo<double> dbg_lap
+                       , CudaGridInfo<double> dbg_flx
+                       , CudaGridInfo<double> dbg_fly
                        #endif
                        ) {
         const int i = threadIdx.x + blockIdx.x*blockDim.x + info.halo.x;
         const int j = threadIdx.y + blockIdx.y*blockDim.y + info.halo.y;
-        //output.data[CUDA_REGULAR_INDEX(output, coord3(x, y, 0))] = 2*CUDA_REGULAR((input, coord3(x, y, 0));
-        //return;
-        if(i < info.halo.x || j < info.halo.y || i-info.halo.x > info.inner_size.x || j-info.halo.y > info.inner_size.y) {
+        const int k = threadIdx.z + blockIdx.z*blockDim.z + info.halo.z;
+        if(i-info.halo.x >= info.inner_size.x || j-info.halo.y >= info.inner_size.y || k-info.halo.z > info.inner_size.z) {
             return;
         }
-        for (int k = info.halo.z; k < info.inner_size.z + info.halo.z; k++) {
+
+        //for (int k = info.halo.z; k < info.inner_size.z + info.halo.z; k++) {
             const coord3 coord = coord3(i, j, k);
 
             double lap_ij = 
-                4 * CUDA_REGULAR(in, coord) 
+                4 * CUDA_REGULAR_NEIGH(in, coord, 0, 0, 0) 
                 - CUDA_REGULAR_NEIGH(in, coord, -1, 0, 0) - CUDA_REGULAR_NEIGH(in, coord, +1, 0, 0)
                 - CUDA_REGULAR_NEIGH(in, coord, 0, -1, 0) - CUDA_REGULAR_NEIGH(in, coord, 0, +1, 0);
             double lap_imj = 
@@ -45,16 +46,16 @@ namespace HdiffCudaRegular {
                 - CUDA_REGULAR_NEIGH(in, coord, -1, -1, 0) - CUDA_REGULAR_NEIGH(in, coord, -1, +1, 0);
             double lap_ipj =
                 4 * CUDA_REGULAR_NEIGH(in, coord, +1, 0, 0)
-                - CUDA_REGULAR_NEIGH(in, coord, 0, 0, 0) - CUDA_REGULAR_NEIGH(in, coord, 0, +2, 0)
+                - CUDA_REGULAR_NEIGH(in, coord, 0, 0, 0) - CUDA_REGULAR_NEIGH(in, coord, +2, 0, 0)
                 - CUDA_REGULAR_NEIGH(in, coord, +1, -1, 0) - CUDA_REGULAR_NEIGH(in, coord, +1, +1, 0);
             double lap_ijm =
                 4 * CUDA_REGULAR_NEIGH(in, coord, 0, -1, 0)
                 - CUDA_REGULAR_NEIGH(in, coord, -1, -1, 0) - CUDA_REGULAR_NEIGH(in, coord, +1, -1, 0)
-                - CUDA_REGULAR_NEIGH(in, coord, 0, -2, 0) - CUDA_REGULAR(in, coord);
+                - CUDA_REGULAR_NEIGH(in, coord, 0, -2, 0) - CUDA_REGULAR_NEIGH(in, coord, 0, 0, 0);
             double lap_ijp =
                 4 * CUDA_REGULAR_NEIGH(in, coord, 0, +1, 0)
                 - CUDA_REGULAR_NEIGH(in, coord, -1, +1, 0) - CUDA_REGULAR_NEIGH(in, coord, +1, +1, 0)
-                - CUDA_REGULAR(in, coord) - CUDA_REGULAR_NEIGH(in, coord, 0, +2, 0);
+                - CUDA_REGULAR_NEIGH(in, coord, 0, 0, 0) - CUDA_REGULAR_NEIGH(in, coord, 0, +2, 0);
 
             double flx_ij = lap_ipj - lap_ij;
             flx_ij = flx_ij * (CUDA_REGULAR_NEIGH(in, coord, +1, 0, 0) - CUDA_REGULAR(in, coord)) > 0 ? 0 : flx_ij;
@@ -77,8 +78,14 @@ namespace HdiffCudaRegular {
             CUDA_REGULAR(dbg_lap, coord) = lap_ij;
             CUDA_REGULAR_NEIGH(dbg_lap, coord, -1, 0, 0) = lap_imj;
             CUDA_REGULAR_NEIGH(dbg_lap, coord, 0, -1, 0) = lap_ijm;
+            CUDA_REGULAR_NEIGH(dbg_lap, coord, +1, 0, 0) = lap_ipj;
+            CUDA_REGULAR_NEIGH(dbg_lap, coord, 0, +1, 0) = lap_ijp;
+            CUDA_REGULAR(dbg_flx, coord) = flx_ij;
+            CUDA_REGULAR_NEIGH(dbg_flx, coord, -1, 0, 0) = flx_imj;
+            CUDA_REGULAR(dbg_fly, coord) = fly_ij;
+            CUDA_REGULAR_NEIGH(dbg_fly, coord, 0, -1, 0) = fly_ijm;
             #endif
-        }
+        //}
     }
 
 };
@@ -119,6 +126,8 @@ void HdiffCudaBenchmark::run() {
         (dynamic_cast<CudaRegularGrid3D<double>*>(this->coeff))->get_gridinfo()
         #ifdef HDIFF_DEBUG
         , (dynamic_cast<CudaRegularGrid3D<double>*>(this->lap))->get_gridinfo()
+        , (dynamic_cast<CudaRegularGrid3D<double>*>(this->flx))->get_gridinfo()
+        , (dynamic_cast<CudaRegularGrid3D<double>*>(this->fly))->get_gridinfo()
         #endif
     );
     if(cudaDeviceSynchronize() != cudaSuccess) {

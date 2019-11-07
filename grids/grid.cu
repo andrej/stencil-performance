@@ -118,7 +118,7 @@ void Grid<value_t, coord_t>::set (coord_t coords, value_t value) {
 template<typename value_t, typename coord_t>
 void Grid<value_t, coord_t>::allocate() {
     assert(this->size > 0);
-    this->data = (value_t *)malloc(this->size * sizeof(value_t));
+    this->data = (value_t *)calloc(this->size, sizeof(value_t));
     //this->data = allocator->allocate(this->size * sizeof(value_t));
 }
 

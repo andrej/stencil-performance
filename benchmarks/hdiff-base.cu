@@ -1,5 +1,6 @@
 #ifndef HDIFF_BASE_H
 #define HDIFF_BASE_H
+#include <map>
 #include "benchmarks/benchmark.cu"
 #include "benchmarks/hdiff-ref.cu"
 #include "coord3.cu"
@@ -27,7 +28,13 @@ class HdiffBaseBenchmark :  public Benchmark<double> {
     // debugging (at which step do we go wrong)
     HdiffReferenceBenchmark *reference_bench = NULL;
     bool reference_calculated = false;
- 
+    
+    // Cache for reference benchmarks
+    // maps size to reference benchmark, so that if a reference has been
+    // calculated for a given size before, it will be reused instead of
+    // reacalculated (so the benchmarks run faster)
+    static std::map<coord3, HdiffReferenceBenchmark *> *reference_benchs;
+
     // Setup Input values
     // As in hdiff_stencil_variant.h
     virtual void setup();
@@ -43,7 +50,10 @@ class HdiffBaseBenchmark :  public Benchmark<double> {
     coord3 inner_size; // size w.o. 2* halo
     coord3 inner_coord(coord3 inner_coord);
 
+
 };
+
+std::map<coord3, HdiffReferenceBenchmark *> *HdiffBaseBenchmark::reference_benchs = NULL;//new std::map<coord3, HdiffReferenceBenchmark *>();
 
 // IMPLEMENTATIONS
 
@@ -51,17 +61,26 @@ HdiffBaseBenchmark::HdiffBaseBenchmark(coord3 size) :
 Benchmark(size),
 halo(coord3(2,2,0)) {
     this->name = "hdiff";
+    if(!HdiffBaseBenchmark::reference_benchs) {
+        HdiffBaseBenchmark::reference_benchs = new std::map<coord3, HdiffReferenceBenchmark *>();
+    }
 }
 
 void HdiffBaseBenchmark::setup(){
     if(!this->reference_bench) {
-        this->reference_bench = new HdiffReferenceBenchmark(this->size);
-        this->reference_bench->setup();
+        if(HdiffBaseBenchmark::reference_benchs->count(this->size) > 0) {
+            // already calculated in cache
+            this->reference_bench = (*HdiffBaseBenchmark::reference_benchs)[this->size];
+            this->reference_calculated = true;
+        } else {
+            this->reference_bench = new HdiffReferenceBenchmark(this->size);
+            this->reference_bench->setup();
+        }
     }
     /* Import values from reference grids to ensure same conditions. */
     this->input->import(this->reference_bench->input);
     this->coeff->import(this->reference_bench->coeff);
-    this->output->import(this->reference_bench->output);
+    this->output->fill(0.0);
     this->inner_size = this->size - 2*this->halo;
 }
 
@@ -74,10 +93,12 @@ coord3 HdiffBaseBenchmark::inner_coord(coord3 coord){
 }
 
 void HdiffBaseBenchmark::calc_ref() {
-    if(!this->reference_calculated) {
-        this->reference_bench->run();
-        this->reference_calculated = true;
+    this->reference_bench->run();
+    if(this->reference_bench->error) {
+        return;
     }
+    this->reference_calculated = true;
+    (*HdiffBaseBenchmark::reference_benchs)[this->size] = this->reference_bench;
 }
 
 void HdiffBaseBenchmark::post() {
@@ -88,7 +109,7 @@ void HdiffBaseBenchmark::post() {
         this->error = true;
     }
     #ifdef HDIFF_DEBUG
-    if(this->error) {
+    if(this->error && !this->quiet) {
         fprintf(stderr, "\n==============\n%s\n", this->name.c_str());
         if(!this->verify(this->reference_bench->lap, this->lap)) {
             fprintf(stderr, "\n--- lap wrong ---\n");

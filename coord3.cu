@@ -21,6 +21,7 @@ struct coord3 {
     void operator=(const coord3 other);
     bool operator==(const coord3 other) const;
     bool operator!=(const coord3 other) const;
+    //bool operator<(const coord3 other) const;
 };
 
 /** Type to describe neighborship relations between two 3D-coordinates.
@@ -64,6 +65,28 @@ bool coord3::operator==(const coord3 other) const {
 
 bool coord3::operator!=(const coord3 other) const {
     return !this->operator==(other);
+}
+
+bool operator==(const dim3 A, const coord3 B) {
+    return A.x == B.x && A.y == B.y && A.z == B.z;
+}
+
+bool operator!=(const dim3 A, const coord3 B) {
+    return !operator==(A, B);
+}
+
+bool operator==(const coord3 A, const dim3 B) {
+    return operator==(B, A);
+}
+
+bool operator !=(const coord3 A, const dim3 B) {
+    return operator!=(B, A);
+}
+
+bool operator<(const coord3 A, const coord3 B) {
+    return A.x < B.x || 
+           (A.x == B.x && A.y < B.y) ||
+           (A.x == B.x && A.y == B.y && A.z < B.z);
 }
 
 __device__ __host__

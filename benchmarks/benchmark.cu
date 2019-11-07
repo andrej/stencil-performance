@@ -4,6 +4,8 @@
 #include <string>
 #include <cmath>
 #include <chrono>
+#include <stdexcept>
+#include <sstream>
 #include "coord3.cu"
 #include "grids/coord3-base.cu"
 
@@ -42,7 +44,9 @@ class Benchmark {
 	dim3 _numblocks;
 	std::string name;
 	bool error = false;
-	benchmark_result_t results;
+    benchmark_result_t results;
+    bool quiet = true;
+    int runs = 1;
 
 	/** Subclasses (benchmarks) must at least overwrite this function an perform
 	 * the computations to be benchmarked inside here. Computations should be
@@ -51,7 +55,7 @@ class Benchmark {
 
 	/** Executes a certain number of runs of the given benchmark and stores some
 	 * metrics in this->results. */
-	benchmark_result_t execute(int runs=1, bool quiet=true);
+	benchmark_result_t execute();
 	
 	/** Compares the value in each cell of this->output grid with the given
 	 * reference grid and returns true only if all the cells match (up to the
@@ -86,9 +90,15 @@ Benchmark<value_t>::Benchmark(coord3 size) : size(size) {}
 
 template<typename value_t>
 void Benchmark<value_t>::post() {
-    //if(cudaPeekAtLastError() != cudaSuccess) {
-    //    this->error = true;
-    //}
+    if(cudaGetLastError() != cudaSuccess) {
+        this->error = true;
+        std::ostringstream msg;
+        dim3 nblocks = this->numblocks();
+        dim3 nthreads = this->numthreads();
+        msg << "Unable to run kernel with (" << nblocks.x << ", " << nblocks.y << ", " << nblocks.z << 
+               ") blocks and (" << nthreads.x << ", " << nthreads.y << ", " << nthreads.z << ") threads.";
+        throw std::runtime_error(msg.str());
+    }
 }
 
 template<typename value_t>
@@ -106,7 +116,7 @@ dim3 Benchmark<value_t>::numthreads() {
 }
 
 template<typename value_t>
-benchmark_result_t Benchmark<value_t>::execute(int runs, bool quiet) {
+benchmark_result_t Benchmark<value_t>::execute() {
 	using clock = std::chrono::high_resolution_clock;
 	this->setup();
     double avg, min, max;
@@ -114,7 +124,7 @@ benchmark_result_t Benchmark<value_t>::execute(int runs, bool quiet) {
     min = DBL_MAX;
     kernel_min = DBL_MAX;
     bool error = false;
-    for(int i=0; i<runs; i++) {
+    for(int i=0; i<this->runs; i++) {
         auto start = clock::now();
         this->pre();
         auto kernel_start = clock::now();
@@ -131,8 +141,8 @@ benchmark_result_t Benchmark<value_t>::execute(int runs, bool quiet) {
         kernel_avg += kernel_time;
         kernel_min = std::min(kernel_time, min);
         kernel_max = std::max(kernel_time, max);
-        if(!quiet) {
-            printf("Benchmark %s, Run #%d Results\n", this->name.c_str(), i+1);
+        if(!this->quiet) {
+            fprintf(stderr, "Benchmark %s, Run #%d Results\n", this->name.c_str(), i+1);
             this->output->print();
         }
     }

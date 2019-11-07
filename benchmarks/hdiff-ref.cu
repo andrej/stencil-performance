@@ -36,6 +36,10 @@ class HdiffReferenceBenchmark : public Benchmark<double> {
     coord3 inner_size; // size w.o. 2* halo
     coord3 inner_coord(coord3 inner_coord);
 
+    // Print (1, 1, 1) for numblocks/numthreads as this is on CPU
+    dim3 numblocks();
+    dim3 numthreads();
+
 };
 
 // IMPLEMENTATIONS
@@ -155,16 +159,25 @@ void HdiffReferenceBenchmark::run() {
 }
 
 void HdiffReferenceBenchmark::teardown() {
-    this->input->deallocate();
-    this->output->deallocate();
-    this->coeff->deallocate();
-    this->lap->deallocate();
-    this->flx->deallocate();
-    this->fly->deallocate();
+    // Don't free, because this reference benchmark will be reused.
+    //this->input->deallocate();
+    //this->output->deallocate();
+    //this->coeff->deallocate();
+    //this->lap->deallocate();
+    //this->flx->deallocate();
+    //this->fly->deallocate();
 }
 
 coord3 HdiffReferenceBenchmark::inner_coord(coord3 coord){
     return coord + this->halo;
+}
+
+dim3 HdiffReferenceBenchmark::numblocks() {
+    return dim3(1, 1, 1);
+}
+
+dim3 HdiffReferenceBenchmark::numthreads() {
+    return dim3(1, 1, 1);
 }
 
 #endif

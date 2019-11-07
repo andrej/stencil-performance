@@ -21,6 +21,10 @@ class HdiffCPUUnstrBenchmark :  public HdiffBaseBenchmark {
     virtual void setup();
     virtual void run();
     virtual void teardown();
+    
+    // This is CPU so just print 1 for those values
+    virtual dim3 numblocks();
+    virtual dim3 numthreads();
 
     // CPU implementation
     // As in hdiff_stencil_variant.h
@@ -116,6 +120,14 @@ void HdiffCPUUnstrBenchmark::run() {
             }
         }
     }
+}
+
+dim3 HdiffCPUUnstrBenchmark::numblocks() {
+    return dim3(1, 1, 1);
+}
+
+dim3 HdiffCPUUnstrBenchmark::numthreads() {
+    return dim3(1, 1, 1);
 }
 
 #endif

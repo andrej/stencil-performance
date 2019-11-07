@@ -72,13 +72,13 @@ void Coord3BaseGrid<value_t>::print() {
     int L = this->dimensions.z;
     for(int x=0; x<N; x++) {
         for(int y=0; y<M; y++) {
-            printf("[");
+            fprintf(stderr, "[");
             for(int z=0; z<L; z++) {
-                printf("%5.1f", (*this)[coord3(x, y, z)]);
+                fprintf(stderr, "%5.1f", (*this)[coord3(x, y, z)]);
             }
-            printf("]  ");
+            fprintf(stderr, "]  ");
         }
-        printf("\n");
+        fprintf(stderr, "\n");
     }
 }
 
