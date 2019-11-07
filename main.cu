@@ -56,7 +56,7 @@ void get_benchmark_identifiers(std::map<std::string, benchmark_type_t> *ret) {
     (*ret)["hdiff-regular"] = hdiff_cuda_regular;
     (*ret)["hdiff-regular-seq"] = hdiff_cuda_sequential;
     (*ret)["hdiff-unstr-naive"] = hdiff_cuda_unstr_naive;
-    (*ret)["hdiff-unstr-kloop"] = hdiff_cuda_unstr_naive;
+    (*ret)["hdiff-unstr-kloop"] = hdiff_cuda_unstr_kloop;
     (*ret)["hdiff-unstr-idxvars"] = hdiff_cuda_unstr_idxvars;
 }
 
