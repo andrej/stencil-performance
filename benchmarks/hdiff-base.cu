@@ -8,6 +8,18 @@
 #include "grids/regular.cu"
 #include "grids/unstructured.cu"
 
+namespace HdiffBase {
+    /** Information about this benchmark for use in the kernels. */
+    struct Info {
+        coord3 halo;
+        coord3 inner_size;
+        /** Size of the entire grid in each dimension, i.e. number of blocks
+            * times number of threads. If the thread-grid is smaller than the
+            * data-grid, each kernel execution needs to handle multiple cells to
+            * cover the entire data set! */
+        coord3 gridsize;
+    };
+}
 
 /** Base class for horizontal diffusion benchmarks. Provides verification
  * against reference benchmark and "halo" functionality, i.e. padding the
@@ -50,6 +62,9 @@ class HdiffBaseBenchmark :  public Benchmark<double> {
     coord3 inner_size; // size w.o. 2* halo
     coord3 inner_coord(coord3 inner_coord);
 
+    // return information for the use inside the kernels
+    HdiffBase::Info get_info();
+
 
 };
 
@@ -90,6 +105,15 @@ void HdiffBaseBenchmark::teardown() {
 
 coord3 HdiffBaseBenchmark::inner_coord(coord3 coord){
     return coord + this->halo;
+}
+
+HdiffBase::Info HdiffBaseBenchmark::get_info() {
+    coord3 inner_size = this->inner_size;
+    dim3 numthreads = this->numthreads();
+    dim3 numblocks = this->numblocks();
+    return { .halo = this->halo,
+             .inner_size = inner_size,
+             .gridsize = coord3(numblocks.x*numthreads.x, numblocks.y*numthreads.y, numblocks.z*numthreads.z) };
 }
 
 void HdiffBaseBenchmark::calc_ref() {

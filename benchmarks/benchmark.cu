@@ -6,8 +6,20 @@
 #include <chrono>
 #include <stdexcept>
 #include <sstream>
+#include <algorithm>
 #include "coord3.cu"
 #include "grids/coord3-base.cu"
+
+/** The maxnumthreads limits are only enforced if the total nubmer of threads
+ * (product of x, y and z) is exceeded. It is therefore well possible to have
+ * more threads in a given dimension, provided that the other dimensions are
+ * accordingly smaller. Note that it leads to errors to try and launch a cuda
+ * kernel with too many threads. */
+#ifndef CUDA_MAXNUMTHREADS_X
+#define CUDA_MAXNUMTHREADS_X 16
+#define CUDA_MAXNUMTHREADS_Y 16
+#define CUDA_MAXNUMTHREADS_Z 4
+#endif
 
 /** Benchmark result: Average, minimum and maximum runtime in seconds. */
 typedef struct { 
@@ -108,11 +120,16 @@ dim3 Benchmark<value_t>::numblocks() {
 
 template<typename value_t>
 dim3 Benchmark<value_t>::numthreads() {
-    return dim3(
-        (unsigned int) (this->size.x + this->_numblocks.x - 1) / this->_numblocks.x,
-        (unsigned int) (this->size.y + this->_numblocks.y - 1) / this->_numblocks.y,
-        (unsigned int) (this->size.z + this->_numblocks.z - 1) / this->_numblocks.z
-    );
+    int x = (this->size.x + this->_numblocks.x - 1) / this->_numblocks.x;
+    int y = (this->size.y + this->_numblocks.y - 1) / this->_numblocks.y;
+    int z = (this->size.z + this->_numblocks.z - 1) / this->_numblocks.z;
+    if (x*y*z > CUDA_MAXNUMTHREADS_X*CUDA_MAXNUMTHREADS_Y*CUDA_MAXNUMTHREADS_Z) {
+        // The limiting is only done if the total maximum is exceeded
+        x = std::min(x, CUDA_MAXNUMTHREADS_X);
+        y = std::min(y, CUDA_MAXNUMTHREADS_Y);
+        z = std::min(z, CUDA_MAXNUMTHREADS_Z);
+    }
+    return dim3( (unsigned int) x, (unsigned int) y, (unsigned int) z );
 }
 
 template<typename value_t>

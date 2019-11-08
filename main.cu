@@ -183,7 +183,6 @@ benchmark_list_t *create_benchmarks(args_t args) {
         }
     }
 
-    // Check if we have at least one benchmark of each type, if not, add one
     return ret;
 }
 

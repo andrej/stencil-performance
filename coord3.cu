@@ -1,27 +1,25 @@
 #ifndef COORD3_H
 #define COORD3_H
 
+#include <cstdint>
+
 /** Signed three dimensional coordinates.
  *
  * If the constructor is supplied with only X and Y coordinates, Z is set to
  * 0.
  */
-struct coord3 {
-    int x;
-    int y;
-    int z;
-    coord3();
-    coord3(int x, int y);
+template<typename T=int64_t>
+struct _coord3 {
+    T x;
+    T y;
+    T z;
+    _coord3();
+    _coord3(T x, T y);
     __host__ __device__
-    coord3(int x, int y, int z);
-    //coord3 operator+(coord3* B);
-    //coord3 operator-();
-    //coord3 operator-(coord3* B);
-    //coord3 operator*(int other);
-    void operator=(const coord3 other);
-    bool operator==(const coord3 other) const;
-    bool operator!=(const coord3 other) const;
-    //bool operator<(const coord3 other) const;
+    _coord3(T x, T y, T z);
+    void operator=(const _coord3<T> other);
+    bool operator==(const _coord3<T> other) const;
+    bool operator!=(const _coord3<T> other) const;
 };
 
 /** Type to describe neighborship relations between two 3D-coordinates.
@@ -44,81 +42,114 @@ typedef enum {
 
 // IMPLEMENTATIONS
 
-coord3::coord3(int _x, int _y, int _z) :
+/**
+ * Constructors
+ */
+
+template<typename T>
+_coord3<T>::_coord3(T _x, T _y, T _z) :
     x(_x), y(_y), z(_z) {}
 
-coord3::coord3(int _x, int _y) :
+template<typename T>
+_coord3<T>::_coord3(T _x, T _y) :
     x(_x), y(_y), z(0) {}
 
-coord3::coord3() :
+template<typename T>
+_coord3<T>::_coord3() :
     x(0), y(0), z(0) {}
 
-void coord3::operator=(const coord3 other) {
+
+/**
+ * Operators
+ */
+
+template<typename T>
+void _coord3<T>::operator=(const _coord3 other) {
     this->x = other.x;
     this->y = other.y;
     this->z = other.z;
 }
 
-bool coord3::operator==(const coord3 other) const {
+template<typename T>
+bool _coord3<T>::operator==(const _coord3<T> other) const {
     return this->x == other.x && this->y == other.y && this->z == other.z;
 }
 
-bool coord3::operator!=(const coord3 other) const {
+template<typename T>
+bool _coord3<T>::operator!=(const _coord3<T> other) const {
     return !this->operator==(other);
 }
 
-bool operator==(const dim3 A, const coord3 B) {
+template<typename T>
+bool operator==(const dim3 A, const _coord3<T> B) {
     return A.x == B.x && A.y == B.y && A.z == B.z;
 }
 
-bool operator!=(const dim3 A, const coord3 B) {
+template<typename T>
+bool operator!=(const dim3 A, const _coord3<T> B) {
     return !operator==(A, B);
 }
 
-bool operator==(const coord3 A, const dim3 B) {
+template<typename T>
+bool operator==(const _coord3<T> A, const dim3 B) {
     return operator==(B, A);
 }
 
-bool operator !=(const coord3 A, const dim3 B) {
+template<typename T>
+bool operator !=(const _coord3<T> A, const dim3 B) {
     return operator!=(B, A);
 }
 
-bool operator<(const coord3 A, const coord3 B) {
+template<typename T>
+bool operator<(const _coord3<T> A, const _coord3<T> B) {
     return A.x < B.x || 
            (A.x == B.x && A.y < B.y) ||
            (A.x == B.x && A.y == B.y && A.z < B.z);
 }
 
+template<typename T>
 __device__ __host__
-coord3 operator+(coord3 A, coord3 B) {
-    return coord3(A.x + B.x,
-                  A.y + B.y,
-                  A.z + B.z);
+_coord3<T> operator+(_coord3<T> A, _coord3<T> B) {
+    return _coord3<T>(A.x + B.x,
+                      A.y + B.y,
+                      A.z + B.z);
 }
 
+template<typename T>
 __device__ __host__
-coord3 operator-(coord3 A, coord3 B) {
-    return coord3(A.x - B.x,
-                  A.y - B.y,
-                  A.z - B.z);
+_coord3<T> operator-(_coord3<T> A, _coord3<T> B) {
+    return _coord3<T>(A.x - B.x,
+                      A.y - B.y,
+                      A.z - B.z);
 }
 
+template<typename T>
 __device__ __host__
-coord3 operator-(coord3 A) {
-    return coord3(-A.x,
-                  -A.y,
-                  -A.z);
+_coord3<T> operator-(_coord3<T> A) {
+    return _coord3<T>(-A.x,
+                      -A.y,
+                      -A.z);
 }
 
+template<typename T>
 __device__ __host__
-coord3 operator*(coord3 A, int b) {
-    return coord3(A.x * b,
-                  A.y * b,
-                  A.z * b);
+_coord3<T> operator*(_coord3<T> A, int b) {
+    return _coord3<T>(A.x * b,
+                      A.y * b,
+                      A.z * b);
 }
 
-coord3 operator*(int b, coord3 A) {
+template<typename T>
+_coord3<T> operator*(int b, _coord3<T> A) {
     return operator*(A, b);
 }
+
+/** Make coord3 available as shorthand for one templated version of the
+ * coordinate type. */
+#ifndef COORD3_USE_SHORT
+typedef _coord3<int64_t> coord3;
+#else
+typedef _coord3<int32_t> coord3;
+#endif
 
 #endif
