@@ -11,13 +11,13 @@ namespace HdiffCudaRegular {
 
     __global__
     void kernel_direct(HdiffBase::Info info,
-                       CudaGridInfo<double> in,
-                       CudaGridInfo<double> out,
-                       CudaGridInfo<double> coeff
+                       CudaRegularGrid3DInfo<double> in,
+                       CudaRegularGrid3DInfo<double> out,
+                       CudaRegularGrid3DInfo<double> coeff
                        #ifdef HDIFF_DEBUG
-                       , CudaGridInfo<double> dbg_lap
-                       , CudaGridInfo<double> dbg_flx
-                       , CudaGridInfo<double> dbg_fly
+                       , CudaRegularGrid3DInfo<double> dbg_lap
+                       , CudaRegularGrid3DInfo<double> dbg_flx
+                       , CudaRegularGrid3DInfo<double> dbg_fly
                        #endif
                        ) {
 

@@ -74,8 +74,11 @@ RegularGrid3D<value_t>::RegularGrid3D() {
 
 template<typename value_t>
 RegularGrid3D<value_t>::RegularGrid3D(coord3 dimensions, size_t padding) : 
-Grid<value_t, coord3>(dimensions, dimensions.x*dimensions.y*dimensions.z*(1+padding)),
-padding(padding) {}
+Grid<value_t, coord3>(dimensions,
+                      sizeof(value_t)*dimensions.x*dimensions.y*dimensions.z*(1+padding)),
+padding(padding) {
+    this->init();
+}
 
 template<typename value_t>
 int RegularGrid3D<value_t>::index(coord3 coords) {

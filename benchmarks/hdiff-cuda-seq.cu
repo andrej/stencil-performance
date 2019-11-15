@@ -18,7 +18,7 @@ namespace HdiffCudaSequential {
 
     // Laplace Kernel
     __global__
-    void kernel_lap(Info info, CudaGridInfo<double> in, CudaGridInfo<double> lap) {
+    void kernel_lap(Info info, CudaRegularGrid3DInfo<double> in, CudaRegularGrid3DInfo<double> lap) {
         int i = blockIdx.x * blockDim.x + threadIdx.x + info.halo.x - 1; // ref implementation starts at i = -1
         int j = blockIdx.y * blockDim.y + threadIdx.y + info.halo.y - 1;
         int k = blockIdx.z * blockDim.z + threadIdx.z + info.halo.z;
@@ -47,7 +47,7 @@ namespace HdiffCudaSequential {
 
     // Flx Kernel
     __global__
-    void kernel_flx(Info info, CudaGridInfo<double> in, CudaGridInfo<double> lap, CudaGridInfo<double> flx) {
+    void kernel_flx(Info info, CudaRegularGrid3DInfo<double> in, CudaRegularGrid3DInfo<double> lap, CudaRegularGrid3DInfo<double> flx) {
         int i = blockIdx.x * blockDim.x + threadIdx.x + info.halo.x - 1;
         int j = blockIdx.y * blockDim.y + threadIdx.y + info.halo.y;
         int k = blockIdx.z * blockDim.z + threadIdx.z + info.halo.z;
@@ -63,7 +63,7 @@ namespace HdiffCudaSequential {
 
     // Fly Kernel
     __global__
-    void kernel_fly(Info info, CudaGridInfo<double> in, CudaGridInfo<double> lap, CudaGridInfo<double> fly) {
+    void kernel_fly(Info info, CudaRegularGrid3DInfo<double> in, CudaRegularGrid3DInfo<double> lap, CudaRegularGrid3DInfo<double> fly) {
         int i = blockIdx.x * blockDim.x + threadIdx.x + info.halo.x;
         int j = blockIdx.y * blockDim.y + threadIdx.y + info.halo.y - 1;
         int k = blockIdx.z * blockDim.z + threadIdx.z + info.halo.z;
@@ -79,7 +79,7 @@ namespace HdiffCudaSequential {
 
     // Output kernel
     __global__
-    void kernel_out(Info info, CudaGridInfo<double> in, CudaGridInfo<double> coeff, CudaGridInfo<double> flx, CudaGridInfo<double> fly, CudaGridInfo<double> out) {
+    void kernel_out(Info info, CudaRegularGrid3DInfo<double> in, CudaRegularGrid3DInfo<double> coeff, CudaRegularGrid3DInfo<double> flx, CudaRegularGrid3DInfo<double> fly, CudaRegularGrid3DInfo<double> out) {
         int i = blockIdx.x * blockDim.x + threadIdx.x + info.halo.x;
         int j = blockIdx.y * blockDim.y + threadIdx.y + info.halo.y;
         int k = blockIdx.z * blockDim.z + threadIdx.z + info.halo.z;

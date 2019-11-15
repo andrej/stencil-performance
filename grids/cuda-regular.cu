@@ -5,6 +5,17 @@
 #include "coord3-base.cu"
 #include "regular.cu"
 
+/** This struct is used to pass grid information to the kernel (because we
+ * cannot use the C++ classes inside the kernel). Pass this struct
+ * to the appropriate kernel macros.
+ */
+ template<typename value_t>
+ struct CudaRegularGrid3DInfo {
+     value_t *data; /**< Pointer to the allocated CUDA memory, i.e. this->data */
+     coord3 dimensions;
+     coord3 strides;
+ };
+
 /** Regular grid which stores its data in Cuda unified memory and provides a
  * compiler macro for indexing so that indexing within a GPU kernel does not 
  * require a function call. 
@@ -25,7 +36,7 @@ virtual public CudaBaseGrid<value_t, coord3>
     
     int neighbor(coord3 coord, coord3 offset); /**< Reimplemented to use the kernel macro. */
     
-    virtual CudaGridInfo<value_t> get_gridinfo(); /**< Return grid info struct required by kernel macros. */
+    virtual CudaRegularGrid3DInfo<value_t> get_gridinfo(); /**< Return grid info struct required by kernel macros. */
 
 };
 
@@ -64,26 +75,25 @@ virtual public CudaBaseGrid<value_t, coord3>
 
 template<typename value_t>
 CudaRegularGrid3D<value_t>::CudaRegularGrid3D(coord3 dimensions) :
-Grid<value_t, coord3>(),
-RegularGrid3D<value_t>(),
-CudaBaseGrid<value_t, coord3>(dimensions, dimensions.x*dimensions.y*dimensions.z) {
-    this->allocate();
+Grid<value_t, coord3>(dimensions,
+                       sizeof(value_t)*dimensions.x*dimensions.y*dimensions.z) {
+    this->init();
 }
 
 template<typename value_t>
 int CudaRegularGrid3D<value_t>::index(coord3 coord) {
-    CudaGridInfo<value_t> gridinfo = this->get_gridinfo();
+    CudaRegularGrid3DInfo<value_t> gridinfo = this->get_gridinfo();
     return CUDA_REGULAR_INDEX(gridinfo, coord);
 }
 
 template<typename value_t>
 int CudaRegularGrid3D<value_t>::neighbor(coord3 coord, coord3 offs) {
-    CudaGridInfo<value_t> gridinfo = this->get_gridinfo();
+    CudaRegularGrid3DInfo<value_t> gridinfo = this->get_gridinfo();
     return CUDA_REGULAR_NEIGHBOR(gridinfo, coord, offs.x, offs.y, offs.z);
 }
 
 template<typename value_t>
-CudaGridInfo<value_t> CudaRegularGrid3D<value_t>::get_gridinfo() {
+CudaRegularGrid3DInfo<value_t> CudaRegularGrid3D<value_t>::get_gridinfo() {
     coord3 dimensions = this->dimensions;
     return { .data = this->data,
              .dimensions = dimensions,

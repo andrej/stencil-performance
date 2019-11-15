@@ -22,12 +22,16 @@ class Grid {
     Grid();
     Grid(coord_t dimensions, size_t size);
     
+    /** Initialization stuff that cannot be done in the constructor because
+     * access to subclass virtual funcitons is required. */
+    virtual void init();
+
     virtual ~Grid();
 
     /** Size as number of items in each dimension. */
     coord_t dimensions;
 
-    /** Space required by this grid in memory in multiples of value_t. */
+    /** Space required by this grid in memory in *bytes*. */
     size_t size;
 
     /** Return a pointer to the first data item of the grid in memory. Note
@@ -90,6 +94,10 @@ template<typename value_t, typename coord_t>
 Grid<value_t, coord_t>::Grid(coord_t dimensions, size_t size) :
 dimensions(dimensions),
 size(size) {
+}
+
+template<typename value_t, typename coord_t>
+void Grid<value_t, coord_t>::init() {
     this->allocate();
 }
 
@@ -118,7 +126,7 @@ void Grid<value_t, coord_t>::set (coord_t coords, value_t value) {
 template<typename value_t, typename coord_t>
 void Grid<value_t, coord_t>::allocate() {
     assert(this->size > 0);
-    this->data = (value_t *)calloc(this->size, sizeof(value_t));
+    this->data = (value_t *)calloc(this->size, 1);
     //this->data = allocator->allocate(this->size * sizeof(value_t));
 }
 

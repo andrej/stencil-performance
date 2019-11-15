@@ -22,13 +22,13 @@ namespace HdiffCudaUnstr {
      */
      __global__
      void kernel_naive(Info info,
-                         CudaGridInfo<double> in,
-                         CudaGridInfo<double> out,
-                         CudaGridInfo<double> coeff
+                         CudaUnstructuredGrid3DInfo<double> in,
+                         CudaUnstructuredGrid3DInfo<double> out,
+                         CudaUnstructuredGrid3DInfo<double> coeff
                          #ifdef HDIFF_DEBUG
-                         , CudaGridInfo<double> dbg_lap
-                         , CudaGridInfo<double> dbg_flx
-                         , CudaGridInfo<double> dbg_fly
+                         , CudaUnstructuredGrid3DInfo<double> dbg_lap
+                         , CudaUnstructuredGrid3DInfo<double> dbg_flx
+                         , CudaUnstructuredGrid3DInfo<double> dbg_fly
                          #endif
                          ) {
         const int i = threadIdx.x + blockIdx.x*blockDim.x + info.halo.x;
@@ -112,13 +112,13 @@ namespace HdiffCudaUnstr {
      */
      __global__
      void kernel_naive_kloop(Info info,
-                             CudaGridInfo<double> in,
-                             CudaGridInfo<double> out,
-                             CudaGridInfo<double> coeff
+                             CudaUnstructuredGrid3DInfo<double> in,
+                             CudaUnstructuredGrid3DInfo<double> out,
+                             CudaUnstructuredGrid3DInfo<double> coeff
                              #ifdef HDIFF_DEBUG
-                             , CudaGridInfo<double> dbg_lap
-                             , CudaGridInfo<double> dbg_flx
-                             , CudaGridInfo<double> dbg_fly
+                             , CudaUnstructuredGrid3DInfo<double> dbg_lap
+                             , CudaUnstructuredGrid3DInfo<double> dbg_flx
+                             , CudaUnstructuredGrid3DInfo<double> dbg_fly
                              #endif
                              ) {
         const int i = threadIdx.x + blockIdx.x*blockDim.x + info.halo.x;
@@ -206,13 +206,13 @@ namespace HdiffCudaUnstr {
      */
     __global__
     void kernel_idxvars(Info info,
-                        CudaGridInfo<double> in,
-                        CudaGridInfo<double> out,
-                        CudaGridInfo<double> coeff
+                        CudaUnstructuredGrid3DInfo<double> in,
+                        CudaUnstructuredGrid3DInfo<double> out,
+                        CudaUnstructuredGrid3DInfo<double> coeff
                         #ifdef HDIFF_DEBUG
-                        , CudaGridInfo<double> dbg_lap
-                        , CudaGridInfo<double> dbg_flx
-                        , CudaGridInfo<double> dbg_fly
+                        , CudaUnstructuredGrid3DInfo<double> dbg_lap
+                        , CudaUnstructuredGrid3DInfo<double> dbg_flx
+                        , CudaUnstructuredGrid3DInfo<double> dbg_fly
                         #endif
                         ) {
         const int i = threadIdx.x + blockIdx.x*blockDim.x + info.halo.x;
