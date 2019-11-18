@@ -15,6 +15,7 @@
 #include "benchmarks/hdiff-cpu-unstr.cu"
 #include "benchmarks/hdiff-cuda.cu"
 #include "benchmarks/hdiff-cuda-seq.cu"
+#include "benchmarks/hdiff-cuda-unstr-seq.cu"
 #include "benchmarks/hdiff-cuda-unstr.cu"
 
 /** Benchmark results type: Vector of results for each individual benchmark.
@@ -32,17 +33,17 @@ typedef enum {all_benchs,
               hdiff_cuda_unstr_naive,
               hdiff_cuda_unstr_kloop,
               hdiff_cuda_unstr_idxvars,
+              hdiff_cuda_unstr_seq,
               unspecified} 
 benchmark_type_t;
 
 /** Struct describing the benchmark to be run (default arguments) */
 struct args_t {
     benchmark_type_t type = unspecified;
-    coord3 size = coord3(1024, 1024, 64);
+    std::vector<coord3> sizes; // default can be found in parse_args() function
     int runs = 20;
-    coord3 numblocks_min = coord3(64, 64, 4);
-    coord3 numblocks_max = coord3(64, 64, 4);
-    coord3 numblocks_step = coord3(1, 1, 1);
+    std::vector<coord3> numthreads; // default can be found in parse_args() function
+    std::vector<coord3> numblocks; // default can be found in parse_args() function
     bool print = false; // print output of benchmarked grids to stdout (makes sense for small grids)
     bool skip_errors = false; // skip printing output for erroneous benchmarks
     bool no_header = false; // print no header in the output table
@@ -58,6 +59,31 @@ void get_benchmark_identifiers(std::map<std::string, benchmark_type_t> *ret) {
     (*ret)["hdiff-unstr-naive"] = hdiff_cuda_unstr_naive;
     (*ret)["hdiff-unstr-kloop"] = hdiff_cuda_unstr_kloop;
     (*ret)["hdiff-unstr-idxvars"] = hdiff_cuda_unstr_idxvars;
+    (*ret)["hdiff-unstr-seq"] = hdiff_cuda_unstr_seq;
+}
+
+/** Helper function to parse input strings of the format %dx%dx%d, e.g. 16x16x1
+ * into a vector of coord3s. Returns by how much the pointer passed in was
+ * increased, i.e. how many strings directly following contained coord3s. */
+int scan_coord3(char **strs, std::vector<coord3> *ret) {
+    int i = 0;
+    while(1) {
+        char *str=strs[i];
+        coord3 to_add;
+        int c = sscanf(str, "%dx%dx%d", &to_add.x, &to_add.y, &to_add.z);
+        if(c == 0) {
+            break;
+        }
+        if(c <= 2) {
+            to_add.z = 1;
+        }
+        if(c <= 1) {
+            to_add.y = 1;
+        }
+        ret->push_back(to_add);
+        i++;
+    }
+    return i;
 }
 
 /** Very simple arg parser; if multiple valid arguments for the same setting
@@ -71,26 +97,14 @@ args_t parse_args(int argc, char** argv) {
         if(benchmark_identifiers.count(arg) > 0) {
             ret.type = benchmark_identifiers[arg];
         } else if(arg == "--size" && i+1 < argc) {
-            sscanf(argv[i+1], "%d,%d,%d", &ret.size.x, &ret.size.y, &ret.size.z);
-            i += 1;
-        } else if(arg == "--runs" && i+1 < argc) {
+            i += scan_coord3(&(argv[i+1]), &ret.sizes);
+        } else if(arg == "--runs") {
             sscanf(argv[i+1], "%d", &ret.runs);
             i += 1;
+        } else if(arg == "--threads" && i+1 < argc) {
+            i += scan_coord3(&(argv[i+1]), &ret.numthreads);
         } else if(arg == "--blocks" && i+1 < argc) {
-            sscanf(argv[i+1], "%d,%d,%d", &ret.numblocks_min.x, &ret.numblocks_min.y, &ret.numblocks_min.z);
-            ret.numblocks_max.x = ret.numblocks_min.x;
-            ret.numblocks_max.y = ret.numblocks_min.y;
-            ret.numblocks_max.z = ret.numblocks_min.z;
-            i += 1;
-        } else if(arg == "--minblocks" && i+1 < argc) {
-            sscanf(argv[i+1], "%d,%d,%d", &ret.numblocks_min.x, &ret.numblocks_min.y, &ret.numblocks_min.z);
-            i += 1;
-        } else if(arg == "--maxblocks" && i+1 < argc) {
-            sscanf(argv[i+1], "%d,%d,%d", &ret.numblocks_max.x, &ret.numblocks_max.y, &ret.numblocks_max.z);
-            i += 1;
-        } else if(arg == "--stepblocks" && i+1 < argc) {
-            sscanf(argv[i+1], "%d,%d,%d", &ret.numblocks_step.x, &ret.numblocks_step.y, &ret.numblocks_step.z);
-            i += 1;
+            i += scan_coord3(&(argv[i+1]), &ret.numblocks);
         } else if(arg == "--print") {
             ret.print = true;
         } else if(arg == "--skip-errors") {
@@ -102,11 +116,27 @@ args_t parse_args(int argc, char** argv) {
             exit(1);
         }
     }
+    // Default numthreads/numblocks if none of both are given
+    if(ret.numthreads.empty() && ret.numblocks.empty()) {
+        ret.numthreads.push_back(coord3(0, 0, 0)); //auto calculate
+        ret.numblocks.push_back(coord3(32, 32, 32));
+    }
+    if(ret.numthreads.empty()) {
+        // setting to default 0, 0, 0, benchmark class will calculate correct value
+        // for data size itself
+        ret.numthreads.push_back(coord3(0, 0, 0));
+    }
+    if(ret.numblocks.empty()) {
+        ret.numblocks.push_back(coord3(0, 0, 0));
+    }
+    if(ret.sizes.empty()) {
+        ret.sizes.push_back(coord3(32, 32, 32));
+    }
     return ret;
 }
 
 /** Create the benchmark class for one of the available types. */
-Benchmark<double> *create_benchmark(benchmark_type_t type, coord3 size, coord3 numblocks, int runs, bool quiet) {
+Benchmark<double> *create_benchmark(benchmark_type_t type, coord3 size, coord3 numthreads, coord3 numblocks, int runs, bool quiet) {
     Benchmark<double> *ret = NULL;
     switch(type) {
         case hdiff_ref:
@@ -130,7 +160,11 @@ Benchmark<double> *create_benchmark(benchmark_type_t type, coord3 size, coord3 n
         case hdiff_cuda_unstr_idxvars:
         ret = new HdiffCudaUnstrBenchmark(size, HdiffCudaUnstr::UnstrIdxvars);
         break;
+        case hdiff_cuda_unstr_seq:
+        ret = new HdiffCudaUnstructuredSequentialBenchmark(size);
+        break;
     }
+    ret->_numthreads = dim3(numthreads.x, numthreads.y, numthreads.z);
     ret->_numblocks = dim3(numblocks.x, numblocks.y, numblocks.z);
     ret->runs = runs;
     ret->quiet = quiet;
@@ -154,32 +188,21 @@ benchmark_list_t *create_benchmarks(args_t args) {
     benchmark_list_t *ret = new benchmark_list_t();
     for(auto it=types.begin(); it != types.end(); ++it) {
         benchmark_type_t type = *it;
-        int added = 0;
-        for(int numblocks_x=args.numblocks_min.x; numblocks_x <= args.numblocks_max.x; numblocks_x += args.numblocks_step.x) {
-            for(int numblocks_y=args.numblocks_min.y; numblocks_y <= args.numblocks_max.y; numblocks_y += args.numblocks_step.y) {
-                for(int numblocks_z=args.numblocks_min.z; numblocks_z <= args.numblocks_max.z; numblocks_z += args.numblocks_step.z) {
-                    coord3 requested_blocksize(numblocks_x, numblocks_y, numblocks_z);
+        for(auto s_it = args.sizes.begin(); s_it != args.sizes.end(); ++s_it) {
+            for(auto t_it = args.numthreads.begin(); t_it != args.numthreads.end(); ++t_it) {
+                for(auto b_it = args.numblocks.begin(); b_it != args.numblocks.end(); ++b_it) {
+                    coord3 size = *s_it;
+                    coord3 numthreads = *t_it;
+                    coord3 numblocks = *b_it;
                     Benchmark<double> *bench = create_benchmark(type,
-                                                                args.size,
-                                                                requested_blocksize,
+                                                                size,
+                                                                numthreads,
+                                                                numblocks,
                                                                 args.runs,
                                                                 !args.print);
-                    // Only add the benchmark if it respected our requested block size, otherwise skip
-                    // (i.e. for reference which runs on CPU and only creates 1,1,1 blocksize, this avoids
-                    // creating many copies of an identical benchmark)
-                    if(bench->numblocks() != requested_blocksize) {
-                        continue;
-                    }
                     ret->push_back(bench);
-                    added++;
                 }
             }
-        }
-        if(added == 0) {
-            // add at least one benchmark of the given type
-            // it might happen that we have not added any if the blocksizes were never respected
-            Benchmark<double> *bench = create_benchmark(type, args.size, coord3(1, 1, 1), args.runs, !args.print);
-            ret->push_back(bench);
         }
     }
 

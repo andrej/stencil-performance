@@ -53,7 +53,8 @@ class Benchmark {
 	Grid<value_t, coord3> *output;
 
 	coord3 size;
-	dim3 _numblocks;
+    dim3 _numblocks;
+    dim3 _numthreads;
 	std::string name;
 	bool error = false;
     benchmark_result_t results;
@@ -88,7 +89,6 @@ class Benchmark {
 	virtual dim3 numthreads();
 	virtual dim3 numblocks();
 
-	
 };
 
 // IMPLEMENTATIONS
@@ -98,7 +98,6 @@ Benchmark<value_t>::Benchmark() {}
 
 template<typename value_t>
 Benchmark<value_t>::Benchmark(coord3 size) : size(size) {}
-
 
 template<typename value_t>
 void Benchmark<value_t>::post() {
@@ -115,11 +114,25 @@ void Benchmark<value_t>::post() {
 
 template<typename value_t>
 dim3 Benchmark<value_t>::numblocks() {
-    return this->_numblocks;
+    if(this->_numblocks.x != 0 &&
+        this->_numblocks.y != 0 &&
+        this->_numblocks.z != 0) {
+        return this->_numblocks;
+    }
+    dim3 numthreads = this->numthreads();
+    int x = (this->size.x + numthreads.x - 1) / numthreads.x;
+    int y = (this->size.y + numthreads.y - 1) / numthreads.y;
+    int z = (this->size.z + numthreads.z - 1) / numthreads.z;
+    return dim3( (unsigned int) x, (unsigned int) y, (unsigned int) z );
 }
 
 template<typename value_t>
 dim3 Benchmark<value_t>::numthreads() {
+    if(this->_numthreads.x != 0 &&
+        this->_numthreads.y != 0 &&
+        this->_numthreads.z != 0) {
+        return this->_numthreads;
+    }
     int x = (this->size.x + this->_numblocks.x - 1) / this->_numblocks.x;
     int y = (this->size.y + this->_numblocks.y - 1) / this->_numblocks.y;
     int z = (this->size.z + this->_numblocks.z - 1) / this->_numblocks.z;

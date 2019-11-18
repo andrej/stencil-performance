@@ -19,79 +19,72 @@ namespace HdiffCudaSequential {
     // Laplace Kernel
     __global__
     void kernel_lap(Info info, CudaRegularGrid3DInfo<double> in, CudaRegularGrid3DInfo<double> lap) {
-        int i = blockIdx.x * blockDim.x + threadIdx.x + info.halo.x - 1; // ref implementation starts at i = -1
-        int j = blockIdx.y * blockDim.y + threadIdx.y + info.halo.y - 1;
-        int k = blockIdx.z * blockDim.z + threadIdx.z + info.halo.z;
-        // We have N threads per block and M blocks, so N*M threads total
-        // Let our data set be of size L
-        // Therefore, each thread needs to handle L/(N*M) data points to cover the entire data set
-        // We do this in a "grid-stride loop": If the grid is large enough, each thread simply
-        // calculates one data point at its thread idx (+ "base" starting offset of current block).
-        // If the data set is larger, each thread addresses data points with a stride of the entire grid.
-        // Rather than assume that the thread grid is large enough to cover the entire data array, this 
-        // kernel loops over the data array one grid-size at a time.
-        // https://devblogs.nvidia.com/cuda-pro-tip-write-flexible-kernels-grid-stride-loops/
-        int data_size = (info.inner_size.x + 1) * (info.inner_size.y + 1) * info.inner_size.z; // size of data set in # total data points
-        // the plus ones are because the reference implementation runs to isize + 1 ..
-        int grid_size = (gridDim.x*blockDim.x) * (gridDim.y*blockDim.y) * (gridDim.z*blockDim.z); // size of grid in # total threads (like this one)
-        for(int l = 0; l < data_size; l += grid_size) {
-            // FIXME l unused (breaks things for too large data sets)
-            CUDA_REGULAR(lap, coord3(i, j, k)) = 
-                4 * CUDA_REGULAR(in, coord3(i, j, k)) 
-                - (CUDA_REGULAR(in, coord3(i-1, j, k)) 
-                    + CUDA_REGULAR(in, coord3(i + 1, j, k)) 
-                    + CUDA_REGULAR(in, coord3(i, j - 1, k)) 
-                    + CUDA_REGULAR(in, coord3(i, j + 1, k)));
+        const int i = blockIdx.x * blockDim.x + threadIdx.x + info.halo.x - 1; // ref implementation starts at i = -1
+        const int j = blockIdx.y * blockDim.y + threadIdx.y + info.halo.y - 1;
+        const int k = blockIdx.z * blockDim.z + threadIdx.z + info.halo.z;
+        if(i > info.inner_size.x+info.halo.x-1 ||
+           j > info.inner_size.y+info.halo.y-1 ||
+           k > info.inner_size.z+info.halo.z) {
+            return;
         }
+        CUDA_REGULAR(lap, coord3(i, j, k)) = 
+            4 * CUDA_REGULAR(in, coord3(i, j, k)) 
+            - (CUDA_REGULAR(in, coord3(i - 1, j, k)) 
+                + CUDA_REGULAR(in, coord3(i + 1, j, k)) 
+                + CUDA_REGULAR(in, coord3(i, j - 1, k)) 
+                + CUDA_REGULAR(in, coord3(i, j + 1, k)));
     }
 
     // Flx Kernel
     __global__
     void kernel_flx(Info info, CudaRegularGrid3DInfo<double> in, CudaRegularGrid3DInfo<double> lap, CudaRegularGrid3DInfo<double> flx) {
-        int i = blockIdx.x * blockDim.x + threadIdx.x + info.halo.x - 1;
-        int j = blockIdx.y * blockDim.y + threadIdx.y + info.halo.y;
-        int k = blockIdx.z * blockDim.z + threadIdx.z + info.halo.z;
-        int data_size = info.inner_size.x * info.inner_size.y * info.inner_size.z; 
-        int grid_size = (gridDim.x*blockDim.x) * (gridDim.y*blockDim.y) * (gridDim.z*blockDim.z); // size of grid in # total threads (like this one)
-        for (int l = 0; l < data_size; l += grid_size) {
-            CUDA_REGULAR(flx, coord3(i, j, k)) = CUDA_REGULAR(lap, coord3(i+1, j, k)) - CUDA_REGULAR(lap, coord3(i, j, k));
-            if (CUDA_REGULAR(flx, coord3(i, j, k)) * (CUDA_REGULAR(in, coord3(i+1, j, k)) - CUDA_REGULAR(in, coord3(i, j, k))) > 0) {
-                CUDA_REGULAR(flx, coord3(i, j, k)) = 0.;
-            }
+        const int i = blockIdx.x * blockDim.x + threadIdx.x + info.halo.x - 1;
+        const int j = blockIdx.y * blockDim.y + threadIdx.y + info.halo.y;
+        const int k = blockIdx.z * blockDim.z + threadIdx.z + info.halo.z;
+        if(i > info.inner_size.x+info.halo.x-1 ||
+            j > info.inner_size.y+info.halo.y ||
+            k > info.inner_size.z+info.halo.z) {
+             return;
+         }
+        CUDA_REGULAR(flx, coord3(i, j, k)) = CUDA_REGULAR(lap, coord3(i+1, j, k)) - CUDA_REGULAR(lap, coord3(i, j, k));
+        if (CUDA_REGULAR(flx, coord3(i, j, k)) * (CUDA_REGULAR(in, coord3(i+1, j, k)) - CUDA_REGULAR(in, coord3(i, j, k))) > 0) {
+            CUDA_REGULAR(flx, coord3(i, j, k)) = 0.;
         }
     }
 
     // Fly Kernel
     __global__
     void kernel_fly(Info info, CudaRegularGrid3DInfo<double> in, CudaRegularGrid3DInfo<double> lap, CudaRegularGrid3DInfo<double> fly) {
-        int i = blockIdx.x * blockDim.x + threadIdx.x + info.halo.x;
-        int j = blockIdx.y * blockDim.y + threadIdx.y + info.halo.y - 1;
-        int k = blockIdx.z * blockDim.z + threadIdx.z + info.halo.z;
-        int data_size = info.inner_size.x * info.inner_size.y * info.inner_size.z; 
-        int grid_size = (gridDim.x*blockDim.x) * (gridDim.y*blockDim.y) * (gridDim.z*blockDim.z);
-        for (int l = 0; l < data_size; l += grid_size) {
-            CUDA_REGULAR(fly, coord3(i, j, k)) = CUDA_REGULAR(lap, coord3(i, j+1, k)) - CUDA_REGULAR(lap, coord3(i, j, k));
-            if (CUDA_REGULAR(fly, coord3(i, j, k)) * (CUDA_REGULAR(in, coord3(i, j+1, k)) - CUDA_REGULAR(in, coord3(i, j, k))) > 0) {
-                CUDA_REGULAR(fly, coord3(i, j, k)) = 0.;
-            }
+        const int i = blockIdx.x * blockDim.x + threadIdx.x + info.halo.x;
+        const int j = blockIdx.y * blockDim.y + threadIdx.y + info.halo.y - 1;
+        const int k = blockIdx.z * blockDim.z + threadIdx.z + info.halo.z;
+        if(i > info.inner_size.x+info.halo.x ||
+            j > info.inner_size.y+info.halo.y-1 ||
+            k > info.inner_size.z+info.halo.z) {
+             return;
+         }
+        CUDA_REGULAR(fly, coord3(i, j, k)) = CUDA_REGULAR(lap, coord3(i, j+1, k)) - CUDA_REGULAR(lap, coord3(i, j, k));
+        if (CUDA_REGULAR(fly, coord3(i, j, k)) * (CUDA_REGULAR(in, coord3(i, j+1, k)) - CUDA_REGULAR(in, coord3(i, j, k))) > 0) {
+            CUDA_REGULAR(fly, coord3(i, j, k)) = 0.;
         }
     }
 
     // Output kernel
     __global__
     void kernel_out(Info info, CudaRegularGrid3DInfo<double> in, CudaRegularGrid3DInfo<double> coeff, CudaRegularGrid3DInfo<double> flx, CudaRegularGrid3DInfo<double> fly, CudaRegularGrid3DInfo<double> out) {
-        int i = blockIdx.x * blockDim.x + threadIdx.x + info.halo.x;
-        int j = blockIdx.y * blockDim.y + threadIdx.y + info.halo.y;
-        int k = blockIdx.z * blockDim.z + threadIdx.z + info.halo.z;
-        int data_size = info.inner_size.x * info.inner_size.y * info.inner_size.z; 
-        int grid_size = (gridDim.x*blockDim.x) * (gridDim.y*blockDim.y) * (gridDim.z*blockDim.z);
-        for (int l = 0; l < data_size; l += grid_size) {
-            CUDA_REGULAR(out, coord3(i, j, k)) =
-                CUDA_REGULAR(in, coord3(i, j, k)) -
-                CUDA_REGULAR(coeff, coord3(i, j, k)) * (CUDA_REGULAR(flx, coord3(i, j, k)) - CUDA_REGULAR(flx, coord3(i - 1, j, k)) +
-                                                CUDA_REGULAR(fly, coord3(i, j, k)) - CUDA_REGULAR(fly, coord3(i, j - 1, k)));
+        const int i = blockIdx.x * blockDim.x + threadIdx.x + info.halo.x;
+        const int j = blockIdx.y * blockDim.y + threadIdx.y + info.halo.y;
+        const int k = blockIdx.z * blockDim.z + threadIdx.z + info.halo.z;
+        if(i > info.inner_size.x+info.halo.x ||
+            j > info.inner_size.y+info.halo.y ||
+            k > info.inner_size.z+info.halo.z) {
+             return;
+         }
+        CUDA_REGULAR(out, coord3(i, j, k)) =
+            CUDA_REGULAR(in, coord3(i, j, k)) -
+            CUDA_REGULAR(coeff, coord3(i, j, k)) * (CUDA_REGULAR(flx, coord3(i, j, k)) - CUDA_REGULAR(flx, coord3(i - 1, j, k)) +
+                                            CUDA_REGULAR(fly, coord3(i, j, k)) - CUDA_REGULAR(fly, coord3(i, j - 1, k)));
 
-        }
     }
 
 };
@@ -143,10 +136,10 @@ void HdiffCudaSequentialBenchmark::run() {
                 this->get_info(),
                 (dynamic_cast<CudaRegularGrid3D<double> *>(this->input))->get_gridinfo(),
                 (dynamic_cast<CudaRegularGrid3D<double> *>(this->lap))->get_gridinfo());
-    if (cudaDeviceSynchronize() != cudaSuccess) {
+    /*if (cudaDeviceSynchronize() != cudaSuccess) {
         // need to synchronize because Flx kernel requires Lap
         assert(false);
-    }
+    }*/
     dim3 nblocks_flx = this->gridsize(_nthreads, coord3(-1, 0, 0), coord3(1, 1, 1), this->inner_size);
     CALL_KERNEL(HdiffCudaSequential::kernel_flx, \
                 nblocks_flx, nthreads, \
@@ -154,9 +147,9 @@ void HdiffCudaSequentialBenchmark::run() {
                 (dynamic_cast<CudaRegularGrid3D<double> *>(this->input))->get_gridinfo(),
                 (dynamic_cast<CudaRegularGrid3D<double> *>(this->lap))->get_gridinfo(),
                 (dynamic_cast<CudaRegularGrid3D<double> *>(this->flx))->get_gridinfo());
-    if (cudaDeviceSynchronize() != cudaSuccess) {
+    /*if (cudaDeviceSynchronize() != cudaSuccess) {
         assert(false);
-    }
+    }*/
     // Fly does not depend on Flx, so no need to synchronize here.
     dim3 nblocks_fly = this->gridsize(_nthreads, coord3(0, -1, 0), coord3(1, 1, 1), this->inner_size);
     CALL_KERNEL(HdiffCudaSequential::kernel_fly, \
@@ -165,9 +158,9 @@ void HdiffCudaSequentialBenchmark::run() {
                 (dynamic_cast<CudaRegularGrid3D<double> *>(this->input))->get_gridinfo(),
                 (dynamic_cast<CudaRegularGrid3D<double> *>(this->lap))->get_gridinfo(),
                 (dynamic_cast<CudaRegularGrid3D<double> *>(this->fly))->get_gridinfo());
-    if (cudaDeviceSynchronize() != cudaSuccess) {
+    /*if (cudaDeviceSynchronize() != cudaSuccess) {
         assert(false);
-    }
+    }*/
     dim3 nblocks_out = this->gridsize(_nthreads, coord3(0, 0, 0), coord3(1, 1, 1), this->inner_size);
     CALL_KERNEL(HdiffCudaSequential::kernel_out, \
                 nblocks_out, nthreads, \
