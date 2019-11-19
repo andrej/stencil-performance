@@ -102,18 +102,18 @@ def plot_scatter_blocksize(data, ax, f_x=lambda v:v[3]*v[4]*v[5], f_y=lambda v:v
 """
 Given a data dictionary, return limits based on min/max values.
 """
-def get_limits(data, n=10, col=9):
-    min = None
-    max = None
+def get_limits(data, n=10, col=9, outliers_min=0, outliers_max=0):
+    vals = set()
     for b in data:
         bench = data[b]
-        bench_min = np.min(bench[:,col])
-        bench_max = np.max(bench[:,col])
-        if min == None or bench_min < min:
-            min = bench_min
-        if max == None or bench_max > max:
-            max = bench_max
-    return min, max
+        vals.update( bench[:,col] )
+    vals = list(vals)
+    vals.sort()
+    for i in range(0, outliers_min):
+        del vals[0]
+    for i in range(0, outliers_max):
+        del vals[-1]
+    return vals[0], vals[-1]
 
 """
 Return X ticks for the given data, one tick for each data point.
@@ -138,6 +138,9 @@ def main():
     parser.add_argument("-l", "--left", nargs="*", type=str, default=None)
     parser.add_argument("-r", "--right", nargs="*", type=str, default=None)
     parser.add_argument("-s", "--strip", nargs="?", type=str, default=None)
+    parser.add_argument("--logscale", action="store_true", default=False)
+    parser.add_argument("--outliers-max", type=int, default=0) # disregard N outliers in axis scale computation
+    parser.add_argument("--outliers-min", type=int, default=0)
     args = parser.parse_args()
     out = args.output
     if out == None:
@@ -162,7 +165,9 @@ def main():
                 data_right[incl] = data[incl]
 
     # same scale for left and right graph
-    ymin, ymax = get_limits({**data_left, **data_right})
+    ymin, ymax = get_limits({**data_left, **data_right},
+            outliers_min=args.outliers_min,
+            outliers_max=args.outliers_max)
     xticks = get_xticks({**data_left, **data_right})
 
     numcols = 2
@@ -182,6 +187,8 @@ def main():
         ax.grid(axis="y")
         ax.set_ylim(ymin=ymin, ymax=ymax)
         ax.set_xticks(xticks)
+        if args.logscale:
+            ax.set_yscale("log")
         plot_avgminmax(d, ax, v_col=9)
 
         ax = plt.subplot(2, numcols, numcols+col+1)
@@ -189,6 +196,8 @@ def main():
         ax.grid()
         ax.set_ylim(ymin=ymin, ymax=ymax)
         ax.set_xticks(xticks)
+        if args.logscale:
+            ax.set_yscale("log")
         plot_scatter_blocksize(d, ax)
         ax.set_xlabel("Total number of threads (X*Y*Z)")
         ax.set_ylabel("Execution time [s]")
