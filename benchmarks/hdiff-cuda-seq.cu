@@ -13,7 +13,7 @@ namespace HdiffCudaSequential {
     /** Information about this benchmark for use in the kernels. */
     struct Info {
         coord3 halo;
-        coord3 inner_size;
+        coord3 max_coord;
     };
 
     // Laplace Kernel
@@ -22,9 +22,9 @@ namespace HdiffCudaSequential {
         const int i = blockIdx.x * blockDim.x + threadIdx.x + info.halo.x - 1; // ref implementation starts at i = -1
         const int j = blockIdx.y * blockDim.y + threadIdx.y + info.halo.y - 1;
         const int k = blockIdx.z * blockDim.z + threadIdx.z + info.halo.z;
-        if(i > info.inner_size.x+info.halo.x-1 ||
-           j > info.inner_size.y+info.halo.y-1 ||
-           k > info.inner_size.z+info.halo.z) {
+        if(i > info.max_coord.x-1 ||
+           j > info.max_coord.y-1 ||
+           k > info.max_coord.z) {
             return;
         }
         CUDA_REGULAR(lap, coord3(i, j, k)) = 
@@ -41,9 +41,9 @@ namespace HdiffCudaSequential {
         const int i = blockIdx.x * blockDim.x + threadIdx.x + info.halo.x - 1;
         const int j = blockIdx.y * blockDim.y + threadIdx.y + info.halo.y;
         const int k = blockIdx.z * blockDim.z + threadIdx.z + info.halo.z;
-        if(i > info.inner_size.x+info.halo.x-1 ||
-            j > info.inner_size.y+info.halo.y ||
-            k > info.inner_size.z+info.halo.z) {
+        if(i > info.max_coord.x-1 ||
+            j > info.max_coord.y ||
+            k > info.max_coord.z) {
              return;
          }
         CUDA_REGULAR(flx, coord3(i, j, k)) = CUDA_REGULAR(lap, coord3(i+1, j, k)) - CUDA_REGULAR(lap, coord3(i, j, k));
@@ -58,9 +58,9 @@ namespace HdiffCudaSequential {
         const int i = blockIdx.x * blockDim.x + threadIdx.x + info.halo.x;
         const int j = blockIdx.y * blockDim.y + threadIdx.y + info.halo.y - 1;
         const int k = blockIdx.z * blockDim.z + threadIdx.z + info.halo.z;
-        if(i > info.inner_size.x+info.halo.x ||
-            j > info.inner_size.y+info.halo.y-1 ||
-            k > info.inner_size.z+info.halo.z) {
+        if(i > info.max_coord.x ||
+            j > info.max_coord.y-1 ||
+            k > info.max_coord.z) {
              return;
          }
         CUDA_REGULAR(fly, coord3(i, j, k)) = CUDA_REGULAR(lap, coord3(i, j+1, k)) - CUDA_REGULAR(lap, coord3(i, j, k));
@@ -75,9 +75,9 @@ namespace HdiffCudaSequential {
         const int i = blockIdx.x * blockDim.x + threadIdx.x + info.halo.x;
         const int j = blockIdx.y * blockDim.y + threadIdx.y + info.halo.y;
         const int k = blockIdx.z * blockDim.z + threadIdx.z + info.halo.z;
-        if(i > info.inner_size.x+info.halo.x ||
-            j > info.inner_size.y+info.halo.y ||
-            k > info.inner_size.z+info.halo.z) {
+        if(i > info.max_coord.x ||
+            j > info.max_coord.y ||
+            k > info.max_coord.z) {
              return;
          }
         CUDA_REGULAR(out, coord3(i, j, k)) =
@@ -125,7 +125,7 @@ void HdiffCudaSequentialBenchmark::run() {
     knl_func<<<nblocks, nthreads>>>(__VA_ARGS__); \
     if (cudaGetLastError() != cudaSuccess) { \
         std::ostringstream msg; \
-        msg << "Unable to run kernel '" #knl_func "' with (" << nblocks.x << ", " << nblocks.y << ", " << nblocks.z << ") blocks and (" << nthreads.x << ", " << nthreads.y << ", " << nthreads.z << ") threads."; \
+        msg << "Error trying to run kernel '" #knl_func "' with (" << nblocks.x << ", " << nblocks.y << ", " << nblocks.z << ") blocks and (" << nthreads.x << ", " << nthreads.y << ", " << nthreads.z << ") threads."; \
         throw std::runtime_error(msg.str()); \
     }
     dim3 nthreads = this->numthreads();
@@ -213,7 +213,7 @@ void HdiffCudaSequentialBenchmark::teardown() {
 
 HdiffCudaSequential::Info HdiffCudaSequentialBenchmark::get_info() {
     return { .halo = this->halo,
-             .inner_size = this->input->dimensions-2*this->halo};
+             .max_coord = this->input->dimensions - this->halo};
 }
 
 void HdiffCudaSequentialBenchmark::post() {

@@ -12,12 +12,18 @@ namespace HdiffBase {
     /** Information about this benchmark for use in the kernels. */
     struct Info {
         coord3 halo;
+        /** Maximum coordinates, i.e. inner_size.x+halo.x, etc. */
+        coord3 max_coord;
+
+        #ifndef HDIFF_NO_GRIDSTRIDE
+        /** Size without the halo. */
         coord3 inner_size;
         /** Size of the entire grid in each dimension, i.e. number of blocks
             * times number of threads. If the thread-grid is smaller than the
             * data-grid, each kernel execution needs to handle multiple cells to
             * cover the entire data set! */
         coord3 gridsize;
+        #endif
     };
 }
 
@@ -112,8 +118,12 @@ HdiffBase::Info HdiffBaseBenchmark::get_info() {
     dim3 numthreads = this->numthreads();
     dim3 numblocks = this->numblocks();
     return { .halo = this->halo,
-             .inner_size = inner_size,
-             .gridsize = coord3(numblocks.x*numthreads.x, numblocks.y*numthreads.y, numblocks.z*numthreads.z) };
+             .max_coord = inner_size + this->halo
+             #ifndef HDIFF_NO_GRIDSTRIDE
+             , .inner_size = inner_size
+             , .gridsize = coord3(numblocks.x*numthreads.x, numblocks.y*numthreads.y, numblocks.z*numthreads.z) 
+             #endif
+            };
 }
 
 void HdiffBaseBenchmark::calc_ref() {

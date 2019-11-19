@@ -84,7 +84,7 @@ def plot_avgminmax(data, ax, v_col=6, bar_size=1, group_spacing=2, bar_spacing=0
 """
 Scatter plot of block sizes (products) to execution time.
 """
-def plot_scatter_blocksize(data, ax, f_x=lambda v:v[0]*v[1]*v[2], f_y=lambda v:v[9]):
+def plot_scatter_blocksize(data, ax, f_x=lambda v:v[3]*v[4]*v[5], f_y=lambda v:v[9]):
     # first, create 2D array of product of blocks -> execution time
     # this allows for sorting by number of blocks later
     # array needs to be sorted so that connecting lines look right
@@ -99,7 +99,21 @@ def plot_scatter_blocksize(data, ax, f_x=lambda v:v[0]*v[1]*v[2], f_y=lambda v:v
         ax.plot(blocks_times[:,0], blocks_times[:,1], linestyle=":", marker="o", label=bench)
     ax.legend()
 
-
+"""
+Given a data dictionary, return limits based on min/max values.
+"""
+def get_limits(data, n=10, col=9):
+    min = None
+    max = None
+    for b in data:
+        bench = data[bench]
+        bench_min = np.min(bench[:,col])
+        bench_max = np.max(bench[:,col])
+        if min == None or bench_min < min:
+            min = bench_min
+        if max == None or bench_max > max:
+            max = bench_max
+    return min, max
 
 def main():
     parser = argparse.ArgumentParser()
@@ -107,6 +121,8 @@ def main():
                         default=sys.stdin)
     parser.add_argument("-o", "--output", type=str, default=None)
     parser.add_argument("-x", "--exclude", nargs="*", type=str, default=None)
+    parser.add_argument("-l", "--left", nargs="*", type=str, default=None)
+    parser.add_argument("-r", "--right", nargs="*", type=str, default=None)
     parser.add_argument("-s", "--strip", nargs="?", type=str, default=None)
     args = parser.parse_args()
     out = args.output
@@ -120,35 +136,47 @@ def main():
             if excl in data:
                 del data[excl]
 
+    data_left = {}
+    data_right = {}
+    if args.left:
+        for incl in args.left:
+            if incl in data:
+                data_left[incl] = data[incl]
+    if args.right:
+        for incl in args.right:
+            if incl in data:
+                data_right[incl] = data[incl]
+
+    # same scale for left and right graph
+    ymin, ymax = get_ylim({**data_left, **data_right})
+
+    numcols = 2
+    if not data_left and not data_right:
+        data_left = data
+        numcols = 1
+
     f = plt.gcf()
     plt.subplots_adjust(hspace=0.4)
     f.set_size_inches(11.69, 8.27)
 
-    ax = plt.subplot(321)
-    ax.set_title("Total execution times (all block sizes)")
-    ax.grid(axis="y")
-    plot_avgminmax(data, ax)
+    for col in range(0, numcols):
+        d = data_left if col == 0 else data_right
 
-    ax = plt.subplot(322)
-    ax.set_title("Kernel-only execution time (all block sizes)")
-    ax.grid(axis="y")
-    plot_avgminmax(data, ax, v_col=9)
+        ax = plt.subplot(2, numcols, col+1)
+        ax.set_title("Kernel-only execution time (all block sizes)")
+        ax.grid(axis="y")
+        ax.set_ylim(ymin=ymin, ymax=ymax)
+        plot_avgminmax(d, ax, v_col=9)
 
-    ax = plt.subplot(323)
-    ax.set_title("Average total execution time")
-    ax.grid()
-    plot_scatter_blocksize(data, ax, f_y=lambda v:v[6])
-    ax.set_xlabel("Total number of blocks (X*Y*Z)")
-    ax.set_ylabel("Execution time [s]")
-
-    ax = plt.subplot(324)
-    ax.set_title("Average kernel execution time")
-    ax.grid()
-    plot_scatter_blocksize(data, ax)
-    ax.set_xlabel("Total number of blocks (X*Y*Z)")
-    ax.set_ylabel("Execution time [s]")
+        ax = plt.subplot(2, numcols, 2*numcols+col+1)
+        ax.set_title("Average kernel execution time")
+        ax.grid()
+        ax.set_ylim(ymin=ymin, ymax=ymax)
+        plot_scatter_blocksize(d, ax)
+        ax.set_xlabel("Total number of threads (X*Y*Z)")
+        ax.set_ylabel("Execution time [s]")
 
     plt.savefig(out)
 
 if(__name__ == "__main__"):
-	main();
+	main()

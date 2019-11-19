@@ -13,7 +13,7 @@ namespace HdiffCudaUnstructuredSequential {
     /** Information about this benchmark for use in the kernels. */
     struct Info {
         coord3 halo;
-        coord3 inner_size;
+        coord3 max_coord;
     };
 
     // Laplace Kernel
@@ -22,9 +22,9 @@ namespace HdiffCudaUnstructuredSequential {
         const int i = blockIdx.x * blockDim.x + threadIdx.x + info.halo.x - 1;
         const int j = blockIdx.y * blockDim.y + threadIdx.y + info.halo.y - 1;
         const int k = blockIdx.z * blockDim.z + threadIdx.z + info.halo.z;
-        if(i > info.inner_size.x+info.halo.x-1 ||
-           j > info.inner_size.y+info.halo.y-1 ||
-           k > info.inner_size.z+info.halo.z) {
+        if(i > info.max_coord.x-1 ||
+           j > info.max_coord.y-1 ||
+           k > info.max_coord.z) {
             return;
         }
         CUDA_UNSTR(lap, coord3(i, j, k)) = 
@@ -41,9 +41,9 @@ namespace HdiffCudaUnstructuredSequential {
         const int i = blockIdx.x * blockDim.x + threadIdx.x + info.halo.x - 1;
         const int j = blockIdx.y * blockDim.y + threadIdx.y + info.halo.y;
         const int k = blockIdx.z * blockDim.z + threadIdx.z + info.halo.z;
-        if(i > info.inner_size.x+info.halo.x-1 ||
-            j > info.inner_size.y+info.halo.y ||
-            k > info.inner_size.z+info.halo.z) {
+        if(i > info.max_coord.x-1 ||
+            j > info.max_coord.y ||
+            k > info.max_coord.z) {
              return;
         }
         CUDA_UNSTR(flx, coord3(i, j, k)) = CUDA_UNSTR_NEIGH(lap, coord3(i, j, k), +1, 0, 0) - CUDA_UNSTR(lap, coord3(i, j, k));
@@ -58,9 +58,9 @@ namespace HdiffCudaUnstructuredSequential {
         const int i = blockIdx.x * blockDim.x + threadIdx.x + info.halo.x;
         const int j = blockIdx.y * blockDim.y + threadIdx.y + info.halo.y - 1;
         const int k = blockIdx.z * blockDim.z + threadIdx.z + info.halo.z;
-        if(i > info.inner_size.x+info.halo.x ||
-            j > info.inner_size.y+info.halo.y-1 ||
-            k > info.inner_size.z+info.halo.z) {
+        if(i > info.max_coord.x ||
+            j > info.max_coord.y-1 ||
+            k > info.max_coord.z) {
              return;
         }
         CUDA_UNSTR(fly, coord3(i, j, k)) = CUDA_UNSTR_NEIGH(lap, coord3(i, j, k), 0, +1, 0) - CUDA_UNSTR(lap, coord3(i, j, k));
@@ -75,9 +75,9 @@ namespace HdiffCudaUnstructuredSequential {
         const int i = blockIdx.x * blockDim.x + threadIdx.x + info.halo.x;
         const int j = blockIdx.y * blockDim.y + threadIdx.y + info.halo.y;
         const int k = blockIdx.z * blockDim.z + threadIdx.z + info.halo.z;
-        if(i > info.inner_size.x+info.halo.x ||
-           j > info.inner_size.y+info.halo.y ||
-           k > info.inner_size.z+info.halo.z) {
+        if(i > info.max_coord.x ||
+           j > info.max_coord.y ||
+           k > info.max_coord.z) {
             return;
         }
         CUDA_UNSTR(out, coord3(i, j, k)) =
@@ -203,7 +203,7 @@ void HdiffCudaUnstructuredSequentialBenchmark::teardown() {
 
 HdiffCudaUnstructuredSequential::Info HdiffCudaUnstructuredSequentialBenchmark::get_info() {
     return { .halo = this->halo,
-             .inner_size = this->input->dimensions-2*this->halo};
+             .max_coord = this->input->dimensions-this->halo};
 }
 
 void HdiffCudaUnstructuredSequentialBenchmark::post() {

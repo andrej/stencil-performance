@@ -14,7 +14,7 @@ namespace HdiffCudaUnstr {
     /** Information about this benchmark for use in the kernels. */
     struct Info {
         coord3 halo;
-        coord3 inner_size;
+        coord3 max_coord;
     };
 
     /** Naive implementation of a unstructured grid horizontal diffusion
@@ -34,7 +34,7 @@ namespace HdiffCudaUnstr {
         const int i = threadIdx.x + blockIdx.x*blockDim.x + info.halo.x;
         const int j = threadIdx.y + blockIdx.y*blockDim.y + info.halo.y;
         const int k = threadIdx.z + blockIdx.z*blockDim.z + info.halo.z;
-        if(i-info.halo.x >= info.inner_size.x || j-info.halo.y >= info.inner_size.y || k-info.halo.z >= info.inner_size.z) {
+        if(i >= info.max_coord.x || j >= info.max_coord.y || info.halo.z >= info.max_coord.z) {
             return;
         }
         coord3 coord(i, j, k);
@@ -123,11 +123,11 @@ namespace HdiffCudaUnstr {
                              ) {
         const int i = threadIdx.x + blockIdx.x*blockDim.x + info.halo.x;
         const int j = threadIdx.y + blockIdx.y*blockDim.y + info.halo.y;
-        if(i-info.halo.x >= info.inner_size.x || j-info.halo.y >= info.inner_size.y) {
+        if(i >= info.max_coord.x || j >= info.max_coord.y) {
             return;
         }
         
-        for(int k = info.halo.z; k < info.inner_size.z+info.halo.z; k++) {
+        for(int k = info.halo.z; k < info.max_coord.z; k++) {
             coord3 coord(i, j, k);
 
             int n_0_0_0       = CUDA_UNSTR_INDEX(in, coord);
@@ -217,7 +217,7 @@ namespace HdiffCudaUnstr {
                         ) {
         const int i = threadIdx.x + blockIdx.x*blockDim.x + info.halo.x;
         const int j = threadIdx.y + blockIdx.y*blockDim.y + info.halo.y;
-        if(i-info.halo.x >= info.inner_size.x || j-info.halo.y >= info.inner_size.y) {
+        if(i >= info.max_coord.x || j >= info.max_coord.y) {
             return;
         }
 
@@ -244,7 +244,7 @@ namespace HdiffCudaUnstr {
         int n_n1_p1_0     = CUDA_UNSTR_NEIGHBOR_AT(in, n_n1_0_0,  0, +1, 0);
         int n_p1_n1_0     = CUDA_UNSTR_NEIGHBOR_AT(in, n_p1_0_0,  0, -1, 0);
 
-        for (int k = info.halo.z; k < info.inner_size.z + info.halo.z; k++) {
+        for (int k = info.halo.z; k < info.max_coord.z; k++) {
             const coord3 coord(i, j, k);
 
             double lap_ij = 
@@ -290,12 +290,6 @@ namespace HdiffCudaUnstr {
             CUDA_UNSTR(dbg_lap, coord) = lap_ij;
             CUDA_UNSTR_NEIGH(dbg_lap, coord, -1, 0, 0) = lap_imj;
             CUDA_UNSTR_NEIGH(dbg_lap, coord, 0, -1, 0) = lap_ijm;
-            #endif
-            // for debugging purposes:
-            #ifdef HDIFF_DEBUG
-            CUDA_UNSTR(dbg_lap, coord) = lap_ij;
-            CUDA_UNSTR_NEIGH(dbg_lap, coord, -1, 0, 0) = lap_imj;
-            CUDA_UNSTR_NEIGH(dbg_lap, coord, 0, -1, 0) = lap_ijm;
             CUDA_UNSTR_NEIGH(dbg_lap, coord, +1, 0, 0) = lap_ipj;
             CUDA_UNSTR_NEIGH(dbg_lap, coord, 0, +1, 0) = lap_ijp;
             CUDA_UNSTR(dbg_flx, coord) = flx_ij;
@@ -304,6 +298,8 @@ namespace HdiffCudaUnstr {
             CUDA_UNSTR_NEIGH(dbg_fly, coord, 0, -1, 0) = fly_ijm;
             #endif
 
+            // Make use of regularity in Z-direciton: neighbors are exactly the
+            // same, just one Z-stride apart.
             n_0_0_0       += in.strides.z;
             n_0_n1_0      += in.strides.z;
             n_0_n2_0      += in.strides.z;
@@ -434,7 +430,7 @@ void HdiffCudaUnstrBenchmark::post() {
 
 HdiffCudaUnstr::Info HdiffCudaUnstrBenchmark::get_info() {
     return { .halo = this->halo,
-             .inner_size = this->input->dimensions-2*this->halo};
+             .max_coord = this->input->dimensions - this->halo};
 }
 
 #endif

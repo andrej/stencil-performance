@@ -27,7 +27,7 @@ namespace HdiffCudaRegular {
         const int i = threadIdx.x + blockIdx.x*blockDim.x + info.halo.x;
         const int j = threadIdx.y + blockIdx.y*blockDim.y + info.halo.y;
         const int k = threadIdx.z + blockIdx.z*blockDim.z + info.halo.z;
-        if(i-info.halo.x >= info.inner_size.x || j-info.halo.y >= info.inner_size.y || k-info.halo.z > info.inner_size.z) {
+        if(i >= info.max_coord.x || j >= info.max_coord.y || k >= info.max_coord.z) {
             return;
         }
         #endif

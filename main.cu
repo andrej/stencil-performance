@@ -189,10 +189,11 @@ benchmark_list_t *create_benchmarks(args_t args) {
     for(auto it=types.begin(); it != types.end(); ++it) {
         benchmark_type_t type = *it;
         for(auto s_it = args.sizes.begin(); s_it != args.sizes.end(); ++s_it) {
+            coord3 size = *s_it;
+            int added = 0;
             for(auto t_it = args.numthreads.begin(); t_it != args.numthreads.end(); ++t_it) {
+                coord3 numthreads = *t_it;
                 for(auto b_it = args.numblocks.begin(); b_it != args.numblocks.end(); ++b_it) {
-                    coord3 size = *s_it;
-                    coord3 numthreads = *t_it;
                     coord3 numblocks = *b_it;
                     Benchmark<double> *bench = create_benchmark(type,
                                                                 size,
@@ -200,8 +201,28 @@ benchmark_list_t *create_benchmarks(args_t args) {
                                                                 numblocks,
                                                                 args.runs,
                                                                 !args.print);
+                    // only add benchmark if it respected the requested
+                    // numthreads/numblocks; it can happen that less threads/
+                    // blocks than requested are used if the benchmark does not
+                    // support it
+                    if(numthreads != coord3(0, 0, 0) && numthreads != bench->numthreads()) {
+                        continue;
+                    }
+                    if(numblocks != coord3(0, 0, 0) && numblocks != bench->numblocks()) {
+                        continue;
+                    }
                     ret->push_back(bench);
+                    added++;
                 }
+            }
+            if(added == 0) {
+                Benchmark<double> *bench = create_benchmark(type,
+                                                            size,
+                                                            args.numthreads[0],
+                                                            args.numblocks[0],
+                                                            args.runs,
+                                                            !args.print);
+                ret->push_back(bench);
             }
         }
     }
