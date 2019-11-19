@@ -109,9 +109,9 @@ def get_limits(data, n=10, col=9, outliers_min=0, outliers_max=0):
         vals.update( bench[:,col] )
     vals = list(vals)
     vals.sort()
-    for i in range(0, outliers_min):
+    for i in range(0, min(outliers_min, max(0, len(vals)-1))):
         del vals[0]
-    for i in range(0, outliers_max):
+    for i in range(0, min(outliers_max, max(0, len(vals)-1))):
         del vals[-1]
     return vals[0], vals[-1]
 
@@ -164,16 +164,16 @@ def main():
             if incl in data:
                 data_right[incl] = data[incl]
 
+    numcols = 2
+    if not data_left and not data_right:
+        data_left = data
+        numcols = 1
+
     # same scale for left and right graph
     ymin, ymax = get_limits({**data_left, **data_right},
             outliers_min=args.outliers_min,
             outliers_max=args.outliers_max)
     xticks = get_xticks({**data_left, **data_right})
-
-    numcols = 2
-    if not data_left and not data_right:
-        data_left = data
-        numcols = 1
 
     f = plt.gcf()
     plt.subplots_adjust(hspace=0.4)
