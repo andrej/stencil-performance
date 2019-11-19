@@ -29,6 +29,7 @@ typedef enum {all_benchs,
               hdiff_ref,
               hdiff_ref_unstr,
               hdiff_cuda_regular,
+              hdiff_cuda_regular_kloop,
               hdiff_cuda_sequential,
               hdiff_cuda_unstr_naive,
               hdiff_cuda_unstr_kloop,
@@ -55,6 +56,7 @@ void get_benchmark_identifiers(std::map<std::string, benchmark_type_t> *ret) {
     (*ret)["hdiff-ref"] = hdiff_ref;
     (*ret)["hdiff-ref-unstr"] = hdiff_ref_unstr;
     (*ret)["hdiff-regular"] = hdiff_cuda_regular;
+    (*ret)["hdiff-regular-kloop"] = hdiff_cuda_regular_kloop;
     (*ret)["hdiff-regular-seq"] = hdiff_cuda_sequential;
     (*ret)["hdiff-unstr-naive"] = hdiff_cuda_unstr_naive;
     (*ret)["hdiff-unstr-kloop"] = hdiff_cuda_unstr_kloop;
@@ -147,6 +149,9 @@ Benchmark<double> *create_benchmark(benchmark_type_t type, coord3 size, coord3 n
         break;
         case hdiff_cuda_regular:
         ret = new HdiffCudaBenchmark(size);
+        break;
+        case hdiff_cuda_regular_kloop:
+        ret = new HdiffCudaBenchmark(size, HdiffCudaRegular::kloop);
         break;
         case hdiff_cuda_sequential:
         ret = new HdiffCudaSequentialBenchmark(size);

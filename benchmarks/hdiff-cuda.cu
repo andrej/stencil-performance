@@ -9,6 +9,8 @@
 
 namespace HdiffCudaRegular {
 
+    enum Variant { direct, kloop };
+
     __global__
     void kernel_direct(HdiffBase::Info info,
                        CudaRegularGrid3DInfo<double> in,
@@ -108,6 +110,59 @@ namespace HdiffCudaRegular {
         #endif
     }
 
+    __global__
+    void kernel_kloop(HdiffBase::Info info,
+                       CudaRegularGrid3DInfo<double> in,
+                       CudaRegularGrid3DInfo<double> out,
+                       CudaRegularGrid3DInfo<double> coeff) {
+
+        const int i = threadIdx.x + blockIdx.x*blockDim.x + info.halo.x;
+        const int j = threadIdx.y + blockIdx.y*blockDim.y + info.halo.y;
+        if(i >= info.max_coord.x || j >= info.max_coord.y) {
+            return;
+        }
+
+        for(int k = info.halo.z; k < info.max_coord.z; k++) {
+            coord3 coord = coord3(i, j, k);
+            double lap_ij = 
+                4 * CUDA_REGULAR_NEIGH(in, coord, 0, 0, 0) 
+                - CUDA_REGULAR_NEIGH(in, coord, -1, 0, 0) - CUDA_REGULAR_NEIGH(in, coord, +1, 0, 0)
+                - CUDA_REGULAR_NEIGH(in, coord, 0, -1, 0) - CUDA_REGULAR_NEIGH(in, coord, 0, +1, 0);
+            double lap_imj = 
+                4 * CUDA_REGULAR_NEIGH(in, coord, -1, 0, 0)
+                - CUDA_REGULAR_NEIGH(in, coord, -2, 0, 0) - CUDA_REGULAR_NEIGH(in, coord, 0, 0, 0)
+                - CUDA_REGULAR_NEIGH(in, coord, -1, -1, 0) - CUDA_REGULAR_NEIGH(in, coord, -1, +1, 0);
+            double lap_ipj =
+                4 * CUDA_REGULAR_NEIGH(in, coord, +1, 0, 0)
+                - CUDA_REGULAR_NEIGH(in, coord, 0, 0, 0) - CUDA_REGULAR_NEIGH(in, coord, +2, 0, 0)
+                - CUDA_REGULAR_NEIGH(in, coord, +1, -1, 0) - CUDA_REGULAR_NEIGH(in, coord, +1, +1, 0);
+            double lap_ijm =
+                4 * CUDA_REGULAR_NEIGH(in, coord, 0, -1, 0)
+                - CUDA_REGULAR_NEIGH(in, coord, -1, -1, 0) - CUDA_REGULAR_NEIGH(in, coord, +1, -1, 0)
+                - CUDA_REGULAR_NEIGH(in, coord, 0, -2, 0) - CUDA_REGULAR_NEIGH(in, coord, 0, 0, 0);
+            double lap_ijp =
+                4 * CUDA_REGULAR_NEIGH(in, coord, 0, +1, 0)
+                - CUDA_REGULAR_NEIGH(in, coord, -1, +1, 0) - CUDA_REGULAR_NEIGH(in, coord, +1, +1, 0)
+                - CUDA_REGULAR_NEIGH(in, coord, 0, 0, 0) - CUDA_REGULAR_NEIGH(in, coord, 0, +2, 0);
+    
+            double flx_ij = lap_ipj - lap_ij;
+            flx_ij = flx_ij * (CUDA_REGULAR_NEIGH(in, coord, +1, 0, 0) - CUDA_REGULAR(in, coord)) > 0 ? 0 : flx_ij;
+    
+            double flx_imj = lap_ij - lap_imj;
+            flx_imj = flx_imj * (CUDA_REGULAR(in, coord) - CUDA_REGULAR_NEIGH(in, coord, -1, 0, 0)) > 0 ? 0 : flx_imj;
+    
+            double fly_ij = lap_ijp - lap_ij;
+            fly_ij = fly_ij * (CUDA_REGULAR_NEIGH(in, coord, 0, +1, 0) - CUDA_REGULAR(in, coord)) > 0 ? 0 : fly_ij;
+    
+            double fly_ijm = lap_ij - lap_ijm;
+            fly_ijm = fly_ijm * (CUDA_REGULAR(in, coord) - CUDA_REGULAR_NEIGH(in, coord, 0, -1, 0)) > 0 ? 0 : fly_ijm;
+    
+            CUDA_REGULAR(out, coord) =
+                CUDA_REGULAR(in, coord)
+                - CUDA_REGULAR(coeff, coord) * (flx_ij - flx_imj + fly_ij - fly_ijm);
+        }
+    }
+
 };
 
 /** This is the reference implementation for the horizontal diffusion kernel, 
@@ -117,7 +172,9 @@ class HdiffCudaBenchmark : public HdiffBaseBenchmark {
     public:
 
     // The padding option currently only applies to regular grids
-    HdiffCudaBenchmark(coord3 size);
+    HdiffCudaBenchmark(coord3 size, HdiffCudaRegular::Variant variant = HdiffCudaRegular::direct);
+
+    HdiffCudaRegular::Variant variant;
 
     // CPU implementation
     // As in hdiff_stencil_variant.h
@@ -126,27 +183,44 @@ class HdiffCudaBenchmark : public HdiffBaseBenchmark {
     virtual void teardown();
     virtual void post();
 
+    dim3 numthreads();
+    dim3 numblocks();
+    
 };
 
 // IMPLEMENTATIONS
 
-HdiffCudaBenchmark::HdiffCudaBenchmark(coord3 size) :
+HdiffCudaBenchmark::HdiffCudaBenchmark(coord3 size, HdiffCudaRegular::Variant variant) :
 HdiffBaseBenchmark(size) {
-    this->name = "hdiff-cuda";
+    this->variant = variant;
+    if(variant == HdiffCudaRegular::direct) {
+        this->name = "hdiff-regular";
+    } else {
+        this->name = "hdiff-regular-kloop";
+    }
 }
 
 void HdiffCudaBenchmark::run() {
-    HdiffCudaRegular::kernel_direct<<<this->numblocks(), this->numthreads()>>>(
-        this->get_info(),
-        (dynamic_cast<CudaRegularGrid3D<double>*>(this->input))->get_gridinfo(),
-        (dynamic_cast<CudaRegularGrid3D<double>*>(this->output))->get_gridinfo(),
-        (dynamic_cast<CudaRegularGrid3D<double>*>(this->coeff))->get_gridinfo()
-        #ifdef HDIFF_DEBUG
-        , (dynamic_cast<CudaRegularGrid3D<double>*>(this->lap))->get_gridinfo()
-        , (dynamic_cast<CudaRegularGrid3D<double>*>(this->flx))->get_gridinfo()
-        , (dynamic_cast<CudaRegularGrid3D<double>*>(this->fly))->get_gridinfo()
-        #endif
-    );
+    if(this->variant == HdiffCudaRegular::direct) {
+        HdiffCudaRegular::kernel_direct<<<this->numblocks(), this->numthreads()>>>(
+            this->get_info(),
+            (dynamic_cast<CudaRegularGrid3D<double>*>(this->input))->get_gridinfo(),
+            (dynamic_cast<CudaRegularGrid3D<double>*>(this->output))->get_gridinfo(),
+            (dynamic_cast<CudaRegularGrid3D<double>*>(this->coeff))->get_gridinfo()
+            #ifdef HDIFF_DEBUG
+            , (dynamic_cast<CudaRegularGrid3D<double>*>(this->lap))->get_gridinfo()
+            , (dynamic_cast<CudaRegularGrid3D<double>*>(this->flx))->get_gridinfo()
+            , (dynamic_cast<CudaRegularGrid3D<double>*>(this->fly))->get_gridinfo()
+            #endif
+        );
+    } else {
+        HdiffCudaRegular::kernel_kloop<<<this->numblocks(), this->numthreads()>>>(
+            this->get_info(),
+            (dynamic_cast<CudaRegularGrid3D<double>*>(this->input))->get_gridinfo(),
+            (dynamic_cast<CudaRegularGrid3D<double>*>(this->output))->get_gridinfo(),
+            (dynamic_cast<CudaRegularGrid3D<double>*>(this->coeff))->get_gridinfo()
+        );
+    } 
     if(cudaDeviceSynchronize() != cudaSuccess) {
         this->error = true;
     }
@@ -175,6 +249,22 @@ void HdiffCudaBenchmark::teardown() {
 void HdiffCudaBenchmark::post() {
     this->Benchmark::post();
     this->HdiffBaseBenchmark::post();
+}
+
+dim3 HdiffCudaBenchmark::numthreads() {
+    dim3 numthreads = this->HdiffBaseBenchmark::numthreads();
+    if(this->variant == HdiffCudaRegular::kloop) {
+        numthreads.z = 1;
+    }
+    return numthreads;
+}
+
+dim3 HdiffCudaBenchmark::numblocks() {
+    dim3 numblocks = this->HdiffBaseBenchmark::numblocks();
+    if(this->variant == HdiffCudaRegular::kloop) {
+        numblocks.z = 1;
+    }
+    return numblocks;
 }
 
 #endif
