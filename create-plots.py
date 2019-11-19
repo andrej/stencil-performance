@@ -73,7 +73,7 @@ def plot_avgminmax(data, ax, v_col=6, bar_size=1, group_spacing=2, bar_spacing=0
     ax.bar(xs+offs, mins, bar_size, label="fastest block size")
     offs += bar_size+bar_spacing
     ax.bar(xs+offs, maxs, bar_size, label="slowest block size")
-    xtickstart = 3*bar_size + 2*bar_spacing
+    xtickstart = bar_spacing + bar_size #(3.0*bar_size + 2*bar_spacing) / 2.0
     xtickstep = xs[1]
     xticks = [xtickstart+xtickstep*i for i in range(0, len(labels))]
     ax.set_xticks(xticks)
@@ -95,7 +95,7 @@ def plot_scatter_blocksize(data, ax, f_x=lambda v:v[3]*v[4]*v[5], f_y=lambda v:v
         for v in dat:
             blocks_times.append([f_x(v), f_y(v)])
         blocks_times = np.array(blocks_times)
-        blocks_times = np.sort(blocks_times, 0)
+        #blocks_times = np.sort(blocks_times, 0) # this is wrong (breaks assoc)
         ax.plot(blocks_times[:,0], blocks_times[:,1], linestyle=":", marker="o", label=bench)
     ax.legend()
 
@@ -106,7 +106,7 @@ def get_limits(data, n=10, col=9):
     min = None
     max = None
     for b in data:
-        bench = data[bench]
+        bench = data[b]
         bench_min = np.min(bench[:,col])
         bench_max = np.max(bench[:,col])
         if min == None or bench_min < min:
@@ -114,6 +114,20 @@ def get_limits(data, n=10, col=9):
         if max == None or bench_max > max:
             max = bench_max
     return min, max
+
+"""
+Return X ticks for the given data, one tick for each data point.
+"""
+def get_xticks(data, f_x=lambda v:v[3]*v[4]*v[5]):
+    ticks = set()
+    for b in data:
+        bench = data[b]
+        for row in bench:
+            v = f_x(row)
+            ticks.add(v)
+    ticks = list(ticks)
+    ticks.sort()
+    return ticks
 
 def main():
     parser = argparse.ArgumentParser()
@@ -148,7 +162,8 @@ def main():
                 data_right[incl] = data[incl]
 
     # same scale for left and right graph
-    ymin, ymax = get_ylim({**data_left, **data_right})
+    ymin, ymax = get_limits({**data_left, **data_right})
+    xticks = get_xticks({**data_left, **data_right})
 
     numcols = 2
     if not data_left and not data_right:
@@ -166,12 +181,14 @@ def main():
         ax.set_title("Kernel-only execution time (all block sizes)")
         ax.grid(axis="y")
         ax.set_ylim(ymin=ymin, ymax=ymax)
+        ax.set_xticks(xticks)
         plot_avgminmax(d, ax, v_col=9)
 
-        ax = plt.subplot(2, numcols, 2*numcols+col+1)
+        ax = plt.subplot(2, numcols, numcols+col+1)
         ax.set_title("Average kernel execution time")
         ax.grid()
         ax.set_ylim(ymin=ymin, ymax=ymax)
+        ax.set_xticks(xticks)
         plot_scatter_blocksize(d, ax)
         ax.set_xlabel("Total number of threads (X*Y*Z)")
         ax.set_ylabel("Execution time [s]")
