@@ -227,7 +227,7 @@ namespace HdiffCudaUnstr {
          * use of the regularity of the grid in z-direction. 
          * idx of neighbor X Y Z = n_X_Y_Z with p for positive offset and 
          * n for negative offset. */
-        coord3 coord(i, j, 0);
+        coord3 coord(i, j, info.halo.z);
         int n_0_0_0       = CUDA_UNSTR_INDEX(in, coord);
         int n_0_n1_0      = CUDA_UNSTR_NEIGHBOR_AT(in, n_0_0_0,   0, -1, 0);
         int n_0_n2_0      = CUDA_UNSTR_NEIGHBOR_AT(in, n_0_n1_0,  0, -1, 0);

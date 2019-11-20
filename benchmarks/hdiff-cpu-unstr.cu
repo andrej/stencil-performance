@@ -36,7 +36,7 @@ class HdiffCPUUnstrBenchmark :  public HdiffBaseBenchmark {
 
 HdiffCPUUnstrBenchmark::HdiffCPUUnstrBenchmark(coord3 size) :
 HdiffBaseBenchmark(size) {
-    this->name = "hdiff-cpu-unstr";
+    this->name = "hdiff-unstr-cpu";
 }
 
 void HdiffCPUUnstrBenchmark::setup(){

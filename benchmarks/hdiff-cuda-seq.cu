@@ -116,7 +116,7 @@ class HdiffCudaSequentialBenchmark : public HdiffBaseBenchmark {
 
 HdiffCudaSequentialBenchmark::HdiffCudaSequentialBenchmark(coord3 size) :
 HdiffBaseBenchmark(size) {
-    this->name = "hdiff-cuda-seq";
+    this->name = "hdiff-regular-seq";
     this->error = false;
 }
 

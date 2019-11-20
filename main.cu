@@ -30,6 +30,9 @@ typedef enum {all_benchs,
               hdiff_ref_unstr,
               hdiff_cuda_regular,
               hdiff_cuda_regular_kloop,
+              hdiff_cuda_regular_idxvar,
+              hdiff_cuda_regular_coop,
+              //hdiff_cuda_regular_shared,
               hdiff_cuda_sequential,
               hdiff_cuda_unstr_naive,
               hdiff_cuda_unstr_kloop,
@@ -40,7 +43,7 @@ benchmark_type_t;
 
 /** Struct describing the benchmark to be run (default arguments) */
 struct args_t {
-    benchmark_type_t type = unspecified;
+    std::vector<benchmark_type_t> types;
     std::vector<coord3> sizes; // default can be found in parse_args() function
     int runs = 20;
     std::vector<coord3> numthreads; // default can be found in parse_args() function
@@ -50,26 +53,42 @@ struct args_t {
     bool no_header = false; // print no header in the output table
 };
 
+
+void get_benchmark_identifiers(std::map<std::string, benchmark_type_t> *ret);
+int scan_coord3(char **strs, int n, std::vector<coord3> *ret);
+args_t parse_args(int argc, char** argv);
+Benchmark<double> *create_benchmark(benchmark_type_t type, coord3 size, coord3 numthreads, coord3 numblocks, int runs, bool quiet);
+benchmark_list_t *create_benchmarks(args_t args);
+void run_benchmark(Benchmark<double> *bench, bool quiet = false);
+void prettyprint(benchmark_list_t *benchmarks, bool skip_errors=false, bool header=true);
+void usage(int argc, char** argv);
+int main(int argc, char** argv);
+
+
+// IMPLEMENTATIONS
+
 /** Populates the list of available benchmarks. */
 void get_benchmark_identifiers(std::map<std::string, benchmark_type_t> *ret) {
-    (*ret)["all"] = all_benchs;
-    (*ret)["hdiff-ref"] = hdiff_ref;
-    (*ret)["hdiff-ref-unstr"] = hdiff_ref_unstr;
-    (*ret)["hdiff-regular"] = hdiff_cuda_regular;
-    (*ret)["hdiff-regular-kloop"] = hdiff_cuda_regular_kloop;
-    (*ret)["hdiff-regular-seq"] = hdiff_cuda_sequential;
-    (*ret)["hdiff-unstr-naive"] = hdiff_cuda_unstr_naive;
-    (*ret)["hdiff-unstr-kloop"] = hdiff_cuda_unstr_kloop;
-    (*ret)["hdiff-unstr-idxvars"] = hdiff_cuda_unstr_idxvars;
-    (*ret)["hdiff-unstr-seq"] = hdiff_cuda_unstr_seq;
+    for(int i=all_benchs; i < unspecified; i++) {
+        benchmark_type_t type = (benchmark_type_t)i;
+        std::string name;
+        if(type == all_benchs) {
+            name = "all";
+        } else {
+            // create benchmark simply to ask for its name
+            Benchmark<double> *bench = create_benchmark(type, coord3(1, 1, 1), coord3(1, 1, 1), coord3(1, 1, 1), 1, true);
+            name = bench->name;
+        }
+        (*ret)[name] = type;
+    }
 }
 
 /** Helper function to parse input strings of the format %dx%dx%d, e.g. 16x16x1
  * into a vector of coord3s. Returns by how much the pointer passed in was
  * increased, i.e. how many strings directly following contained coord3s. */
-int scan_coord3(char **strs, std::vector<coord3> *ret) {
+int scan_coord3(char **strs, int n, std::vector<coord3> *ret) {
     int i = 0;
-    while(1) {
+    for(; i<n; i++) {
         char *str=strs[i];
         coord3 to_add;
         int c = sscanf(str, "%dx%dx%d", &to_add.x, &to_add.y, &to_add.z);
@@ -83,7 +102,6 @@ int scan_coord3(char **strs, std::vector<coord3> *ret) {
             to_add.y = 1;
         }
         ret->push_back(to_add);
-        i++;
     }
     return i;
 }
@@ -97,16 +115,16 @@ args_t parse_args(int argc, char** argv) {
     for(int i=1; i<argc; i++) {
         std::string arg = std::string(argv[i]);
         if(benchmark_identifiers.count(arg) > 0) {
-            ret.type = benchmark_identifiers[arg];
+            ret.types.push_back(benchmark_identifiers[arg]);
         } else if(arg == "--size" && i+1 < argc) {
-            i += scan_coord3(&(argv[i+1]), &ret.sizes);
+            i += scan_coord3(&(argv[i+1]), argc-i-1, &ret.sizes);
         } else if(arg == "--runs") {
             sscanf(argv[i+1], "%d", &ret.runs);
             i += 1;
         } else if(arg == "--threads" && i+1 < argc) {
-            i += scan_coord3(&(argv[i+1]), &ret.numthreads);
+            i += scan_coord3(&(argv[i+1]), argc-i-1, &ret.numthreads);
         } else if(arg == "--blocks" && i+1 < argc) {
-            i += scan_coord3(&(argv[i+1]), &ret.numblocks);
+            i += scan_coord3(&(argv[i+1]), argc-i-1, &ret.numblocks);
         } else if(arg == "--print") {
             ret.print = true;
         } else if(arg == "--skip-errors") {
@@ -114,7 +132,7 @@ args_t parse_args(int argc, char** argv) {
         } else if(arg == "--no-header") {
             ret.no_header = true;
         } else {
-            fprintf(stderr, "Unrecognized argument %s.\n", arg.c_str());
+            fprintf(stderr, "Unrecognized or incomplete argument %s.\n", arg.c_str());
             exit(1);
         }
     }
@@ -153,6 +171,15 @@ Benchmark<double> *create_benchmark(benchmark_type_t type, coord3 size, coord3 n
         case hdiff_cuda_regular_kloop:
         ret = new HdiffCudaBenchmark(size, HdiffCudaRegular::kloop);
         break;
+        case hdiff_cuda_regular_idxvar:
+        ret = new HdiffCudaBenchmark(size, HdiffCudaRegular::idxvar);
+        break;
+        case hdiff_cuda_regular_coop:
+        ret = new HdiffCudaBenchmark(size, HdiffCudaRegular::coop);
+        break;
+        //case hdiff_cuda_regular_shared:
+        //ret = new HdiffCudaBenchmark(size, HdiffCudaRegular::shared);
+        //break;
         case hdiff_cuda_sequential:
         ret = new HdiffCudaSequentialBenchmark(size);
         break;
@@ -168,6 +195,8 @@ Benchmark<double> *create_benchmark(benchmark_type_t type, coord3 size, coord3 n
         case hdiff_cuda_unstr_seq:
         ret = new HdiffCudaUnstructuredSequentialBenchmark(size);
         break;
+        default:
+        return NULL;
     }
     ret->_numthreads = dim3(numthreads.x, numthreads.y, numthreads.z);
     ret->_numblocks = dim3(numblocks.x, numblocks.y, numblocks.z);
@@ -179,15 +208,18 @@ Benchmark<double> *create_benchmark(benchmark_type_t type, coord3 size, coord3 n
 /** From the given arguments, create a vector of benchmarks to execute. */
 benchmark_list_t *create_benchmarks(args_t args) {
     std::vector<benchmark_type_t> types;
-    if(args.type == all_benchs) {
-        for(int it = all_benchs; it < unspecified; it++) {
-            if(it == all_benchs) {
-                continue;
+    for(auto it=args.types.begin(); it != args.types.end(); ++it) {
+        if((*it) == all_benchs) {
+            types.clear();
+            for(int it = all_benchs; it < unspecified; it++) {
+                if(it == all_benchs) {
+                    continue;
+                }
+                types.push_back((benchmark_type_t)it);
             }
-            types.push_back((benchmark_type_t)it);
+            break;
         }
-    } else {
-        types.push_back(args.type);
+        types.push_back(*it);
     }
 
     benchmark_list_t *ret = new benchmark_list_t();
@@ -206,6 +238,10 @@ benchmark_list_t *create_benchmarks(args_t args) {
                                                                 numblocks,
                                                                 args.runs,
                                                                 !args.print);
+                    // Skip if creation somehow failed
+                    if(!bench) {
+                        continue;
+                    }
                     // only add benchmark if it respected the requested
                     // numthreads/numblocks; it can happen that less threads/
                     // blocks than requested are used if the benchmark does not
@@ -237,7 +273,7 @@ benchmark_list_t *create_benchmarks(args_t args) {
 
 /** Create the benchmark described in bench_info, execute it and then return
  * its performance metrics. */
-void run_benchmark(Benchmark<double> *bench, bool quiet = false) {
+void run_benchmark(Benchmark<double> *bench, bool quiet) {
     if(!quiet) {
         dim3 numblocks = bench->numblocks();
         dim3 numthreads = bench->numthreads();
@@ -258,9 +294,9 @@ void run_benchmark(Benchmark<double> *bench, bool quiet = false) {
 }
 
 /** Pretty print the results in a table (format is CSV-compatible, can be exported into Excel). */
-void prettyprint(benchmark_list_t *benchmarks, bool skip_errors=false, bool header=true) {
+void prettyprint(benchmark_list_t *benchmarks, bool skip_errors, bool header) {
     if(header) {
-        printf("Benchmark                , Blocks       , Threads      , Total execution time           , Kernel-only execution time     \n");
+        printf("Benchmark                , Blocks     ,,, Threads    ,,, Total execution time         ,,, Kernel-only execution time     \n");
         printf("                         ,   X,   Y,   Z,   X,   Y,   Z,   Average,   Minimum,   Maximum,   Average,   Minimum,   Maximum\n");
     }
     for(auto it=benchmarks->begin(); it != benchmarks->end(); ++it) {
@@ -291,7 +327,7 @@ void usage(int argc, char** argv) {
 /** Main */
 int main(int argc, char** argv) {
     args_t args = parse_args(argc, argv);
-    if(args.type == unspecified) {
+    if(args.types.empty()) {
         usage(argc, argv);
         return 1;
     }

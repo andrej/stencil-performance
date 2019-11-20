@@ -40,6 +40,10 @@ virtual public CudaBaseGrid<value_t, coord3>
 
 };
 
+/** Get value at given data index (not coord.) */
+#define CUDA_REGULAR_AT(grid_info, index) \
+    (grid_info.data[index])
+
 /** Use this macro to get data (value) from a grid inside kernels. */
 #define CUDA_REGULAR(grid_info, coords) \
     (grid_info.data[CUDA_REGULAR_INDEX(grid_info, coords)])
@@ -54,22 +58,13 @@ virtual public CudaBaseGrid<value_t, coord3>
         ((int)   (coords.x + \
                   coords.y * grid_info.strides.y + \
                   coords.z * grid_info.strides.z))
-/*#define CUDA_REGULAR_INDEX(grid_info, coords) \
-((int)   (coords.x + \
-        coords.y * grid_info.dimensions.x + \
-        coords.z * grid_info.dimensions.y * grid_info.dimensions.x))*/
           
-
 /** Use this macro instead of the CudaRegularGrid3D::neighbor() function for
  * getting the index of some coordinate offset from within the kernel. */
 #define CUDA_REGULAR_NEIGHBOR(grid_info, coords, _x, _y, _z) \
         ((int)   ((coords.x + (_x)) + \
                   (coords.y + (_y)) * grid_info.strides.y + \
                   (coords.z + (_z)) * grid_info.strides.z))
-/*#define CUDA_REGULAR_NEIGHBOR(grid_info, coords, x, y, z) \
-((int)   ((coords.x+x) + \
-        (coords.y+y) * grid_info.dimensions.x + \
-        (coords.z+z) * grid_info.dimensions.y * grid_info.dimensions.x))*/
 
 // IMPLEMENTATIONS
 
