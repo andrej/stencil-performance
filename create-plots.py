@@ -102,7 +102,7 @@ def plot_scatter_blocksize(data, ax, f_x=lambda v:v[3]*v[4]*v[5], f_y=lambda v:v
 """
 Given a data dictionary, return limits based on min/max values.
 """
-def get_limits(data, n=10, col=9, outliers_min=0, outliers_max=0):
+def get_limits(data, n=10, col=9, outliers_min=0, outliers_max=0, scale_min=None, scale_max=None, padding=0.1):
     vals = set()
     for b in data:
         bench = data[b]
@@ -113,7 +113,12 @@ def get_limits(data, n=10, col=9, outliers_min=0, outliers_max=0):
         del vals[0]
     for i in range(0, min(outliers_max, max(0, len(vals)-1))):
         del vals[-1]
-    return vals[0], vals[-1]
+    set_min_diff = 0 if scale_min == None else abs(vals[0]-scale_min)
+    set_max_diff = 0 if scale_max == None else abs(vals[-1]-scale_max)
+    ymin = vals[0]-set_max_diff if scale_min == None else scale_min
+    ymax = vals[-1]+set_min_diff if scale_max == None else scale_max
+    spread = abs(ymax-ymin)
+    return ymin - padding*spread, ymax + padding*spread
 
 """
 Return X ticks for the given data, one tick for each data point.
@@ -138,6 +143,9 @@ def main():
     parser.add_argument("-l", "--left", nargs="*", type=str, default=None)
     parser.add_argument("-r", "--right", nargs="*", type=str, default=None)
     parser.add_argument("-s", "--strip", nargs="?", type=str, default=None)
+    parser.add_argument("--no-avgminmax", action="store_true", default=False)
+    parser.add_argument("--scale-min", nargs="?", type=float, default=None)
+    parser.add_argument("--scale-max", nargs="?", type=float, default=None)
     parser.add_argument("--logscale", action="store_true", default=False)
     parser.add_argument("--outliers-max", type=int, default=0) # disregard N outliers in axis scale computation
     parser.add_argument("--outliers-min", type=int, default=0)
@@ -163,7 +171,9 @@ def main():
         for incl in args.right:
             if incl in data:
                 data_right[incl] = data[incl]
-
+	
+    numrows = 2 if not args.no_avgminmax else 1
+    
     numcols = 2
     if not data_left and not data_right:
         data_left = data
@@ -172,7 +182,9 @@ def main():
     # same scale for left and right graph
     ymin, ymax = get_limits({**data_left, **data_right},
             outliers_min=args.outliers_min,
-            outliers_max=args.outliers_max)
+            outliers_max=args.outliers_max,
+			scale_min=args.scale_min,
+			scale_max=args.scale_max)
     xticks = get_xticks({**data_left, **data_right})
 
     f = plt.gcf()
@@ -181,17 +193,19 @@ def main():
 
     for col in range(0, numcols):
         d = data_left if col == 0 else data_right
-
-        ax = plt.subplot(2, numcols, col+1)
-        ax.set_title("Kernel-only execution time (all block sizes)")
-        ax.grid(axis="y")
-        ax.set_ylim(ymin=ymin, ymax=ymax)
-        ax.set_xticks(xticks)
-        if args.logscale:
-            ax.set_yscale("log")
-        plot_avgminmax(d, ax, v_col=9)
-
-        ax = plt.subplot(2, numcols, numcols+col+1)
+		
+        if not args.no_avgminmax:
+            ax                          = plt.subplot(numrows, numcols, col+1)
+            ax.set_title("Kernel-only execution time (all block sizes)")
+            ax.grid(axis                = "y")
+            ax.set_ylim(ymin            = ymin, ymax=ymax)
+            ax.set_xticks(xticks)
+            if args.logscale:
+                ax.set_yscale("log")
+            plot_avgminmax(d, ax, v_col = 9)
+		
+        idx = (numcols if not args.no_avgminmax else 0) + col + 1
+        ax = plt.subplot(numrows, numcols, idx)
         ax.set_title("Average kernel execution time")
         ax.grid()
         ax.set_ylim(ymin=ymin, ymax=ymax)
