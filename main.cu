@@ -32,7 +32,8 @@ typedef enum {all_benchs,
               hdiff_cuda_regular_kloop,
               hdiff_cuda_regular_idxvar,
               hdiff_cuda_regular_coop,
-              //hdiff_cuda_regular_shared,
+              hdiff_cuda_regular_shared,
+              hdiff_cuda_regular_shared_kloop,
               hdiff_cuda_sequential,
               hdiff_cuda_unstr_naive,
               hdiff_cuda_unstr_kloop,
@@ -177,9 +178,12 @@ Benchmark<double> *create_benchmark(benchmark_type_t type, coord3 size, coord3 n
         case hdiff_cuda_regular_coop:
         ret = new HdiffCudaBenchmark(size, HdiffCudaRegular::coop);
         break;
-        //case hdiff_cuda_regular_shared:
-        //ret = new HdiffCudaBenchmark(size, HdiffCudaRegular::shared);
-        //break;
+        case hdiff_cuda_regular_shared:
+        ret = new HdiffCudaBenchmark(size, HdiffCudaRegular::shared);
+        break;
+        case hdiff_cuda_regular_shared_kloop:
+        ret = new HdiffCudaBenchmark(size, HdiffCudaRegular::shared_kloop);
+        break;
         case hdiff_cuda_sequential:
         ret = new HdiffCudaSequentialBenchmark(size);
         break;
@@ -296,8 +300,8 @@ void run_benchmark(Benchmark<double> *bench, bool quiet) {
 /** Pretty print the results in a table (format is CSV-compatible, can be exported into Excel). */
 void prettyprint(benchmark_list_t *benchmarks, bool skip_errors, bool header) {
     if(header) {
-        printf("Benchmark                , Blocks     ,,, Threads    ,,, Total execution time         ,,, Kernel-only execution time     \n");
-        printf("                         ,   X,   Y,   Z,   X,   Y,   Z,   Average,   Minimum,   Maximum,   Average,   Minimum,   Maximum\n");
+        printf("Benchmark                   , Blocks     ,,, Threads    ,,, Total execution time         ,,, Kernel-only execution time     \n");
+        printf("                            ,   X,   Y,   Z,   X,   Y,   Z,   Average,   Minimum,   Maximum,   Average,   Minimum,   Maximum\n");
     }
     for(auto it=benchmarks->begin(); it != benchmarks->end(); ++it) {
         Benchmark<double> *bench = *it;
@@ -306,7 +310,7 @@ void prettyprint(benchmark_list_t *benchmarks, bool skip_errors, bool header) {
         }
         dim3 numblocks = bench->numblocks();
         dim3 numthreads = bench->numthreads();
-        printf("%-25s,%4d,%4d,%4d,%4d,%4d,%4d,%10.6f,%10.6f,%10.6f,%10.6f,%10.6f,%10.6f%s\n",
+        printf("%-28s,%4d,%4d,%4d,%4d,%4d,%4d,%10.6f,%10.6f,%10.6f,%10.6f,%10.6f,%10.6f%s\n",
                bench->name.c_str(),
                numblocks.x, numblocks.y, numblocks.z,
                numthreads.x, numthreads.y, numthreads.z,
