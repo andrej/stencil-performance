@@ -59,6 +59,10 @@ class Benchmark {
 	bool error = false;
     benchmark_result_t results;
     bool quiet = true;
+    /** Turn verification off if you are sure the benchmark computes the
+     * correct result and you do not want to waste time computing the
+     * the reference. */
+    bool do_verify = true;
     int runs = 1;
 
 	/** Subclasses (benchmarks) must at least overwrite this function an perform

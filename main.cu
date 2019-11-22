@@ -52,13 +52,14 @@ struct args_t {
     bool print = false; // print output of benchmarked grids to stdout (makes sense for small grids)
     bool skip_errors = false; // skip printing output for erroneous benchmarks
     bool no_header = false; // print no header in the output table
+    bool no_verify = false; // skip verification
 };
 
 
 void get_benchmark_identifiers(std::map<std::string, benchmark_type_t> *ret);
 int scan_coord3(char **strs, int n, std::vector<coord3> *ret);
 args_t parse_args(int argc, char** argv);
-Benchmark<double> *create_benchmark(benchmark_type_t type, coord3 size, coord3 numthreads, coord3 numblocks, int runs, bool quiet);
+Benchmark<double> *create_benchmark(benchmark_type_t type, coord3 size, coord3 numthreads, coord3 numblocks, int runs, bool quiet, bool no_verify);
 benchmark_list_t *create_benchmarks(args_t args);
 void run_benchmark(Benchmark<double> *bench, bool quiet = false);
 void prettyprint(benchmark_list_t *benchmarks, bool skip_errors=false, bool header=true);
@@ -77,7 +78,7 @@ void get_benchmark_identifiers(std::map<std::string, benchmark_type_t> *ret) {
             name = "all";
         } else {
             // create benchmark simply to ask for its name
-            Benchmark<double> *bench = create_benchmark(type, coord3(1, 1, 1), coord3(1, 1, 1), coord3(1, 1, 1), 1, true);
+            Benchmark<double> *bench = create_benchmark(type, coord3(1, 1, 1), coord3(1, 1, 1), coord3(1, 1, 1), 1, true, true);
             name = bench->name;
         }
         (*ret)[name] = type;
@@ -132,6 +133,8 @@ args_t parse_args(int argc, char** argv) {
             ret.skip_errors = true;
         } else if(arg == "--no-header") {
             ret.no_header = true;
+        } else if(arg == "--no-verify") {
+            ret.no_verify = true;
         } else {
             fprintf(stderr, "Unrecognized or incomplete argument %s.\n", arg.c_str());
             exit(1);
@@ -157,7 +160,7 @@ args_t parse_args(int argc, char** argv) {
 }
 
 /** Create the benchmark class for one of the available types. */
-Benchmark<double> *create_benchmark(benchmark_type_t type, coord3 size, coord3 numthreads, coord3 numblocks, int runs, bool quiet) {
+Benchmark<double> *create_benchmark(benchmark_type_t type, coord3 size, coord3 numthreads, coord3 numblocks, int runs, bool quiet, bool no_verify) {
     Benchmark<double> *ret = NULL;
     switch(type) {
         case hdiff_ref:
@@ -206,6 +209,7 @@ Benchmark<double> *create_benchmark(benchmark_type_t type, coord3 size, coord3 n
     ret->_numblocks = dim3(numblocks.x, numblocks.y, numblocks.z);
     ret->runs = runs;
     ret->quiet = quiet;
+    ret->do_verify = !no_verify;
     return ret;
 }
 
@@ -216,7 +220,8 @@ benchmark_list_t *create_benchmarks(args_t args) {
         if((*it) == all_benchs) {
             types.clear();
             for(int it = all_benchs; it < unspecified; it++) {
-                if(it == all_benchs) {
+                if(it == all_benchs || it == hdiff_ref || it == hdiff_ref_unstr) {
+                    // reference and unstructured cpu are not included in "all" benchmarks
                     continue;
                 }
                 types.push_back((benchmark_type_t)it);
@@ -241,7 +246,8 @@ benchmark_list_t *create_benchmarks(args_t args) {
                                                                 numthreads,
                                                                 numblocks,
                                                                 args.runs,
-                                                                !args.print);
+                                                                !args.print,
+                                                                args.no_verify);
                     // Skip if creation somehow failed
                     if(!bench) {
                         continue;
@@ -266,7 +272,8 @@ benchmark_list_t *create_benchmarks(args_t args) {
                                                             args.numthreads[0],
                                                             args.numblocks[0],
                                                             args.runs,
-                                                            !args.print);
+                                                            !args.print,
+                                                            args.no_verify);
                 ret->push_back(bench);
             }
         }
@@ -300,6 +307,7 @@ void run_benchmark(Benchmark<double> *bench, bool quiet) {
 /** Pretty print the results in a table (format is CSV-compatible, can be exported into Excel). */
 void prettyprint(benchmark_list_t *benchmarks, bool skip_errors, bool header) {
     if(header) {
+        // TODO: print # nuns, grid size
         printf("Benchmark                   , Blocks     ,,, Threads    ,,, Total execution time         ,,, Kernel-only execution time     \n");
         printf("                            ,   X,   Y,   Z,   X,   Y,   Z,   Average,   Minimum,   Maximum,   Average,   Minimum,   Maximum\n");
     }

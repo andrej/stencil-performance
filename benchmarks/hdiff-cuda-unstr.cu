@@ -411,6 +411,21 @@ void HdiffCudaUnstrBenchmark::setup() {
     this->flx = CudaUnstructuredGrid3D<double>::create_regular(this->size);
     this->fly = CudaUnstructuredGrid3D<double>::create_regular(this->size);
     this->HdiffBaseBenchmark::setup();
+    int s1 = cudaMemPrefetchAsync(this->input->data, this->input->size, 0);
+    int s2 = cudaMemPrefetchAsync(this->output->data, this->output->size, 0);
+    int s3 = cudaMemPrefetchAsync(this->coeff->data, this->coeff->size, 0);
+    #ifdef HDIFF_DEBUG
+    int s4 = cudaMemPrefetchAsync(this->lap->data, this->lap->size, 0);
+    int s5 = cudaMemPrefetchAsync(this->flx->data, this->flx->size, 0);
+    int s6 = cudaMemPrefetchAsync(this->fly->data, this->fly->size, 0);
+    #endif
+    if( s1 != cudaSuccess || s2 != cudaSuccess || s3 != cudaSuccess
+        #ifdef HDIFF_DEBUG
+            || s4 != cudaSuccess || s5 != cudaSuccess || s6 != cudaSuccess
+        #endif
+    ) {
+        throw std::runtime_error("unable to prefetch memory");
+    }
 }
 
 void HdiffCudaUnstrBenchmark::teardown() {

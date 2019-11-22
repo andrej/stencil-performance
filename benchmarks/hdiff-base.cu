@@ -136,6 +136,9 @@ void HdiffBaseBenchmark::calc_ref() {
 }
 
 void HdiffBaseBenchmark::post() {
+    if(!this->do_verify) {
+        return;
+    }
     if(!this->reference_calculated) {
         this->calc_ref();
     }
