@@ -1,6 +1,6 @@
 CXX=nvcc
 CPPFLAGS=-I./ -D HDIFF_NO_GRIDSTRIDE
-CPPDEBUFLAGS=-g -G -D HDIFF_DEBUG
+CPPDEBUGFLAGS=-g -G -D HDIFF_DEBUG
 SRCS=$(wildcard *.cu)
 SRCS_BENCHMARKS=$(wildcard benchmarks/*.cu)
 SRCS_GRIDS=$(wildcard grids/*.cu)

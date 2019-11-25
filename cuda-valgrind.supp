@@ -1,0 +1,36 @@
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   fun:calloc
+   ...
+   obj:/usr/lib/x86_64-linux-gnu/nvidia/current/libcuda.so.418.74
+   fun:cuDevicePrimaryCtxRetain
+   fun:*
+}
+
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   fun:calloc
+   ...
+   obj:/usr/lib/x86_64-linux-gnu/nvidia/current/libcuda.so.418.74
+}
+
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   fun:malloc
+   ...
+   obj:/usr/lib/x86_64-linux-gnu/nvidia/current/libcuda.so.418.74
+   fun:cuDevicePrimaryCtxRetain
+   fun:*
+}
+
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   fun:malloc
+   ...
+   obj:/usr/lib/x86_64-linux-gnu/nvidia/current/libcuda.so.418.74
+}
+

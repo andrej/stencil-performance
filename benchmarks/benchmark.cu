@@ -158,14 +158,19 @@ benchmark_result_t Benchmark<value_t>::execute() {
     min = DBL_MAX;
     kernel_min = DBL_MAX;
     bool error = false;
-    for(int i=0; i<this->runs; i++) {
+    for(int i=-1; i<this->runs; i++) {
         auto start = clock::now();
         this->pre();
         auto kernel_start = clock::now();
         this->run();
         auto kernel_stop = clock::now();
         this->post();
-        //error = error || this->error;
+        error = error || this->error;
+        if(i == -1) {
+            // First run is untimed, as Cuda recompiles the kernel on first run
+            // which would distort our measurements.
+            continue;
+        }
         auto stop = clock::now();
         double total_time = std::chrono::duration<double>(stop-start).count();
         double kernel_time = std::chrono::duration<double>(kernel_stop-kernel_start).count();

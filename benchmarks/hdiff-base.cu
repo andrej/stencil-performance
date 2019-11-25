@@ -106,7 +106,15 @@ void HdiffBaseBenchmark::setup(){
 }
 
 void HdiffBaseBenchmark::teardown() {
-    this->reference_bench->teardown();
+    if(this->reference_bench && !this->do_verify) {
+        this->reference_bench->teardown();
+        delete this->reference_bench;
+        this->reference_bench = NULL;
+        (*HdiffBaseBenchmark::reference_benchs).erase(this->size);
+    }
+    // Don't free, because this reference benchmark will be reused.
+    // This is ugly but not important enough to fix right now. If the memory 
+    // leak becomes an issue, simply run gridbenchmark with --no-verify option.
 }
 
 coord3 HdiffBaseBenchmark::inner_coord(coord3 coord){

@@ -159,13 +159,18 @@ void HdiffReferenceBenchmark::run() {
 }
 
 void HdiffReferenceBenchmark::teardown() {
-    // Don't free, because this reference benchmark will be reused.
-    //this->input->deallocate();
-    //this->output->deallocate();
-    //this->coeff->deallocate();
-    //this->lap->deallocate();
-    //this->flx->deallocate();
-    //this->fly->deallocate();
+    this->input->deallocate();
+    this->output->deallocate();
+    this->coeff->deallocate();
+    this->lap->deallocate();
+    this->flx->deallocate();
+    this->fly->deallocate();
+    delete this->input;
+    delete this->output;
+    delete this->coeff;
+    delete this->lap;
+    delete this->flx;
+    delete this->fly;
 }
 
 coord3 HdiffReferenceBenchmark::inner_coord(coord3 coord){

@@ -103,7 +103,7 @@ void Grid<value_t, coord_t>::init() {
 
 template<typename value_t, typename coord_t>
 Grid<value_t, coord_t>::~Grid() {
-    this->deallocate();
+    //this->deallocate();
 }
 
 template<typename value_t, typename coord_t>

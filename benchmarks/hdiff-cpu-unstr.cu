@@ -56,6 +56,12 @@ void HdiffCPUUnstrBenchmark::teardown() {
     this->lap->deallocate();
     this->flx->deallocate();
     this->fly->deallocate();
+    delete this->input;
+    delete this->coeff;
+    delete this->output;
+    delete this->lap;
+    delete this->flx;
+    delete this->fly;
     this->HdiffBaseBenchmark::teardown();
 }
 

@@ -80,6 +80,7 @@ void get_benchmark_identifiers(std::map<std::string, benchmark_type_t> *ret) {
             // create benchmark simply to ask for its name
             Benchmark<double> *bench = create_benchmark(type, coord3(1, 1, 1), coord3(1, 1, 1), coord3(1, 1, 1), 1, true, true);
             name = bench->name;
+            delete bench;
         }
         (*ret)[name] = type;
     }
@@ -307,9 +308,9 @@ void run_benchmark(Benchmark<double> *bench, bool quiet) {
 /** Pretty print the results in a table (format is CSV-compatible, can be exported into Excel). */
 void prettyprint(benchmark_list_t *benchmarks, bool skip_errors, bool header) {
     if(header) {
-        // TODO: print # nuns, grid size
-        printf("Benchmark                   , Blocks     ,,, Threads    ,,, Total execution time         ,,, Kernel-only execution time     \n");
-        printf("                            ,   X,   Y,   Z,   X,   Y,   Z,   Average,   Minimum,   Maximum,   Average,   Minimum,   Maximum\n");
+        // TODO: print # runs
+        printf("Benchmark                   , Domain size,,, Blocks     ,,, Threads    ,,, Total execution time         ,,, Kernel-only execution time     \n");
+        printf("                            ,   X,   Y,   Z,   X,   Y,   Z,   X,   Y,   Z,   Average,   Minimum,   Maximum,   Average,   Minimum,   Maximum\n");
     }
     for(auto it=benchmarks->begin(); it != benchmarks->end(); ++it) {
         Benchmark<double> *bench = *it;
@@ -318,8 +319,9 @@ void prettyprint(benchmark_list_t *benchmarks, bool skip_errors, bool header) {
         }
         dim3 numblocks = bench->numblocks();
         dim3 numthreads = bench->numthreads();
-        printf("%-28s,%4d,%4d,%4d,%4d,%4d,%4d,%10.6f,%10.6f,%10.6f,%10.6f,%10.6f,%10.6f%s\n",
+        printf("%-28s,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%10.6f,%10.6f,%10.6f,%10.6f,%10.6f,%10.6f%s\n",
                bench->name.c_str(),
+               bench->size.x, bench->size.y, bench->size.z,
                numblocks.x, numblocks.y, numblocks.z,
                numthreads.x, numthreads.y, numthreads.z,
                bench->results.total.avg, bench->results.total.min, bench->results.total.max,
@@ -348,6 +350,18 @@ int main(int argc, char** argv) {
         run_benchmark(*it);
     }
     fprintf(stderr, "\n");
+    // Print command that was used to generate these benchmarks for reproducibility
+    if(!args.no_header) {
+        for(int i = 0; i < argc; i++) {
+            printf("%s ", argv[i]);
+        }
+        printf("\n");
+    }
     prettyprint(benchmarks, args.skip_errors, !args.no_header);
+    // destruct
+    for(auto it=benchmarks->begin(); it != benchmarks->end(); ++it) {
+        delete *it;
+    }
+    delete benchmarks;
     return 0;
 }

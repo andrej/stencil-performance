@@ -435,6 +435,12 @@ void HdiffCudaUnstrBenchmark::teardown() {
     this->lap->deallocate();
     this->flx->deallocate();
     this->fly->deallocate();
+    delete this->input;
+    delete this->output;
+    delete this->coeff;
+    delete this->lap;
+    delete this->flx;
+    delete this->fly;
     this->HdiffBaseBenchmark::teardown();
 }
 

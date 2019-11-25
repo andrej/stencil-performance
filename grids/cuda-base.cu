@@ -25,7 +25,7 @@ CudaBaseGrid<value_t, coord_t>::CudaBaseGrid() { }
 
 template<typename value_t, typename coord_t>
 CudaBaseGrid<value_t, coord_t>::~CudaBaseGrid() {
-    this->deallocate();
+    //this->deallocate();
 }
 
 template<typename value_t, typename coord_t>
