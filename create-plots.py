@@ -18,7 +18,7 @@ def parse_input(f, name_strip=""):
     # benchmark values = 2D array, row-major, of all the measurements (numpy)
     for line in f:
         cells = line.split(",")
-        if len(cells) != 13:
+        if len(cells) != 16:
             # might be header row or some other invalid format
             continue
         benchmark_name = None
@@ -31,14 +31,14 @@ def parse_input(f, name_strip=""):
                 continue
             else:
                 try:
-                    if 1 <= i < 7:
+                    if 1 <= i < 10:
                         v = int(cell)
                     else:
                         v = float(cell)
                 except ValueError:
                     continue
             benchmark_values.append(v)
-        if not benchmark_name or len(benchmark_values) != 12:
+        if not benchmark_name or len(benchmark_values) != 15:
             # ignore invald rows
             continue
         if benchmark_name not in ret.keys():
@@ -52,7 +52,7 @@ def parse_input(f, name_strip=""):
 Plots average, minimum and maximum run times (both kernel and total) aggregated
 for each benchmark type.
 """
-def plot_avgminmax(data, ax, v_col=6, bar_size=1, group_spacing=2, bar_spacing=0):
+def plot_avgminmax(data, ax, v_col=12, bar_size=1, group_spacing=2, bar_spacing=0):
     avgs, mins, maxs = [], [], []
     xs = []
     labels = [] # six values per label
@@ -84,7 +84,7 @@ def plot_avgminmax(data, ax, v_col=6, bar_size=1, group_spacing=2, bar_spacing=0
 """
 Scatter plot of block sizes (products) to execution time.
 """
-def plot_scatter_blocksize(data, ax, f_x=lambda v:v[3]*v[4]*v[5], f_y=lambda v:v[9]):
+def plot_scatter_blocksize(data, ax, f_x=lambda v:v[6]*v[7]*v[8], f_y=lambda v:v[12]):
     # first, create 2D array of product of blocks -> execution time
     # this allows for sorting by number of blocks later
     # array needs to be sorted so that connecting lines look right
@@ -102,7 +102,7 @@ def plot_scatter_blocksize(data, ax, f_x=lambda v:v[3]*v[4]*v[5], f_y=lambda v:v
 """
 Given a data dictionary, return limits based on min/max values.
 """
-def get_limits(data, n=10, col=9, outliers_min=0, outliers_max=0, scale_min=None, scale_max=None, padding=0.1):
+def get_limits(data, n=10, col=12, outliers_min=0, outliers_max=0, scale_min=None, scale_max=None, padding=0.1):
     vals = set()
     for b in data:
         bench = data[b]
@@ -123,7 +123,7 @@ def get_limits(data, n=10, col=9, outliers_min=0, outliers_max=0, scale_min=None
 """
 Return X ticks for the given data, one tick for each data point.
 """
-def get_xticks(data, f_x=lambda v:v[3]*v[4]*v[5]):
+def get_xticks(data, f_x=lambda v:v[6]*v[7]*v[8]):
     ticks = set()
     for b in data:
         bench = data[b]
@@ -178,6 +178,11 @@ def main():
     if not data_left and not data_right:
         data_left = data
         numcols = 1
+    if not data_right:
+        numcols = 1
+    if not data_left:
+        data_left = data_right
+        numcols = 1
 
     # same scale for left and right graph
     ymin, ymax = get_limits({**data_left, **data_right},
@@ -202,7 +207,7 @@ def main():
             ax.set_xticks(xticks)
             if args.logscale:
                 ax.set_yscale("log")
-            plot_avgminmax(d, ax, v_col = 9)
+            plot_avgminmax(d, ax, v_col = 12)
 		
         idx = (numcols if not args.no_avgminmax else 0) + col + 1
         ax = plt.subplot(numrows, numcols, idx)
