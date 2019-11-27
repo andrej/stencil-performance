@@ -7,6 +7,7 @@
 #include <stdexcept>
 #include <sstream>
 #include <algorithm>
+#include <vector>
 #include "coord3.cu"
 #include "grids/coord3-base.cu"
 
@@ -23,8 +24,8 @@
 
 /** Benchmark result: Average, minimum and maximum runtime in seconds. */
 typedef struct { 
-	struct {double avg; double min; double max; } total;
-	struct {double avg; double min; double max; } kernel;
+	struct {double avg; double median; double min; double max; } total;
+	struct {double avg; double median; double min; double max; } kernel;
 	bool error; 
 } benchmark_result_t;
 
@@ -65,6 +66,15 @@ class Benchmark {
     bool do_verify = true;
     int runs = 1;
 
+    /** Pointers to command-line arguments specific to this benchmark.
+     * In main, all arguments that follow a benchmark name are considered
+     * specific to that benchmark, and the pointer to the first one of those
+     * is passed in argv. In argc, we have the number of arguments until the 
+     * next benchmark name or the end of the command. */
+    int argc;
+    char **argv;
+    virtual void parse_args(); /**< do some setup based on argc, argv */
+
 	/** Subclasses (benchmarks) must at least overwrite this function an perform
 	 * the computations to be benchmarked inside here. Computations should be
 	 * performed on this->input and stored to this->output. */
@@ -95,7 +105,22 @@ class Benchmark {
 
 };
 
+/** Computes the median of a vector of (unsorted) values. */
+template<typename value_t>
+value_t median(std::vector<value_t> vec);
+
 // IMPLEMENTATIONS
+
+template<typename value_t>
+value_t median(std::vector<value_t> vec) {
+    if(vec.size() % 2 == 0) {
+        std::nth_element(vec.begin(), vec.begin()+vec.size()/2+1, vec.end());
+        return (vec[vec.size()/2]+vec[vec.size()/2+1])/2;
+    } else {
+        std::nth_element(vec.begin(), vec.begin()+vec.size()/2, vec.end());
+        return vec[vec.size()/2];
+    }
+}
 
 template<typename value_t>
 Benchmark<value_t>::Benchmark() {}
@@ -158,6 +183,8 @@ benchmark_result_t Benchmark<value_t>::execute() {
     min = DBL_MAX;
     kernel_min = DBL_MAX;
     bool error = false;
+    std::vector<double> total_times;
+    std::vector<double> kernel_times;
     for(int i=-1; i<this->runs; i++) {
         auto start = clock::now();
         this->pre();
@@ -174,6 +201,8 @@ benchmark_result_t Benchmark<value_t>::execute() {
         auto stop = clock::now();
         double total_time = std::chrono::duration<double>(stop-start).count();
         double kernel_time = std::chrono::duration<double>(kernel_stop-kernel_start).count();
+        total_times.push_back(total_time);
+        kernel_times.push_back(kernel_time);
         avg += total_time;
         min = std::min(total_time, min);
         max = std::max(total_time, max);
@@ -187,9 +216,11 @@ benchmark_result_t Benchmark<value_t>::execute() {
     }
     this->teardown();
     avg /= runs;
-	kernel_avg /= runs;
-    benchmark_result_t res = { .total = { avg, min, max },
-            		  		   .kernel = { kernel_avg, kernel_min, kernel_max },
+    kernel_avg /= runs;
+    double med = median(total_times);
+    double kernel_med = median(kernel_times);
+    benchmark_result_t res = { .total = { avg, med, min, max },
+                               .kernel = { kernel_avg, kernel_med, kernel_min, kernel_max },
 							   .error = error };
 	this->results = res; // not using temporary variable res gives NVCC compiler segfault ...
 	return this->results;
@@ -213,6 +244,10 @@ bool Benchmark<value_t>::verify(Grid<value_t, coord3> *reference, Grid<value_t, 
         }
     }
     return true;
+}
+
+template<typename value_t>
+void Benchmark<value_t>::parse_args() {
 }
 
 #endif

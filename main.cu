@@ -34,6 +34,7 @@ typedef enum {all_benchs,
               hdiff_cuda_regular_coop,
               hdiff_cuda_regular_shared,
               hdiff_cuda_regular_shared_kloop,
+              hdiff_cuda_regular_jloop,
               hdiff_cuda_sequential,
               hdiff_cuda_unstr_naive,
               hdiff_cuda_unstr_kloop,
@@ -42,9 +43,16 @@ typedef enum {all_benchs,
               unspecified} 
 benchmark_type_t;
 
+/** Type describing a benchmark type + its benchmark-specific arguments */
+struct parametrized_benchmark_type_t {
+    benchmark_type_t type;
+    int argc;
+    char **argv;
+};
+
 /** Struct describing the benchmark to be run (default arguments) */
 struct args_t {
-    std::vector<benchmark_type_t> types;
+    std::vector<parametrized_benchmark_type_t> types;
     std::vector<coord3> sizes; // default can be found in parse_args() function
     int runs = 20;
     std::vector<coord3> numthreads; // default can be found in parse_args() function
@@ -59,7 +67,7 @@ struct args_t {
 void get_benchmark_identifiers(std::map<std::string, benchmark_type_t> *ret);
 int scan_coord3(char **strs, int n, std::vector<coord3> *ret);
 args_t parse_args(int argc, char** argv);
-Benchmark<double> *create_benchmark(benchmark_type_t type, coord3 size, coord3 numthreads, coord3 numblocks, int runs, bool quiet, bool no_verify);
+Benchmark<double> *create_benchmark(parametrized_benchmark_type_t type, coord3 size, coord3 numthreads, coord3 numblocks, int runs, bool quiet, bool no_verify);
 benchmark_list_t *create_benchmarks(args_t args);
 void run_benchmark(Benchmark<double> *bench, bool quiet = false);
 void prettyprint(benchmark_list_t *benchmarks, bool skip_errors=false, bool header=true);
@@ -78,7 +86,8 @@ void get_benchmark_identifiers(std::map<std::string, benchmark_type_t> *ret) {
             name = "all";
         } else {
             // create benchmark simply to ask for its name
-            Benchmark<double> *bench = create_benchmark(type, coord3(1, 1, 1), coord3(1, 1, 1), coord3(1, 1, 1), 1, true, true);
+            parametrized_benchmark_type_t param_bench = { .type = type };
+            Benchmark<double> *bench = create_benchmark(param_bench, coord3(1, 1, 1), coord3(1, 1, 1), coord3(1, 1, 1), 1, true, true);
             name = bench->name;
             delete bench;
         }
@@ -115,32 +124,55 @@ args_t parse_args(int argc, char** argv) {
     args_t ret;
     std::map<std::string, benchmark_type_t> benchmark_identifiers;
     get_benchmark_identifiers(&benchmark_identifiers);
-    for(int i=1; i<argc; i++) {
+
+    parametrized_benchmark_type_t current_bench;
+    current_bench.type = unspecified; // unspecified used for general arguments that apply to all benchmarks
+    // note once a benchmark identifier was present, only benchmark-specific arguments may follow
+
+    for(int i = 1; i < argc; i++) {
         std::string arg = std::string(argv[i]);
         if(benchmark_identifiers.count(arg) > 0) {
-            ret.types.push_back(benchmark_identifiers[arg]);
-        } else if(arg == "--size" && i+1 < argc) {
-            i += scan_coord3(&(argv[i+1]), argc-i-1, &ret.sizes);
-        } else if(arg == "--runs") {
-            sscanf(argv[i+1], "%d", &ret.runs);
-            i += 1;
-        } else if(arg == "--threads" && i+1 < argc) {
-            i += scan_coord3(&(argv[i+1]), argc-i-1, &ret.numthreads);
-        } else if(arg == "--blocks" && i+1 < argc) {
-            i += scan_coord3(&(argv[i+1]), argc-i-1, &ret.numblocks);
-        } else if(arg == "--print") {
-            ret.print = true;
-        } else if(arg == "--skip-errors") {
-            ret.skip_errors = true;
-        } else if(arg == "--no-header") {
-            ret.no_header = true;
-        } else if(arg == "--no-verify") {
-            ret.no_verify = true;
+            // benchmark identifier: start a new benchmark-specific entry
+            // all parameters beyond this point must be considered benchmark-specific
+            if(current_bench.type != unspecified) {
+                // add previous current bench as its arguments are now finished (delimited by next identifier)
+                ret.types.push_back(current_bench);
+            }
+            current_bench.type = benchmark_identifiers[arg];
+            current_bench.argc = 0;
+            current_bench.argv = argv + i + 1;
+        } else if(current_bench.type == unspecified) {
+            if(arg == "--size" && i+1 < argc) {
+                i += scan_coord3(&(argv[i+1]), argc-i-1, &ret.sizes);
+            } else if(arg == "--runs" && i+1 < argc) {
+                sscanf(argv[i+1], "%d", &ret.runs);
+                i += 1;
+            } else if(arg == "--threads" && i+1 < argc) {
+                i += scan_coord3(&(argv[i+1]), argc-i-1, &ret.numthreads);
+            } else if(arg == "--blocks" && i+1 < argc) {
+                i += scan_coord3(&(argv[i+1]), argc-i-1, &ret.numblocks);
+            } else if(arg == "--print") {
+                ret.print = true;
+            } else if(arg == "--skip-errors") {
+                ret.skip_errors = true;
+            } else if(arg == "--no-header") {
+                ret.no_header = true;
+            } else if(arg == "--no-verify") {
+                ret.no_verify = true;
+            } else {
+                    fprintf(stderr, "Unrecognized or incomplete argument %s.\n", arg.c_str());
+                    exit(1);
+            }
         } else {
-            fprintf(stderr, "Unrecognized or incomplete argument %s.\n", arg.c_str());
-            exit(1);
+            current_bench.argc++;
         }
     }
+    // push last arguments, if any
+    if(current_bench.type != unspecified) {
+        // add previous current bench as its arguments are now finished (delimited by next identifier)
+        ret.types.push_back(current_bench);
+    }
+
     // Default numthreads/numblocks if none of both are given
     if(ret.numthreads.empty() && ret.numblocks.empty()) {
         ret.numthreads.push_back(coord3(0, 0, 0)); //auto calculate
@@ -161,9 +193,9 @@ args_t parse_args(int argc, char** argv) {
 }
 
 /** Create the benchmark class for one of the available types. */
-Benchmark<double> *create_benchmark(benchmark_type_t type, coord3 size, coord3 numthreads, coord3 numblocks, int runs, bool quiet, bool no_verify) {
+Benchmark<double> *create_benchmark(parametrized_benchmark_type_t param_bench, coord3 size, coord3 numthreads, coord3 numblocks, int runs, bool quiet, bool no_verify) {
     Benchmark<double> *ret = NULL;
-    switch(type) {
+    switch(param_bench.type) {
         case hdiff_ref:
         ret = new HdiffReferenceBenchmark(size);
         break;
@@ -188,6 +220,9 @@ Benchmark<double> *create_benchmark(benchmark_type_t type, coord3 size, coord3 n
         case hdiff_cuda_regular_shared_kloop:
         ret = new HdiffCudaBenchmark(size, HdiffCudaRegular::shared_kloop);
         break;
+        case hdiff_cuda_regular_jloop:
+        ret = new HdiffCudaBenchmark(size, HdiffCudaRegular::jloop);
+        break;
         case hdiff_cuda_sequential:
         ret = new HdiffCudaSequentialBenchmark(size);
         break;
@@ -211,21 +246,27 @@ Benchmark<double> *create_benchmark(benchmark_type_t type, coord3 size, coord3 n
     ret->runs = runs;
     ret->quiet = quiet;
     ret->do_verify = !no_verify;
+    ret->argc = param_bench.argc;
+    ret->argv = param_bench.argv;
+    ret->parse_args();
     return ret;
 }
 
 /** From the given arguments, create a vector of benchmarks to execute. */
 benchmark_list_t *create_benchmarks(args_t args) {
-    std::vector<benchmark_type_t> types;
+    std::vector<parametrized_benchmark_type_t> types;
     for(auto it=args.types.begin(); it != args.types.end(); ++it) {
-        if((*it) == all_benchs) {
+        if(it->type == all_benchs) {
             types.clear();
             for(int it = all_benchs; it < unspecified; it++) {
                 if(it == all_benchs || it == hdiff_ref || it == hdiff_ref_unstr) {
                     // reference and unstructured cpu are not included in "all" benchmarks
                     continue;
                 }
-                types.push_back((benchmark_type_t)it);
+                parametrized_benchmark_type_t param_bench = {
+                    .type = (benchmark_type_t)it
+                };
+                types.push_back(param_bench);
             }
             break;
         }
@@ -234,7 +275,7 @@ benchmark_list_t *create_benchmarks(args_t args) {
 
     benchmark_list_t *ret = new benchmark_list_t();
     for(auto it=types.begin(); it != types.end(); ++it) {
-        benchmark_type_t type = *it;
+        parametrized_benchmark_type_t param_bench = *it;
         for(auto s_it = args.sizes.begin(); s_it != args.sizes.end(); ++s_it) {
             coord3 size = *s_it;
             int added = 0;
@@ -242,7 +283,7 @@ benchmark_list_t *create_benchmarks(args_t args) {
                 coord3 numthreads = *t_it;
                 for(auto b_it = args.numblocks.begin(); b_it != args.numblocks.end(); ++b_it) {
                     coord3 numblocks = *b_it;
-                    Benchmark<double> *bench = create_benchmark(type,
+                    Benchmark<double> *bench = create_benchmark(param_bench,
                                                                 size,
                                                                 numthreads,
                                                                 numblocks,
@@ -268,7 +309,7 @@ benchmark_list_t *create_benchmarks(args_t args) {
                 }
             }
             if(added == 0) {
-                Benchmark<double> *bench = create_benchmark(type,
+                Benchmark<double> *bench = create_benchmark(param_bench,
                                                             size,
                                                             args.numthreads[0],
                                                             args.numblocks[0],
@@ -309,8 +350,8 @@ void run_benchmark(Benchmark<double> *bench, bool quiet) {
 void prettyprint(benchmark_list_t *benchmarks, bool skip_errors, bool header) {
     if(header) {
         // TODO: print # runs
-        printf("Benchmark                   , Domain size,,, Blocks     ,,, Threads    ,,, Total execution time         ,,, Kernel-only execution time     \n");
-        printf("                            ,   X,   Y,   Z,   X,   Y,   Z,   X,   Y,   Z,   Average,   Minimum,   Maximum,   Average,   Minimum,   Maximum\n");
+        printf("Benchmark                   , Domain size,,, Blocks     ,,, Threads    ,,, Total execution time                    ,,, Kernel-only execution time                \n");
+        printf("                            ,   X,   Y,   Z,   X,   Y,   Z,   X,   Y,   Z,   Average,    Median,   Minimum,   Maximum,   Average,    Median,   Minimum ,   Maximum\n");
     }
     for(auto it=benchmarks->begin(); it != benchmarks->end(); ++it) {
         Benchmark<double> *bench = *it;
@@ -319,13 +360,13 @@ void prettyprint(benchmark_list_t *benchmarks, bool skip_errors, bool header) {
         }
         dim3 numblocks = bench->numblocks();
         dim3 numthreads = bench->numthreads();
-        printf("%-28s,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%10.6f,%10.6f,%10.6f,%10.6f,%10.6f,%10.6f%s\n",
+        printf("%-28s,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%10.6f,%10.6f,%10.6f,%10.6f,%10.6f,%10.6f,%10.6f,%10.6f%s\n",
                bench->name.c_str(),
                bench->size.x, bench->size.y, bench->size.z,
                numblocks.x, numblocks.y, numblocks.z,
                numthreads.x, numthreads.y, numthreads.z,
-               bench->results.total.avg, bench->results.total.min, bench->results.total.max,
-               bench->results.kernel.avg, bench->results.kernel.min, bench->results.kernel.max,
+               bench->results.total.avg, bench->results.total.median, bench->results.total.min, bench->results.total.max,
+               bench->results.kernel.avg, bench->results.kernel.median, bench->results.kernel.min, bench->results.kernel.max,
                (bench->error ? ", (Error)" : ""));
     }
 }

@@ -1,5 +1,6 @@
 #ifndef HDIFF_CUDA_H
 #define HDIFF_CUDA_H
+#include <stdio.h>
 #include <stdexcept>
 #include "benchmarks/benchmark.cu"
 #include "benchmarks/hdiff-base.cu"
@@ -10,7 +11,7 @@
 
 namespace HdiffCudaRegular {
 
-    enum Variant { direct, kloop, idxvar, shared, shared_kloop, coop };
+    enum Variant { direct, kloop, idxvar, shared, shared_kloop, coop, jloop };
 
     /** Naive variant: Every thread computes all of its data dependencies by itself. */
     __global__
@@ -350,7 +351,7 @@ namespace HdiffCudaRegular {
 
         // Shared memory
         extern __shared__ double smem[];
-        int block_size = blockDim.x*blockDim.y;
+        const int block_size = blockDim.x*blockDim.y;
 
         // Local block grid position (position in this blocks "cache" grid)
         const coord3 local_coord(threadIdx.x, threadIdx.y, 0);
@@ -446,6 +447,83 @@ namespace HdiffCudaRegular {
                     - CUDA_REGULAR(coeff, coord) * (flx_ij - flx_imj + fly_ij - fly_ijm);
         }
     }
+
+    /** This is the same as shared_kloop, but the code has been simplified to
+     * not make use uf any structs etc and kept as simple as possible
+     * (i.e. un-readable), in order to analyze if this has any impact on the
+     * register usage, i.e. if the compiler is able to optimize this. */
+     __global__
+     void kernel_shared_kloop_simplecode(int halo_x, int halo_y, int halo_z, int max_x, int max_y, int max_z,
+            int ystride, int zstride,
+            double *in_data, double *out_data, double *coeff_data) {
+         
+        // Global grid position
+        const int i = threadIdx.x + blockIdx.x*blockDim.x + halo_x;
+        const int j = threadIdx.y + blockIdx.y*blockDim.y + halo_y;
+        if(i >= max_x || j >= max_y) {
+            return;
+        }
+
+        // Shared memory
+        extern __shared__ double smem[];
+        
+        double *local_lap = smem;
+        double *local_flx = &smem[blockDim.x*blockDim.y];
+        double *local_fly = &smem[2*blockDim.x*blockDim.y];
+
+        // K-loop
+        for(int k = halo_z; k < max_z; k++) {
+            double lap_ij = 4 * in_data[i+j*ystride+k*zstride] 
+                - in_data[i+j*ystride+k*zstride + (-1)] - in_data[i+j*ystride+k*zstride + (+1)]
+                - in_data[i+j*ystride+k*zstride + (0) + (-1)*ystride] - in_data[i+j*ystride+k*zstride + (0) + (+1)*ystride];
+            local_lap[threadIdx.x+threadIdx.y*blockDim.x] = lap_ij;
+            __syncthreads();
+            double lap_ipj;
+            if(threadIdx.x == blockDim.x-1 || i == max_x-1) {
+                lap_ipj = 4 * in_data[i+j*ystride+k*zstride + (+1)]
+                    - in_data[i+j*ystride+k*zstride] - in_data[i+j*ystride+k*zstride + (+2)]
+                    - in_data[i+j*ystride+k*zstride + (+1) + (-1)*ystride] - in_data[i+j*ystride+k*zstride + (+1) + (+1)*ystride];
+            } else {
+                lap_ipj = local_lap[threadIdx.x+threadIdx.y*blockDim.x + (+1)];
+            }
+            double lap_ijp;
+            if(threadIdx.y == blockDim.y-1 || j == max_y-1) {
+                lap_ijp = 4 * in_data[i+j*ystride+k*zstride + (0) + (+1)*ystride]
+                    - in_data[i+j*ystride+k*zstride + (-1) + (+1)*ystride] - in_data[i+j*ystride+k*zstride + (+1) + (+1)*ystride]
+                    - in_data[i+j*ystride+k*zstride] - in_data[i+j*ystride+k*zstride + (0) + (+2)*ystride];
+            } else {
+                lap_ijp = local_lap[threadIdx.x+threadIdx.y*blockDim.x + (0) + (+1)*blockDim.x];
+            }
+            double flx_ij = lap_ipj - lap_ij;
+            flx_ij = flx_ij * (in_data[i+j*ystride+k*zstride + (+1)] - in_data[i+j*ystride+k*zstride]) > 0 ? 0 : flx_ij;
+            local_flx[threadIdx.x+threadIdx.y*blockDim.x] = flx_ij;
+            double fly_ij = lap_ijp - lap_ij;
+            fly_ij = fly_ij * (in_data[i+j*ystride+k*zstride + (0) + (+1)*ystride] - in_data[i+j*ystride+k*zstride]) > 0 ? 0 : fly_ij;
+            local_fly[threadIdx.x+threadIdx.y*blockDim.x] = fly_ij;
+            __syncthreads();
+            double flx_imj;
+            if(threadIdx.x == 0) {
+                double lap_imj = 4 * in_data[i+j*ystride+k*zstride + (-1)]
+                    - in_data[i+j*ystride+k*zstride + (-2)] - in_data[i+j*ystride+k*zstride]
+                    - in_data[i+j*ystride+k*zstride + (-1) + (-1)*ystride] - in_data[i+j*ystride+k*zstride + (-1) + (+1)*ystride];
+                flx_imj = lap_ij - lap_imj;
+                flx_imj = flx_imj * (in_data[i+j*ystride+k*zstride] - in_data[i+j*ystride+k*zstride + (-1)]) > 0 ? 0 : flx_imj;
+            } else {
+                flx_imj = local_flx[threadIdx.x+threadIdx.y*blockDim.x-1];
+            }
+            double fly_ijm;
+            if(threadIdx.y == 0) {
+                double lap_ijm = 4 * in_data[i+j*ystride+k*zstride + (0) + (-1)*ystride]
+                        - in_data[i+j*ystride+k*zstride + (-1) + (-1)*ystride] - in_data[i+j*ystride+k*zstride + (+1) + (-1)*ystride]
+                        - in_data[i+j*ystride+k*zstride + (0) + (-2)*ystride] - in_data[i+j*ystride+k*zstride];
+                fly_ijm = lap_ij - lap_ijm;
+                fly_ijm = fly_ijm * (in_data[i+j*ystride+k*zstride] - in_data[i+j*ystride+k*zstride + (0) + (-1)*ystride]) > 0 ? 0 : fly_ijm;
+            } else {
+                fly_ijm = local_fly[threadIdx.x+threadIdx.y*blockDim.x + (0) -1*blockDim.x];
+            }
+            out_data[i+j*ystride+k*zstride] = in_data[i+j*ystride+k*zstride] - coeff_data[i+j*ystride+k*zstride] * (flx_ij - flx_imj + fly_ij - fly_ijm);
+        }
+     }
 
     __global__
     void kernel_kloop(HdiffBase::Info info,
@@ -584,6 +662,82 @@ namespace HdiffCudaRegular {
         }
     }
 
+    __global__
+    void kernel_jloop(HdiffBase::Info info,
+                      int j_per_thread,
+                      CudaRegularGrid3DInfo<double> in,
+                      CudaRegularGrid3DInfo<double> out,
+                      CudaRegularGrid3DInfo<double> coeff) {
+        
+        const int i = threadIdx.x + blockIdx.x*blockDim.x + info.halo.x;
+        const int k = threadIdx.z + blockIdx.z*blockDim.z + info.halo.z;
+        int j_start = threadIdx.y*j_per_thread + blockIdx.y*blockDim.y*j_per_thread + info.halo.y;
+        if(i >= info.max_coord.x || j_start >= info.max_coord.y || k >= info.max_coord.z) {
+            return;
+        }
+
+        int j_stop = j_start + j_per_thread;
+        if(j_stop > info.max_coord.y) {
+            j_stop = info.max_coord.y;
+        }
+        
+        coord3 coord(i, j_start, k);
+
+        // first calculation outside of loop will be shifted into lap_ijm / fly_ijm on first iteration
+        double lap_ij = 4 * CUDA_REGULAR_NEIGH(in, coord, 0, -1, 0)
+                            - CUDA_REGULAR_NEIGH(in, coord, -1, -1, 0) - CUDA_REGULAR_NEIGH(in, coord, +1, -1, 0)
+                            - CUDA_REGULAR_NEIGH(in, coord, 0, -2, 0) - CUDA_REGULAR_NEIGH(in, coord, 0, 0, 0);
+        
+        double lap_ijp = 4 * CUDA_REGULAR_NEIGH(in, coord, 0, 0, 0) 
+                            - CUDA_REGULAR_NEIGH(in, coord, -1, 0, 0) - CUDA_REGULAR_NEIGH(in, coord, +1, 0, 0)
+                            - CUDA_REGULAR_NEIGH(in, coord, 0, -1, 0) - CUDA_REGULAR_NEIGH(in, coord, 0, +1, 0);
+        
+        double fly_ij = lap_ijp - lap_ij;
+        fly_ij = fly_ij * (CUDA_REGULAR(in, coord) - CUDA_REGULAR_NEIGH(in, coord, 0, -1, 0)) > 0 ? 0 : fly_ij;
+
+
+        // j-loop, shifts results from previous round for reuse
+        for(int j = j_start; j < j_stop; j++) {
+            coord.y = j;
+
+            // shift results from previous iteration
+            //double lap_ijm = lap_ij;
+            lap_ij = lap_ijp;
+            double fly_ijm = fly_ij;
+
+            // x direction dependencies are recalculated for every cell
+            double lap_imj = 
+                4 * CUDA_REGULAR_NEIGH(in, coord, -1, 0, 0)
+                - CUDA_REGULAR_NEIGH(in, coord, -2, 0, 0) - CUDA_REGULAR_NEIGH(in, coord, 0, 0, 0)
+                - CUDA_REGULAR_NEIGH(in, coord, -1, -1, 0) - CUDA_REGULAR_NEIGH(in, coord, -1, +1, 0);
+            double lap_ipj =
+                4 * CUDA_REGULAR_NEIGH(in, coord, +1, 0, 0)
+                - CUDA_REGULAR_NEIGH(in, coord, 0, 0, 0) - CUDA_REGULAR_NEIGH(in, coord, +2, 0, 0)
+                - CUDA_REGULAR_NEIGH(in, coord, +1, -1, 0) - CUDA_REGULAR_NEIGH(in, coord, +1, +1, 0);
+
+            // will be reused as lap_ij in next iteration
+            lap_ijp =
+                4 * CUDA_REGULAR_NEIGH(in, coord, 0, +1, 0)
+                - CUDA_REGULAR_NEIGH(in, coord, -1, +1, 0) - CUDA_REGULAR_NEIGH(in, coord, +1, +1, 0)
+                - CUDA_REGULAR_NEIGH(in, coord, 0, 0, 0) - CUDA_REGULAR_NEIGH(in, coord, 0, +2, 0);
+
+            // x direction dependencies are recalculated for every cell
+            double flx_ij = lap_ipj - lap_ij;
+            flx_ij = flx_ij * (CUDA_REGULAR_NEIGH(in, coord, +1, 0, 0) - CUDA_REGULAR(in, coord)) > 0 ? 0 : flx_ij;
+            double flx_imj = lap_ij - lap_imj;
+            flx_imj = flx_imj * (CUDA_REGULAR(in, coord) - CUDA_REGULAR_NEIGH(in, coord, -1, 0, 0)) > 0 ? 0 : flx_imj;
+            
+            // will be reused as fly_ijm in next iteration
+            fly_ij = lap_ijp - lap_ij;
+            fly_ij = fly_ij * (CUDA_REGULAR_NEIGH(in, coord, 0, +1, 0) - CUDA_REGULAR(in, coord)) > 0 ? 0 : fly_ij;
+
+            CUDA_REGULAR(out, coord) =
+                CUDA_REGULAR(in, coord)
+                - CUDA_REGULAR(coeff, coord) * (flx_ij - flx_imj + fly_ij - fly_ijm);
+        }
+
+    }
+
 };
 
 /** This is the reference implementation for the horizontal diffusion kernel, 
@@ -607,6 +761,10 @@ class HdiffCudaBenchmark : public HdiffBaseBenchmark {
     dim3 numthreads();
     dim3 numblocks();
     
+    // parameter for the jloop kernel only
+    virtual void parse_args();
+    int jloop_j_per_thread;
+
 };
 
 // IMPLEMENTATIONS
@@ -624,6 +782,8 @@ HdiffBaseBenchmark(size) {
         this->name = "hdiff-regular-shared-kloop";
     } else if(variant == HdiffCudaRegular::coop) {
         this->name = "hdiff-regular-coop";
+    } else if(variant == HdiffCudaRegular::jloop) {
+        this->name = "hdiff-regular-jloop";
     } else {
         this->name = "hdiff-regular-idxvar";
     }
@@ -674,11 +834,28 @@ void HdiffCudaBenchmark::run() {
     } else if(this->variant == HdiffCudaRegular::shared_kloop) {
         dim3 numthreads = this->numthreads();
         int smem_size = 3*numthreads.x*numthreads.y*sizeof(double);
-        HdiffCudaRegular::kernel_shared_kloop<<<this->numblocks(), numthreads, smem_size>>>(
+        /*HdiffCudaRegular::kernel_shared_kloop<<<this->numblocks(), numthreads, smem_size>>>(
             this->get_info(),
             //numthreads.x*numthreads.y*numthreads.z,
             //coord3(numthreads.x, numthreads.y, numthreads.z),
             //coord3(1, numthreads.x, numthreads.x*numthreads.y),
+            (dynamic_cast<CudaRegularGrid3D<double>*>(this->input))->get_gridinfo(),
+            (dynamic_cast<CudaRegularGrid3D<double>*>(this->output))->get_gridinfo(),
+            (dynamic_cast<CudaRegularGrid3D<double>*>(this->coeff))->get_gridinfo()
+        );*/
+        HdiffBase::Info info = this->get_info();
+        HdiffCudaRegular::kernel_shared_kloop_simplecode<<<this->numblocks(), numthreads, smem_size>>>(
+            info.halo.x, info.halo.y, info.halo.z,
+            info.max_coord.x, info.max_coord.y, info.max_coord.z,
+            this->input->dimensions.x, this->input->dimensions.x*this->input->dimensions.y,
+            this->input->data,
+            this->output->data,
+            this->coeff->data
+        );
+    } else if(this->variant == HdiffCudaRegular::jloop) {
+        HdiffCudaRegular::kernel_jloop<<<this->numblocks(), this->numthreads()>>>(
+            this->get_info(),
+            this->jloop_j_per_thread,
             (dynamic_cast<CudaRegularGrid3D<double>*>(this->input))->get_gridinfo(),
             (dynamic_cast<CudaRegularGrid3D<double>*>(this->output))->get_gridinfo(),
             (dynamic_cast<CudaRegularGrid3D<double>*>(this->coeff))->get_gridinfo()
@@ -744,6 +921,9 @@ dim3 HdiffCudaBenchmark::numthreads() {
         this->variant == HdiffCudaRegular::shared_kloop) {
         numthreads.z = 1;
     }
+    if(this->variant == HdiffCudaRegular::jloop) {
+        numthreads.y = 1;
+    }
     return numthreads;
 }
 
@@ -754,7 +934,23 @@ dim3 HdiffCudaBenchmark::numblocks() {
         this->variant == HdiffCudaRegular::shared_kloop) {
         numblocks.z = 1;
     }
+    if(this->variant == HdiffCudaRegular::jloop) {
+        numblocks.y = (this->size.y + this->jloop_j_per_thread - 1) / this->jloop_j_per_thread;
+    }
     return numblocks;
+}
+
+void HdiffCudaBenchmark::parse_args() {
+    if(this->argc > 0) {
+        // only variant of this that takes an argument is the jloop variant
+        if(this->variant == HdiffCudaRegular::jloop) {
+            sscanf(this->argv[0], "%d", &this->jloop_j_per_thread);
+        }
+    } else {
+        if(this->variant == HdiffCudaRegular::jloop) {
+            this->jloop_j_per_thread = 16; // default value of 16
+        }
+    }
 }
 
 #endif
