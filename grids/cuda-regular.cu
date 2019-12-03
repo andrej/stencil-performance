@@ -11,9 +11,11 @@
  */
  template<typename value_t>
  struct CudaRegularGrid3DInfo {
-     value_t *data; /**< Pointer to the allocated CUDA memory, i.e. this->data */
-     coord3 dimensions;
-     coord3 strides;
+    struct {
+        // stride x is always 1 for regular grids, don't waste register storing that information
+        const int y;
+        const int z;
+    } strides;
  };
 
 /** Regular grid which stores its data in Cuda unified memory and provides a
@@ -37,34 +39,28 @@ virtual public CudaBaseGrid<value_t, coord3>
     int neighbor(coord3 coord, coord3 offset); /**< Reimplemented to use the kernel macro. */
     
     virtual CudaRegularGrid3DInfo<value_t> get_gridinfo(); /**< Return grid info struct required by kernel macros. */
-
+    
 };
-
-/** Get value at given data index (not coord.) */
-#define CUDA_REGULAR_AT(grid_info, index) \
-    (grid_info.data[index])
-
-/** Use this macro to get data (value) from a grid inside kernels. */
-#define CUDA_REGULAR(grid_info, coords) \
-    (grid_info.data[CUDA_REGULAR_INDEX(grid_info, coords)])
-
-/** Use this to get the value of a neighbor. */
-#define CUDA_REGULAR_NEIGH(grid_info, coords, x, y, z) \
-    (grid_info.data[CUDA_REGULAR_NEIGHBOR(grid_info, coords, x, y, z)])
 
 /** Use this macro instead of the CudaRegularGrid3D::index() function for
  * getting the index of some coordinates inside the kernel. */
-#define CUDA_REGULAR_INDEX(grid_info, coords) \
-        ((int)   (coords.x + \
-                  coords.y * grid_info.strides.y + \
-                  coords.z * grid_info.strides.z))
+#define CUDA_REGULAR_INDEX(grid_info, _x, _y, _z) \
+        CUDA_REGULAR_INDEX_(grid_info.strides.y, grid_info.strides.z, _x, _y, _z)
+
+#define CUDA_REGULAR_INDEX_(stride_y, stride_z, _x, _y, _z) \
+        ((int)   ((int)(_x) + \
+                  (int)(_y) * stride_y + \
+                  (int)(_z) * stride_z))
           
 /** Use this macro instead of the CudaRegularGrid3D::neighbor() function for
  * getting the index of some coordinate offset from within the kernel. */
-#define CUDA_REGULAR_NEIGHBOR(grid_info, coords, _x, _y, _z) \
-        ((int)   ((coords.x + (_x)) + \
-                  (coords.y + (_y)) * grid_info.strides.y + \
-                  (coords.z + (_z)) * grid_info.strides.z))
+#define CUDA_REGULAR_NEIGHBOR(grid_info, _x, _y, _z, neigh_x, neigh_y, neigh_z) \
+        CUDA_REGULAR_NEIGHBOR_(grid_info.strides.y, grid_info.strides.z, _x, _y, _z, neigh_x, neigh_y, neigh_z)
+
+#define CUDA_REGULAR_NEIGHBOR_(stride_y, stride_z, _x, _y, _z, _neigh_x, _neigh_y, _neigh_z) \
+        ((int)   (((int)(_x) + (_neigh_x)) + \
+                  ((int)(_y) + (_neigh_y)) * stride_y + \
+                  ((int)(_z) + (_neigh_z)) * stride_z))
 
 // IMPLEMENTATIONS
 
@@ -78,21 +74,19 @@ Grid<value_t, coord3>(dimensions,
 template<typename value_t>
 int CudaRegularGrid3D<value_t>::index(coord3 coord) {
     CudaRegularGrid3DInfo<value_t> gridinfo = this->get_gridinfo();
-    return CUDA_REGULAR_INDEX(gridinfo, coord);
+    return CUDA_REGULAR_INDEX(gridinfo, coord.x, coord.y, coord.z);
 }
 
 template<typename value_t>
 int CudaRegularGrid3D<value_t>::neighbor(coord3 coord, coord3 offs) {
     CudaRegularGrid3DInfo<value_t> gridinfo = this->get_gridinfo();
-    return CUDA_REGULAR_NEIGHBOR(gridinfo, coord, offs.x, offs.y, offs.z);
+    return CUDA_REGULAR_NEIGHBOR(gridinfo, coord.x, coord.y, coord.z, offs.x, offs.y, offs.z);
 }
 
 template<typename value_t>
 CudaRegularGrid3DInfo<value_t> CudaRegularGrid3D<value_t>::get_gridinfo() {
     coord3 dimensions = this->dimensions;
-    return { .data = this->data,
-             .dimensions = dimensions,
-             .strides = coord3(1, dimensions.x, dimensions.x*dimensions.y) };
+    return { .strides = {.y = (int)dimensions.x, .z = (int)dimensions.x*(int)dimensions.y } };
 }
 
 #endif

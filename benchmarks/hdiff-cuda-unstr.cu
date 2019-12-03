@@ -22,13 +22,14 @@ namespace HdiffCudaUnstr {
      */
      __global__
      void kernel_naive(Info info,
-                         CudaUnstructuredGrid3DInfo<double> in,
-                         CudaUnstructuredGrid3DInfo<double> out,
-                         CudaUnstructuredGrid3DInfo<double> coeff
+                         CudaUnstructuredGrid3DInfo<double> grid_info,
+                         double* in,
+                         double* out,
+                         double* coeff
                          #ifdef HDIFF_DEBUG
-                         , CudaUnstructuredGrid3DInfo<double> dbg_lap
-                         , CudaUnstructuredGrid3DInfo<double> dbg_flx
-                         , CudaUnstructuredGrid3DInfo<double> dbg_fly
+                         , double* dbg_lap
+                         , double* dbg_flx
+                         , double* dbg_fly
                          #endif
                          ) {
         const int i = threadIdx.x + blockIdx.x*blockDim.x + info.halo.x;
@@ -37,72 +38,71 @@ namespace HdiffCudaUnstr {
         if(i >= info.max_coord.x || j >= info.max_coord.y || info.halo.z >= info.max_coord.z) {
             return;
         }
-        coord3 coord(i, j, k);
         
-        int n_0_0_0       = CUDA_UNSTR_INDEX(in, coord);
-        int n_0_n1_0      = CUDA_UNSTR_NEIGHBOR_AT(in, n_0_0_0,   0, -1, 0);
-        int n_0_n2_0      = CUDA_UNSTR_NEIGHBOR_AT(in, n_0_n1_0,  0, -1, 0);
-        int n_n1_0_0      = CUDA_UNSTR_NEIGHBOR_AT(in, n_0_0_0,  -1, 0, 0);
-        int n_n1_n1_0     = CUDA_UNSTR_NEIGHBOR_AT(in, n_n1_0_0,  0, -1, 0);
-        int n_n2_0_0      = CUDA_UNSTR_NEIGHBOR_AT(in, n_n1_0_0, -1, 0, 0);
-        //int n_n2_n1_0     = CUDA_UNSTR_NEIGHBOR_AT(in, n_n2_0_0,  0, -1, 0);
-        int n_0_p1_0      = CUDA_UNSTR_NEIGHBOR_AT(in, n_0_0_0,   0, +1, 0);
-        int n_0_p2_0      = CUDA_UNSTR_NEIGHBOR_AT(in, n_0_p1_0,  0, +1, 0);
-        int n_p1_0_0      = CUDA_UNSTR_NEIGHBOR_AT(in, n_0_0_0,  +1, 0, 0);
-        int n_p1_p1_0     = CUDA_UNSTR_NEIGHBOR_AT(in, n_p1_0_0,  0, +1, 0);
-        int n_p2_0_0      = CUDA_UNSTR_NEIGHBOR_AT(in, n_p1_0_0, +1, 0, 0);
-        //int n_p2_p1_0     = CUDA_UNSTR_NEIGHBOR_AT(in, n_p2_0_0,  0, +1, 0);     
-        int n_n1_p1_0     = CUDA_UNSTR_NEIGHBOR_AT(in, n_n1_0_0,  0, +1, 0);
-        int n_p1_n1_0     = CUDA_UNSTR_NEIGHBOR_AT(in, n_p1_0_0,  0, -1, 0);
+        int n_0_0_0       = CUDA_UNSTR_INDEX(grid_info, i, j, k);
+        int n_0_n1_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_0_0, 0, -1, 0);
+        int n_0_n2_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_n1_0, 0, -1, 0);
+        int n_n1_0_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_0_0, -1, 0, 0);
+        int n_n1_n1_0     = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_n1_0_0, 0, -1, 0);
+        int n_n2_0_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_n1_0_0, -1, 0, 0);
+        //int n_n2_n1_0     = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_n2_0_0, 0, -1, 0);
+        int n_0_p1_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_0_0, 0, +1, 0);
+        int n_0_p2_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_p1_0, 0, +1, 0);
+        int n_p1_0_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_0_0, +1, 0, 0);
+        int n_p1_p1_0     = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_p1_0_0, 0, +1, 0);
+        int n_p2_0_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_p1_0_0, +1, 0, 0);
+        //int n_p2_p1_0     = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_p2_0_0, 0, +1, 0);     
+        int n_n1_p1_0     = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_n1_0_0, 0, +1, 0);
+        int n_p1_n1_0     = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_p1_0_0, 0, -1, 0);
 
         double lap_ij = 
-            4 * CUDA_UNSTR_AT(in, n_0_0_0) 
-            - CUDA_UNSTR_AT(in, n_n1_0_0) - CUDA_UNSTR_AT(in, n_p1_0_0)
-            - CUDA_UNSTR_AT(in, n_0_n1_0) - CUDA_UNSTR_AT(in, n_0_p1_0);
+            4 * in[n_0_0_0] 
+            - in[n_n1_0_0] - in[n_p1_0_0]
+            - in[n_0_n1_0] - in[n_0_p1_0];
         double lap_imj = 
-            4 * CUDA_UNSTR_AT(in, n_n1_0_0)
-            - CUDA_UNSTR_AT(in, n_n2_0_0) - CUDA_UNSTR_AT(in, n_0_0_0)
-            - CUDA_UNSTR_AT(in, n_n1_n1_0) - CUDA_UNSTR_AT(in, n_n1_p1_0);
+            4 * in[n_n1_0_0]
+            - in[n_n2_0_0] - in[n_0_0_0]
+            - in[n_n1_n1_0] - in[n_n1_p1_0];
         double lap_ipj =
-            4 * CUDA_UNSTR_AT(in, n_p1_0_0)
-            - CUDA_UNSTR(in, coord) - CUDA_UNSTR_AT(in, n_p2_0_0)
-            - CUDA_UNSTR_AT(in, n_p1_n1_0) - CUDA_UNSTR_AT(in, n_p1_p1_0);
+            4 * in[n_p1_0_0]
+            - in[CUDA_UNSTR_INDEX(grid_info, i, j, k)] - in[n_p2_0_0]
+            - in[n_p1_n1_0] - in[n_p1_p1_0];
         double lap_ijm =
-            4 * CUDA_UNSTR_AT(in, n_0_n1_0)
-            - CUDA_UNSTR_AT(in, n_n1_n1_0) - CUDA_UNSTR_AT(in, n_p1_n1_0)
-            - CUDA_UNSTR_AT(in, n_0_n2_0) - CUDA_UNSTR(in, coord);
+            4 * in[n_0_n1_0]
+            - in[n_n1_n1_0] - in[n_p1_n1_0]
+            - in[n_0_n2_0] - in[CUDA_UNSTR_INDEX(grid_info, i, j, k)];
         double lap_ijp =
-            4 * CUDA_UNSTR_AT(in, n_0_p1_0)
-            - CUDA_UNSTR_AT(in, n_n1_p1_0) - CUDA_UNSTR_AT(in, n_p1_p1_0)
-            - CUDA_UNSTR(in, coord) - CUDA_UNSTR_AT(in, n_0_p2_0);
+            4 * in[n_0_p1_0]
+            - in[n_n1_p1_0] - in[n_p1_p1_0]
+            - in[CUDA_UNSTR_INDEX(grid_info, i, j, k)] - in[n_0_p2_0];
 
         double flx_ij = lap_ipj - lap_ij;
-        flx_ij = flx_ij * (CUDA_UNSTR_AT(in, n_p1_0_0) - CUDA_UNSTR(in, coord)) > 0 ? 0 : flx_ij;
+        flx_ij = flx_ij * (in[n_p1_0_0] - in[CUDA_UNSTR_INDEX(grid_info, i, j, k)]) > 0 ? 0 : flx_ij;
 
         double flx_imj = lap_ij - lap_imj;
-        flx_imj = flx_imj * (CUDA_UNSTR(in, coord) - CUDA_UNSTR_AT(in, n_n1_0_0)) > 0 ? 0 : flx_imj;
+        flx_imj = flx_imj * (in[CUDA_UNSTR_INDEX(grid_info, i, j, k)] - in[n_n1_0_0]) > 0 ? 0 : flx_imj;
 
         double fly_ij = lap_ijp - lap_ij;
-        fly_ij = fly_ij * (CUDA_UNSTR_AT(in, n_0_p1_0) - CUDA_UNSTR(in, coord)) > 0 ? 0 : fly_ij;
+        fly_ij = fly_ij * (in[n_0_p1_0] - in[CUDA_UNSTR_INDEX(grid_info, i, j, k)]) > 0 ? 0 : fly_ij;
 
         double fly_ijm = lap_ij - lap_ijm;
-        fly_ijm = fly_ijm * (CUDA_UNSTR(in, coord) - CUDA_UNSTR_AT(in, n_0_n1_0)) > 0 ? 0 : fly_ijm;
+        fly_ijm = fly_ijm * (in[CUDA_UNSTR_INDEX(grid_info, i, j, k)] - in[n_0_n1_0]) > 0 ? 0 : fly_ijm;
 
-        CUDA_UNSTR(out, coord) =
-            CUDA_UNSTR(in, coord)
-            - CUDA_UNSTR(coeff, coord) * (flx_ij - flx_imj + fly_ij - fly_ijm);
+        out[CUDA_UNSTR_INDEX(grid_info, i, j, k)] =
+            in[CUDA_UNSTR_INDEX(grid_info, i, j, k)]
+            - coeff[CUDA_UNSTR_INDEX(grid_info, i, j, k)] * (flx_ij - flx_imj + fly_ij - fly_ijm);
         
         // for debugging purposes:
         #ifdef HDIFF_DEBUG
-        CUDA_UNSTR(dbg_lap, coord) = lap_ij;
-        CUDA_UNSTR_NEIGH(dbg_lap, coord, -1, 0, 0) = lap_imj;
-        CUDA_UNSTR_NEIGH(dbg_lap, coord, 0, -1, 0) = lap_ijm;
-        CUDA_UNSTR_NEIGH(dbg_lap, coord, +1, 0, 0) = lap_ipj;
-        CUDA_UNSTR_NEIGH(dbg_lap, coord, 0, +1, 0) = lap_ijp;
-        CUDA_UNSTR(dbg_flx, coord) = flx_ij;
-        CUDA_UNSTR_NEIGH(dbg_flx, coord, -1, 0, 0) = flx_imj;
-        CUDA_UNSTR(dbg_fly, coord) = fly_ij;
-        CUDA_UNSTR_NEIGH(dbg_fly, coord, 0, -1, 0) = fly_ijm;
+        dbg_lap[CUDA_UNSTR_INDEX(grid_info, i, j, k)] = lap_ij;
+        dbg_lap[CUDA_UNSTR_NEIGHBOR(grid_info, i, j, k, -1, 0, 0)] = lap_imj;
+        dbg_lap[CUDA_UNSTR_NEIGHBOR(grid_info, i, j, k, 0, -1, 0)] = lap_ijm;
+        dbg_lap[CUDA_UNSTR_NEIGHBOR(grid_info, i, j, k, +1, 0, 0)] = lap_ipj;
+        dbg_lap[CUDA_UNSTR_NEIGHBOR(grid_info, i, j, k, 0, +1, 0)] = lap_ijp;
+        dbg_flx[CUDA_UNSTR_INDEX(grid_info, i, j, k)] = flx_ij;
+        dbg_flx[CUDA_UNSTR_NEIGHBOR(grid_info, i, j, k, -1, 0, 0)] = flx_imj;
+        dbg_fly[CUDA_UNSTR_INDEX(grid_info, i, j, k)] = fly_ij;
+        dbg_fly[CUDA_UNSTR_NEIGHBOR(grid_info, i, j, k, 0, -1, 0)] = fly_ijm;
         #endif
  
     }
@@ -112,13 +112,14 @@ namespace HdiffCudaUnstr {
      */
      __global__
      void kernel_naive_kloop(Info info,
-                             CudaUnstructuredGrid3DInfo<double> in,
-                             CudaUnstructuredGrid3DInfo<double> out,
-                             CudaUnstructuredGrid3DInfo<double> coeff
+                             CudaUnstructuredGrid3DInfo<double> grid_info,
+                             double* in,
+                             double* out,
+                             double* coeff
                              #ifdef HDIFF_DEBUG
-                             , CudaUnstructuredGrid3DInfo<double> dbg_lap
-                             , CudaUnstructuredGrid3DInfo<double> dbg_flx
-                             , CudaUnstructuredGrid3DInfo<double> dbg_fly
+                             , double* dbg_lap
+                             , double* dbg_flx
+                             , double* dbg_fly
                              #endif
                              ) {
         const int i = threadIdx.x + blockIdx.x*blockDim.x + info.halo.x;
@@ -128,72 +129,71 @@ namespace HdiffCudaUnstr {
         }
         
         for(int k = info.halo.z; k < info.max_coord.z; k++) {
-            coord3 coord(i, j, k);
 
-            int n_0_0_0       = CUDA_UNSTR_INDEX(in, coord);
-            int n_0_n1_0      = CUDA_UNSTR_NEIGHBOR_AT(in, n_0_0_0,   0, -1, 0);
-            int n_0_n2_0      = CUDA_UNSTR_NEIGHBOR_AT(in, n_0_n1_0,  0, -1, 0);
-            int n_n1_0_0      = CUDA_UNSTR_NEIGHBOR_AT(in, n_0_0_0,  -1, 0, 0);
-            int n_n1_n1_0     = CUDA_UNSTR_NEIGHBOR_AT(in, n_n1_0_0,  0, -1, 0);
-            int n_n2_0_0      = CUDA_UNSTR_NEIGHBOR_AT(in, n_n1_0_0, -1, 0, 0);
-            //int n_n2_n1_0     = CUDA_UNSTR_NEIGHBOR_AT(in, n_n2_0_0,  0, -1, 0);
-            int n_0_p1_0      = CUDA_UNSTR_NEIGHBOR_AT(in, n_0_0_0,   0, +1, 0);
-            int n_0_p2_0      = CUDA_UNSTR_NEIGHBOR_AT(in, n_0_p1_0,  0, +1, 0);
-            int n_p1_0_0      = CUDA_UNSTR_NEIGHBOR_AT(in, n_0_0_0,  +1, 0, 0);
-            int n_p1_p1_0     = CUDA_UNSTR_NEIGHBOR_AT(in, n_p1_0_0,  0, +1, 0);
-            int n_p2_0_0      = CUDA_UNSTR_NEIGHBOR_AT(in, n_p1_0_0, +1, 0, 0);
-            //int n_p2_p1_0     = CUDA_UNSTR_NEIGHBOR_AT(in, n_p2_0_0,  0, +1, 0);     
-            int n_n1_p1_0     = CUDA_UNSTR_NEIGHBOR_AT(in, n_n1_0_0,  0, +1, 0);
-            int n_p1_n1_0     = CUDA_UNSTR_NEIGHBOR_AT(in, n_p1_0_0,  0, -1, 0);
+            int n_0_0_0       = CUDA_UNSTR_INDEX(grid_info, i, j, k);
+            int n_0_n1_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_0_0, 0, -1, 0);
+            int n_0_n2_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_n1_0, 0, -1, 0);
+            int n_n1_0_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_0_0, -1, 0, 0);
+            int n_n1_n1_0     = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_n1_0_0, 0, -1, 0);
+            int n_n2_0_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_n1_0_0, -1, 0, 0);
+            //int n_n2_n1_0     = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_n2_0_0, 0, -1, 0);
+            int n_0_p1_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_0_0, 0, +1, 0);
+            int n_0_p2_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_p1_0, 0, +1, 0);
+            int n_p1_0_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_0_0, +1, 0, 0);
+            int n_p1_p1_0     = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_p1_0_0, 0, +1, 0);
+            int n_p2_0_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_p1_0_0, +1, 0, 0);
+            //int n_p2_p1_0     = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_p2_0_0, 0, +1, 0);     
+            int n_n1_p1_0     = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_n1_0_0, 0, +1, 0);
+            int n_p1_n1_0     = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_p1_0_0, 0, -1, 0);
 
             double lap_ij = 
-                4 * CUDA_UNSTR_AT(in, n_0_0_0) 
-                - CUDA_UNSTR_AT(in, n_n1_0_0) - CUDA_UNSTR_AT(in, n_p1_0_0)
-                - CUDA_UNSTR_AT(in, n_0_n1_0) - CUDA_UNSTR_AT(in, n_0_p1_0);
+                4 * in[n_0_0_0] 
+                - in[n_n1_0_0] - in[n_p1_0_0]
+                - in[n_0_n1_0] - in[n_0_p1_0];
             double lap_imj = 
-                4 * CUDA_UNSTR_AT(in, n_n1_0_0)
-                - CUDA_UNSTR_AT(in, n_n2_0_0) - CUDA_UNSTR_AT(in, n_0_0_0)
-                - CUDA_UNSTR_AT(in, n_n1_n1_0) - CUDA_UNSTR_AT(in, n_n1_p1_0);
+                4 * in[n_n1_0_0]
+                - in[n_n2_0_0] - in[n_0_0_0]
+                - in[n_n1_n1_0] - in[n_n1_p1_0];
             double lap_ipj =
-                4 * CUDA_UNSTR_AT(in, n_p1_0_0)
-                - CUDA_UNSTR(in, coord) - CUDA_UNSTR_AT(in, n_p2_0_0)
-                - CUDA_UNSTR_AT(in, n_p1_n1_0) - CUDA_UNSTR_AT(in, n_p1_p1_0);
+                4 * in[n_p1_0_0]
+                - in[CUDA_UNSTR_INDEX(grid_info, i, j, k)] - in[n_p2_0_0]
+                - in[n_p1_n1_0] - in[n_p1_p1_0];
             double lap_ijm =
-                4 * CUDA_UNSTR_AT(in, n_0_n1_0)
-                - CUDA_UNSTR_AT(in, n_n1_n1_0) - CUDA_UNSTR_AT(in, n_p1_n1_0)
-                - CUDA_UNSTR_AT(in, n_0_n2_0) - CUDA_UNSTR(in, coord);
+                4 * in[n_0_n1_0]
+                - in[n_n1_n1_0] - in[n_p1_n1_0]
+                - in[n_0_n2_0] - in[CUDA_UNSTR_INDEX(grid_info, i, j, k)];
             double lap_ijp =
-                4 * CUDA_UNSTR_AT(in, n_0_p1_0)
-                - CUDA_UNSTR_AT(in, n_n1_p1_0) - CUDA_UNSTR_AT(in, n_p1_p1_0)
-                - CUDA_UNSTR(in, coord) - CUDA_UNSTR_AT(in, n_0_p2_0);
+                4 * in[n_0_p1_0]
+                - in[n_n1_p1_0] - in[n_p1_p1_0]
+                - in[CUDA_UNSTR_INDEX(grid_info, i, j, k)] - in[n_0_p2_0];
 
             double flx_ij = lap_ipj - lap_ij;
-            flx_ij = flx_ij * (CUDA_UNSTR_AT(in, n_p1_0_0) - CUDA_UNSTR(in, coord)) > 0 ? 0 : flx_ij;
+            flx_ij = flx_ij * (in[n_p1_0_0] - in[CUDA_UNSTR_INDEX(grid_info, i, j, k)]) > 0 ? 0 : flx_ij;
 
             double flx_imj = lap_ij - lap_imj;
-            flx_imj = flx_imj * (CUDA_UNSTR(in, coord) - CUDA_UNSTR_AT(in, n_n1_0_0)) > 0 ? 0 : flx_imj;
+            flx_imj = flx_imj * (in[CUDA_UNSTR_INDEX(grid_info, i, j, k)] - in[n_n1_0_0]) > 0 ? 0 : flx_imj;
 
             double fly_ij = lap_ijp - lap_ij;
-            fly_ij = fly_ij * (CUDA_UNSTR_AT(in, n_0_p1_0) - CUDA_UNSTR(in, coord)) > 0 ? 0 : fly_ij;
+            fly_ij = fly_ij * (in[n_0_p1_0] - in[CUDA_UNSTR_INDEX(grid_info, i, j, k)]) > 0 ? 0 : fly_ij;
 
             double fly_ijm = lap_ij - lap_ijm;
-            fly_ijm = fly_ijm * (CUDA_UNSTR(in, coord) - CUDA_UNSTR_AT(in, n_0_n1_0)) > 0 ? 0 : fly_ijm;
+            fly_ijm = fly_ijm * (in[CUDA_UNSTR_INDEX(grid_info, i, j, k)] - in[n_0_n1_0]) > 0 ? 0 : fly_ijm;
 
-            CUDA_UNSTR(out, coord) =
-                CUDA_UNSTR(in, coord)
-                - CUDA_UNSTR(coeff, coord) * (flx_ij - flx_imj + fly_ij - fly_ijm);
+            out[CUDA_UNSTR_INDEX(grid_info, i, j, k)] =
+                in[CUDA_UNSTR_INDEX(grid_info, i, j, k)]
+                - coeff[CUDA_UNSTR_INDEX(grid_info, i, j, k)] * (flx_ij - flx_imj + fly_ij - fly_ijm);
             
             // for debugging purposes:
             #ifdef HDIFF_DEBUG
-            CUDA_UNSTR(dbg_lap, coord) = lap_ij;
-            CUDA_UNSTR_NEIGH(dbg_lap, coord, -1, 0, 0) = lap_imj;
-            CUDA_UNSTR_NEIGH(dbg_lap, coord, 0, -1, 0) = lap_ijm;
-            CUDA_UNSTR_NEIGH(dbg_lap, coord, +1, 0, 0) = lap_ipj;
-            CUDA_UNSTR_NEIGH(dbg_lap, coord, 0, +1, 0) = lap_ijp;
-            CUDA_UNSTR(dbg_flx, coord) = flx_ij;
-            CUDA_UNSTR_NEIGH(dbg_flx, coord, -1, 0, 0) = flx_imj;
-            CUDA_UNSTR(dbg_fly, coord) = fly_ij;
-            CUDA_UNSTR_NEIGH(dbg_fly, coord, 0, -1, 0) = fly_ijm;
+            dbg_lap[CUDA_UNSTR_INDEX(grid_info, i, j, k)] = lap_ij;
+            dbg_lap[CUDA_UNSTR_NEIGHBOR(grid_info, i, j, k, -1, 0, 0)] = lap_imj;
+            dbg_lap[CUDA_UNSTR_NEIGHBOR(grid_info, i, j, k, 0, -1, 0)] = lap_ijm;
+            dbg_lap[CUDA_UNSTR_NEIGHBOR(grid_info, i, j, k, +1, 0, 0)] = lap_ipj;
+            dbg_lap[CUDA_UNSTR_NEIGHBOR(grid_info, i, j, k, 0, +1, 0)] = lap_ijp;
+            dbg_flx[CUDA_UNSTR_INDEX(grid_info, i, j, k)] = flx_ij;
+            dbg_flx[CUDA_UNSTR_NEIGHBOR(grid_info, i, j, k, -1, 0, 0)] = flx_imj;
+            dbg_fly[CUDA_UNSTR_INDEX(grid_info, i, j, k)] = fly_ij;
+            dbg_fly[CUDA_UNSTR_NEIGHBOR(grid_info, i, j, k, 0, -1, 0)] = fly_ijm;
             #endif
         }
  
@@ -206,13 +206,14 @@ namespace HdiffCudaUnstr {
      */
     __global__
     void kernel_idxvars(Info info,
-                        CudaUnstructuredGrid3DInfo<double> in,
-                        CudaUnstructuredGrid3DInfo<double> out,
-                        CudaUnstructuredGrid3DInfo<double> coeff
+                        CudaUnstructuredGrid3DInfo<double> grid_info,
+                        double* in,
+                        double* out,
+                        double* coeff
                         #ifdef HDIFF_DEBUG
-                        , CudaUnstructuredGrid3DInfo<double> dbg_lap
-                        , CudaUnstructuredGrid3DInfo<double> dbg_flx
-                        , CudaUnstructuredGrid3DInfo<double> dbg_fly
+                        , double* dbg_lap
+                        , double* dbg_flx
+                        , double* dbg_fly
                         #endif
                         ) {
         const int i = threadIdx.x + blockIdx.x*blockDim.x + info.halo.x;
@@ -227,94 +228,92 @@ namespace HdiffCudaUnstr {
          * use of the regularity of the grid in z-direction. 
          * idx of neighbor X Y Z = n_X_Y_Z with p for positive offset and 
          * n for negative offset. */
-        coord3 coord(i, j, info.halo.z);
-        int n_0_0_0       = CUDA_UNSTR_INDEX(in, coord);
-        int n_0_n1_0      = CUDA_UNSTR_NEIGHBOR_AT(in, n_0_0_0,   0, -1, 0);
-        int n_0_n2_0      = CUDA_UNSTR_NEIGHBOR_AT(in, n_0_n1_0,  0, -1, 0);
-        int n_n1_0_0      = CUDA_UNSTR_NEIGHBOR_AT(in, n_0_0_0,  -1, 0, 0);
-        int n_n1_n1_0     = CUDA_UNSTR_NEIGHBOR_AT(in, n_n1_0_0,  0, -1, 0);
-        int n_n2_0_0      = CUDA_UNSTR_NEIGHBOR_AT(in, n_n1_0_0, -1, 0, 0);
-        //int n_n2_n1_0     = CUDA_UNSTR_NEIGHBOR_AT(in, n_n2_0_0,  0, -1, 0);
-        int n_0_p1_0      = CUDA_UNSTR_NEIGHBOR_AT(in, n_0_0_0,   0, +1, 0);
-        int n_0_p2_0      = CUDA_UNSTR_NEIGHBOR_AT(in, n_0_p1_0,  0, +1, 0);
-        int n_p1_0_0      = CUDA_UNSTR_NEIGHBOR_AT(in, n_0_0_0,  +1, 0, 0);
-        int n_p1_p1_0     = CUDA_UNSTR_NEIGHBOR_AT(in, n_p1_0_0,  0, +1, 0);
-        int n_p2_0_0      = CUDA_UNSTR_NEIGHBOR_AT(in, n_p1_0_0, +1, 0, 0);
-        //int n_p2_p1_0     = CUDA_UNSTR_NEIGHBOR_AT(in, n_p2_0_0,  0, +1, 0);     
-        int n_n1_p1_0     = CUDA_UNSTR_NEIGHBOR_AT(in, n_n1_0_0,  0, +1, 0);
-        int n_p1_n1_0     = CUDA_UNSTR_NEIGHBOR_AT(in, n_p1_0_0,  0, -1, 0);
+        int n_0_0_0       = CUDA_UNSTR_INDEX(grid_info, i, j, 0);
+        int n_0_n1_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_0_0, 0, -1, 0);
+        int n_0_n2_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_n1_0, 0, -1, 0);
+        int n_n1_0_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_0_0, -1, 0, 0);
+        int n_n1_n1_0     = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_n1_0_0, 0, -1, 0);
+        int n_n2_0_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_n1_0_0, -1, 0, 0);
+        //int n_n2_n1_0     = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_n2_0_0, 0, -1, 0);
+        int n_0_p1_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_0_0, 0, +1, 0);
+        int n_0_p2_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_p1_0, 0, +1, 0);
+        int n_p1_0_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_0_0, +1, 0, 0);
+        int n_p1_p1_0     = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_p1_0_0, 0, +1, 0);
+        int n_p2_0_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_p1_0_0, +1, 0, 0);
+        //int n_p2_p1_0     = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_p2_0_0, 0, +1, 0);     
+        int n_n1_p1_0     = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_n1_0_0, 0, +1, 0);
+        int n_p1_n1_0     = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_p1_0_0, 0, -1, 0);
 
         for (int k = info.halo.z; k < info.max_coord.z; k++) {
-            const coord3 coord(i, j, k);
 
             double lap_ij = 
-                4 * CUDA_UNSTR_AT(in, n_0_0_0) 
-                - CUDA_UNSTR_AT(in, n_n1_0_0) - CUDA_UNSTR_AT(in, n_p1_0_0)
-                - CUDA_UNSTR_AT(in, n_0_n1_0) - CUDA_UNSTR_AT(in, n_0_p1_0);
+                4 * in[n_0_0_0] 
+                - in[n_n1_0_0] - in[n_p1_0_0]
+                - in[n_0_n1_0] - in[n_0_p1_0];
             double lap_imj = 
-                4 * CUDA_UNSTR_AT(in, n_n1_0_0)
-                - CUDA_UNSTR_AT(in, n_n2_0_0) - CUDA_UNSTR_AT(in, n_0_0_0)
-                - CUDA_UNSTR_AT(in, n_n1_n1_0) - CUDA_UNSTR_AT(in, n_n1_p1_0);
+                4 * in[n_n1_0_0]
+                - in[n_n2_0_0] - in[n_0_0_0]
+                - in[n_n1_n1_0] - in[n_n1_p1_0];
             double lap_ipj =
-                4 * CUDA_UNSTR_AT(in, n_p1_0_0)
-                - CUDA_UNSTR(in, coord) - CUDA_UNSTR_AT(in, n_p2_0_0)
-                - CUDA_UNSTR_AT(in, n_p1_n1_0) - CUDA_UNSTR_AT(in, n_p1_p1_0);
+                4 * in[n_p1_0_0]
+                - in[CUDA_UNSTR_INDEX(grid_info, i, j, k)] - in[n_p2_0_0]
+                - in[n_p1_n1_0] - in[n_p1_p1_0];
             double lap_ijm =
-                4 * CUDA_UNSTR_AT(in, n_0_n1_0)
-                - CUDA_UNSTR_AT(in, n_n1_n1_0) - CUDA_UNSTR_AT(in, n_p1_n1_0)
-                - CUDA_UNSTR_AT(in, n_0_n2_0) - CUDA_UNSTR(in, coord);
+                4 * in[n_0_n1_0]
+                - in[n_n1_n1_0] - in[n_p1_n1_0]
+                - in[n_0_n2_0] - in[CUDA_UNSTR_INDEX(grid_info, i, j, k)];
             double lap_ijp =
-                4 * CUDA_UNSTR_AT(in, n_0_p1_0)
-                - CUDA_UNSTR_AT(in, n_n1_p1_0) - CUDA_UNSTR_AT(in, n_p1_p1_0)
-                - CUDA_UNSTR(in, coord) - CUDA_UNSTR_AT(in, n_0_p2_0);
+                4 * in[n_0_p1_0]
+                - in[n_n1_p1_0] - in[n_p1_p1_0]
+                - in[CUDA_UNSTR_INDEX(grid_info, i, j, k)] - in[n_0_p2_0];
 
             double flx_ij = lap_ipj - lap_ij;
-            flx_ij = flx_ij * (CUDA_UNSTR_AT(in, n_p1_0_0) - CUDA_UNSTR(in, coord)) > 0 ? 0 : flx_ij;
+            flx_ij = flx_ij * (in[n_p1_0_0] - in[CUDA_UNSTR_INDEX(grid_info, i, j, k)]) > 0 ? 0 : flx_ij;
 
             double flx_imj = lap_ij - lap_imj;
-            flx_imj = flx_imj * (CUDA_UNSTR(in, coord) - CUDA_UNSTR_AT(in, n_n1_0_0)) > 0 ? 0 : flx_imj;
+            flx_imj = flx_imj * (in[CUDA_UNSTR_INDEX(grid_info, i, j, k)] - in[n_n1_0_0]) > 0 ? 0 : flx_imj;
 
             double fly_ij = lap_ijp - lap_ij;
-            fly_ij = fly_ij * (CUDA_UNSTR_AT(in, n_0_p1_0) - CUDA_UNSTR(in, coord)) > 0 ? 0 : fly_ij;
+            fly_ij = fly_ij * (in[n_0_p1_0] - in[CUDA_UNSTR_INDEX(grid_info, i, j, k)]) > 0 ? 0 : fly_ij;
 
             double fly_ijm = lap_ij - lap_ijm;
-            fly_ijm = fly_ijm * (CUDA_UNSTR(in, coord) - CUDA_UNSTR_AT(in, n_0_n1_0)) > 0 ? 0 : fly_ijm;
+            fly_ijm = fly_ijm * (in[CUDA_UNSTR_INDEX(grid_info, i, j, k)] - in[n_0_n1_0]) > 0 ? 0 : fly_ijm;
 
-            CUDA_UNSTR(out, coord) =
-                CUDA_UNSTR(in, coord)
-                - CUDA_UNSTR(coeff, coord) * (flx_ij - flx_imj + fly_ij - fly_ijm);
+            out[CUDA_UNSTR_INDEX(grid_info, i, j, k)] =
+                in[CUDA_UNSTR_INDEX(grid_info, i, j, k)]
+                - coeff[CUDA_UNSTR_INDEX(grid_info, i, j, k)] * (flx_ij - flx_imj + fly_ij - fly_ijm);
             
             // DEBUG: Output intermediate results as well
             // Disable this for better performance
             #ifdef HDIFF_DEBUG
-            CUDA_UNSTR(dbg_lap, coord) = lap_ij;
-            CUDA_UNSTR_NEIGH(dbg_lap, coord, -1, 0, 0) = lap_imj;
-            CUDA_UNSTR_NEIGH(dbg_lap, coord, 0, -1, 0) = lap_ijm;
-            CUDA_UNSTR_NEIGH(dbg_lap, coord, +1, 0, 0) = lap_ipj;
-            CUDA_UNSTR_NEIGH(dbg_lap, coord, 0, +1, 0) = lap_ijp;
-            CUDA_UNSTR(dbg_flx, coord) = flx_ij;
-            CUDA_UNSTR_NEIGH(dbg_flx, coord, -1, 0, 0) = flx_imj;
-            CUDA_UNSTR(dbg_fly, coord) = fly_ij;
-            CUDA_UNSTR_NEIGH(dbg_fly, coord, 0, -1, 0) = fly_ijm;
+            dbg_lap[CUDA_UNSTR_INDEX(grid_info, i, j, k)] = lap_ij;
+            dbg_lap[CUDA_UNSTR_NEIGHBOR(grid_info, i, j, k, -1, 0, 0)] = lap_imj;
+            dbg_lap[CUDA_UNSTR_NEIGHBOR(grid_info, i, j, k, 0, -1, 0)] = lap_ijm;
+            dbg_lap[CUDA_UNSTR_NEIGHBOR(grid_info, i, j, k, +1, 0, 0)] = lap_ipj;
+            dbg_lap[CUDA_UNSTR_NEIGHBOR(grid_info, i, j, k, 0, +1, 0)] = lap_ijp;
+            dbg_flx[CUDA_UNSTR_INDEX(grid_info, i, j, k)] = flx_ij;
+            dbg_flx[CUDA_UNSTR_NEIGHBOR(grid_info, i, j, k, -1, 0, 0)] = flx_imj;
+            dbg_fly[CUDA_UNSTR_INDEX(grid_info, i, j, k)] = fly_ij;
+            dbg_fly[CUDA_UNSTR_NEIGHBOR(grid_info, i, j, k, 0, -1, 0)] = fly_ijm;
             #endif
 
             // Make use of regularity in Z-direciton: neighbors are exactly the
             // same, just one Z-stride apart.
-            n_0_0_0       += in.strides.z;
-            n_0_n1_0      += in.strides.z;
-            n_0_n2_0      += in.strides.z;
-            n_n1_0_0      += in.strides.z;
-            n_n1_n1_0     += in.strides.z;
-            n_n2_0_0      += in.strides.z;
-            //n_n2_n1_0     += in.strides.z;
-            n_0_p1_0      += in.strides.z;
-            n_0_p2_0      += in.strides.z;
-            n_p1_0_0      += in.strides.z;
-            n_p1_p1_0     += in.strides.z;
-            n_p2_0_0      += in.strides.z;
-            //n_p2_p1_0     += in.strides.z;
-            n_n1_p1_0     += in.strides.z;
-            n_p1_n1_0     += in.strides.z;
+            n_0_0_0       += grid_info.strides.z;
+            n_0_n1_0      += grid_info.strides.z;
+            n_0_n2_0      += grid_info.strides.z;
+            n_n1_0_0      += grid_info.strides.z;
+            n_n1_n1_0     += grid_info.strides.z;
+            n_n2_0_0      += grid_info.strides.z;
+            //n_n2_n1_0     += grid_info.strides.z;
+            n_0_p1_0      += grid_info.strides.z;
+            n_0_p2_0      += grid_info.strides.z;
+            n_p1_0_0      += grid_info.strides.z;
+            n_p1_p1_0     += grid_info.strides.z;
+            n_p2_0_0      += grid_info.strides.z;
+            //n_p2_p1_0     += grid_info.strides.z;
+            n_n1_p1_0     += grid_info.strides.z;
+            n_p1_n1_0     += grid_info.strides.z;
 
         }
     }
@@ -370,12 +369,13 @@ void HdiffCudaUnstrBenchmark::run() {
     (*kernel_fun)<<<this->numblocks(), this->numthreads()>>>(
         this->get_info(),
         (dynamic_cast<CudaUnstructuredGrid3D<double>*>(this->input))->get_gridinfo(),
-        (dynamic_cast<CudaUnstructuredGrid3D<double>*>(this->output))->get_gridinfo(),
-        (dynamic_cast<CudaUnstructuredGrid3D<double>*>(this->coeff))->get_gridinfo()
+        this->input->data,
+        this->output->data,
+        this->coeff->data
         #ifdef HDIFF_DEBUG
-        , (dynamic_cast<CudaUnstructuredGrid3D<double>*>(this->lap))->get_gridinfo()
-        , (dynamic_cast<CudaUnstructuredGrid3D<double>*>(this->flx))->get_gridinfo()
-        , (dynamic_cast<CudaUnstructuredGrid3D<double>*>(this->fly))->get_gridinfo()
+        , this->lap->data
+        , this->flx->data
+        , this->fly->data
         #endif
     );
     if(cudaDeviceSynchronize() != cudaSuccess) {
@@ -405,11 +405,17 @@ dim3 HdiffCudaUnstrBenchmark::numthreads() {
 
 void HdiffCudaUnstrBenchmark::setup() {
     this->input = CudaUnstructuredGrid3D<double>::create_regular(this->size);
-    this->output = CudaUnstructuredGrid3D<double>::create_regular(this->size);
-    this->coeff = CudaUnstructuredGrid3D<double>::create_regular(this->size);
-    this->lap = CudaUnstructuredGrid3D<double>::create_regular(this->size);
-    this->flx = CudaUnstructuredGrid3D<double>::create_regular(this->size);
-    this->fly = CudaUnstructuredGrid3D<double>::create_regular(this->size);
+    //this->output = CudaUnstructuredGrid3D<double>::create_regular(this->size);
+    //this->coeff = CudaUnstructuredGrid3D<double>::create_regular(this->size);
+    //this->lap = CudaUnstructuredGrid3D<double>::create_regular(this->size);
+    //this->flx = CudaUnstructuredGrid3D<double>::create_regular(this->size);
+    //this->fly = CudaUnstructuredGrid3D<double>::create_regular(this->size);
+    int *neighbor_data = dynamic_cast<CudaUnstructuredGrid3D<double> *>(this->input)->neighbor_data;
+    this->output = new CudaUnstructuredGrid3D<double>(this->size, neighbor_data);
+    this->coeff = new CudaUnstructuredGrid3D<double>(this->size, neighbor_data);
+    this->lap = new CudaUnstructuredGrid3D<double>(this->size, neighbor_data);
+    this->flx = new CudaUnstructuredGrid3D<double>(this->size, neighbor_data);
+    this->fly = new CudaUnstructuredGrid3D<double>(this->size, neighbor_data);
     this->HdiffBaseBenchmark::setup();
     int s1 = cudaMemPrefetchAsync(this->input->data, this->input->size, 0);
     int s2 = cudaMemPrefetchAsync(this->output->data, this->output->size, 0);

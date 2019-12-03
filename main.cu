@@ -17,6 +17,7 @@
 #include "benchmarks/hdiff-cuda-seq.cu"
 #include "benchmarks/hdiff-cuda-unstr-seq.cu"
 #include "benchmarks/hdiff-cuda-unstr.cu"
+#include "benchmarks/fast-waves-ref.cu"
 
 /** Benchmark results type: Vector of results for each individual benchmark.
  * The benchmark result at the first index contains the total running time.
@@ -40,7 +41,9 @@ typedef enum {all_benchs,
               hdiff_cuda_unstr_kloop,
               hdiff_cuda_unstr_idxvars,
               hdiff_cuda_unstr_seq,
-              unspecified} 
+              unspecified, 
+              // the benchmarks past this comment won't be included in the "all" benchmarks executions
+              fastwaves_ref} 
 benchmark_type_t;
 
 /** Type describing a benchmark type + its benchmark-specific arguments */
@@ -237,6 +240,9 @@ Benchmark<double> *create_benchmark(parametrized_benchmark_type_t param_bench, c
         break;
         case hdiff_cuda_unstr_seq:
         ret = new HdiffCudaUnstructuredSequentialBenchmark(size);
+        break;
+        case fastwaves_ref:
+        ret = new FastWavesRefBenchmark(size);
         break;
         default:
         return NULL;

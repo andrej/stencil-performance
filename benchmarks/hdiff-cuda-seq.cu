@@ -18,7 +18,7 @@ namespace HdiffCudaSequential {
 
     // Laplace Kernel
     __global__
-    void kernel_lap(Info info, CudaRegularGrid3DInfo<double> in, CudaRegularGrid3DInfo<double> lap) {
+    void kernel_lap(Info info, CudaRegularGrid3DInfo<double> grid_info, double *in, double *lap) {
         const int i = blockIdx.x * blockDim.x + threadIdx.x + info.halo.x - 1; // ref implementation starts at i = -1
         const int j = blockIdx.y * blockDim.y + threadIdx.y + info.halo.y - 1;
         const int k = blockIdx.z * blockDim.z + threadIdx.z + info.halo.z;
@@ -27,17 +27,17 @@ namespace HdiffCudaSequential {
            k > info.max_coord.z) {
             return;
         }
-        CUDA_REGULAR(lap, coord3(i, j, k)) = 
-            4 * CUDA_REGULAR(in, coord3(i, j, k)) 
-            - (CUDA_REGULAR(in, coord3(i - 1, j, k)) 
-                + CUDA_REGULAR(in, coord3(i + 1, j, k)) 
-                + CUDA_REGULAR(in, coord3(i, j - 1, k)) 
-                + CUDA_REGULAR(in, coord3(i, j + 1, k)));
+        lap[CUDA_REGULAR_INDEX(grid_info, i, j, k)] = 
+            4 * in[CUDA_REGULAR_INDEX(grid_info, i, j, k)] 
+            - (in[CUDA_REGULAR_INDEX(grid_info, i - 1, j, k)] 
+                + in[CUDA_REGULAR_INDEX(grid_info, i + 1, j, k)] 
+                + in[CUDA_REGULAR_INDEX(grid_info, i, j - 1, k)] 
+                + in[CUDA_REGULAR_INDEX(grid_info, i, j + 1, k)]);
     }
 
     // Flx Kernel
     __global__
-    void kernel_flx(Info info, CudaRegularGrid3DInfo<double> in, CudaRegularGrid3DInfo<double> lap, CudaRegularGrid3DInfo<double> flx) {
+    void kernel_flx(Info info, CudaRegularGrid3DInfo<double> grid_info, double *in, double *lap, double *flx) {
         const int i = blockIdx.x * blockDim.x + threadIdx.x + info.halo.x - 1;
         const int j = blockIdx.y * blockDim.y + threadIdx.y + info.halo.y;
         const int k = blockIdx.z * blockDim.z + threadIdx.z + info.halo.z;
@@ -46,15 +46,15 @@ namespace HdiffCudaSequential {
             k > info.max_coord.z) {
              return;
          }
-        CUDA_REGULAR(flx, coord3(i, j, k)) = CUDA_REGULAR(lap, coord3(i+1, j, k)) - CUDA_REGULAR(lap, coord3(i, j, k));
-        if (CUDA_REGULAR(flx, coord3(i, j, k)) * (CUDA_REGULAR(in, coord3(i+1, j, k)) - CUDA_REGULAR(in, coord3(i, j, k))) > 0) {
-            CUDA_REGULAR(flx, coord3(i, j, k)) = 0.;
+        flx[CUDA_REGULAR_INDEX(grid_info, i, j, k)] = lap[CUDA_REGULAR_INDEX(grid_info, i+1, j, k)] - lap[CUDA_REGULAR_INDEX(grid_info, i, j, k)];
+        if (flx[CUDA_REGULAR_INDEX(grid_info, i, j, k)] * (in[CUDA_REGULAR_INDEX(grid_info, i+1, j, k)] - in[CUDA_REGULAR_INDEX(grid_info, i, j, k)]) > 0) {
+            flx[CUDA_REGULAR_INDEX(grid_info, i, j, k)] = 0.;
         }
     }
 
     // Fly Kernel
     __global__
-    void kernel_fly(Info info, CudaRegularGrid3DInfo<double> in, CudaRegularGrid3DInfo<double> lap, CudaRegularGrid3DInfo<double> fly) {
+    void kernel_fly(Info info, CudaRegularGrid3DInfo<double> grid_info, double *in, double *lap, double *fly) {
         const int i = blockIdx.x * blockDim.x + threadIdx.x + info.halo.x;
         const int j = blockIdx.y * blockDim.y + threadIdx.y + info.halo.y - 1;
         const int k = blockIdx.z * blockDim.z + threadIdx.z + info.halo.z;
@@ -63,15 +63,15 @@ namespace HdiffCudaSequential {
             k > info.max_coord.z) {
              return;
          }
-        CUDA_REGULAR(fly, coord3(i, j, k)) = CUDA_REGULAR(lap, coord3(i, j+1, k)) - CUDA_REGULAR(lap, coord3(i, j, k));
-        if (CUDA_REGULAR(fly, coord3(i, j, k)) * (CUDA_REGULAR(in, coord3(i, j+1, k)) - CUDA_REGULAR(in, coord3(i, j, k))) > 0) {
-            CUDA_REGULAR(fly, coord3(i, j, k)) = 0.;
+        fly[CUDA_REGULAR_INDEX(grid_info, i, j, k)] = lap[CUDA_REGULAR_INDEX(grid_info, i, j+1, k)] - lap[CUDA_REGULAR_INDEX(grid_info, i, j, k)];
+        if (fly[CUDA_REGULAR_INDEX(grid_info, i, j, k)] * (in[CUDA_REGULAR_INDEX(grid_info, i, j+1, k)] - in[CUDA_REGULAR_INDEX(grid_info, i, j, k)]) > 0) {
+            fly[CUDA_REGULAR_INDEX(grid_info, i, j, k)] = 0.;
         }
     }
 
     // Output kernel
     __global__
-    void kernel_out(Info info, CudaRegularGrid3DInfo<double> in, CudaRegularGrid3DInfo<double> coeff, CudaRegularGrid3DInfo<double> flx, CudaRegularGrid3DInfo<double> fly, CudaRegularGrid3DInfo<double> out) {
+    void kernel_out(Info info, CudaRegularGrid3DInfo<double> grid_info, double *in, double *coeff, double *flx, double *fly, double *out) {
         const int i = blockIdx.x * blockDim.x + threadIdx.x + info.halo.x;
         const int j = blockIdx.y * blockDim.y + threadIdx.y + info.halo.y;
         const int k = blockIdx.z * blockDim.z + threadIdx.z + info.halo.z;
@@ -80,10 +80,10 @@ namespace HdiffCudaSequential {
             k > info.max_coord.z) {
              return;
          }
-        CUDA_REGULAR(out, coord3(i, j, k)) =
-            CUDA_REGULAR(in, coord3(i, j, k)) -
-            CUDA_REGULAR(coeff, coord3(i, j, k)) * (CUDA_REGULAR(flx, coord3(i, j, k)) - CUDA_REGULAR(flx, coord3(i - 1, j, k)) +
-                                            CUDA_REGULAR(fly, coord3(i, j, k)) - CUDA_REGULAR(fly, coord3(i, j - 1, k)));
+        out[CUDA_REGULAR_INDEX(grid_info, i, j, k)] =
+            in[CUDA_REGULAR_INDEX(grid_info, i, j, k)] -
+            coeff[CUDA_REGULAR_INDEX(grid_info, i, j, k)] * (flx[CUDA_REGULAR_INDEX(grid_info, i, j, k)] - flx[CUDA_REGULAR_INDEX(grid_info, i - 1, j, k)] +
+                                            fly[CUDA_REGULAR_INDEX(grid_info, i, j, k)] - fly[CUDA_REGULAR_INDEX(grid_info, i, j - 1, k)]);
 
     }
 
@@ -135,7 +135,8 @@ void HdiffCudaSequentialBenchmark::run() {
                 nblocks_lap, nthreads, \
                 this->get_info(),
                 (dynamic_cast<CudaRegularGrid3D<double> *>(this->input))->get_gridinfo(),
-                (dynamic_cast<CudaRegularGrid3D<double> *>(this->lap))->get_gridinfo());
+                this->input->data,
+                this->lap->data);
     /*if (cudaDeviceSynchronize() != cudaSuccess) {
         // need to synchronize because Flx kernel requires Lap
         assert(false);
@@ -145,8 +146,9 @@ void HdiffCudaSequentialBenchmark::run() {
                 nblocks_flx, nthreads, \
                 this->get_info(),
                 (dynamic_cast<CudaRegularGrid3D<double> *>(this->input))->get_gridinfo(),
-                (dynamic_cast<CudaRegularGrid3D<double> *>(this->lap))->get_gridinfo(),
-                (dynamic_cast<CudaRegularGrid3D<double> *>(this->flx))->get_gridinfo());
+                this->input->data,
+                this->lap->data,
+                this->flx->data);
     /*if (cudaDeviceSynchronize() != cudaSuccess) {
         assert(false);
     }*/
@@ -156,8 +158,9 @@ void HdiffCudaSequentialBenchmark::run() {
                 nblocks_fly, nthreads, \
                 this->get_info(),
                 (dynamic_cast<CudaRegularGrid3D<double> *>(this->input))->get_gridinfo(),
-                (dynamic_cast<CudaRegularGrid3D<double> *>(this->lap))->get_gridinfo(),
-                (dynamic_cast<CudaRegularGrid3D<double> *>(this->fly))->get_gridinfo());
+                this->input->data,
+                this->lap->data,
+                this->fly->data);
     /*if (cudaDeviceSynchronize() != cudaSuccess) {
         assert(false);
     }*/
@@ -166,10 +169,11 @@ void HdiffCudaSequentialBenchmark::run() {
                 nblocks_out, nthreads, \
                 this->get_info(),
                 (dynamic_cast<CudaRegularGrid3D<double> *>(this->input))->get_gridinfo(),
-                (dynamic_cast<CudaRegularGrid3D<double> *>(this->coeff))->get_gridinfo(),
-                (dynamic_cast<CudaRegularGrid3D<double> *>(this->flx))->get_gridinfo(),
-                (dynamic_cast<CudaRegularGrid3D<double> *>(this->fly))->get_gridinfo(),
-                (dynamic_cast<CudaRegularGrid3D<double> *>(this->output))->get_gridinfo());
+                this->input->data,
+                this->coeff->data,
+                this->flx->data,
+                this->fly->data,
+                this->output->data);
     if (cudaDeviceSynchronize() != cudaSuccess) {
         assert(false);
     }

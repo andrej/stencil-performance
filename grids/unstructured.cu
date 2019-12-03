@@ -28,6 +28,10 @@
  *   neighbor_data[4 * (x + y * x_size) + 2] <-- inxex of ( +1, 0, 0) neighbor
  *   neighbor_data[4 * (x + y * x_size) + 3] <-- inxex of ( 0, +1, 0) neighbor
  * with neighbor_data = data + (sizeof(value_t)*x_size*y_size*z_size)
+ *
+ * Alternatively, a different memory location can be given for the neighborships
+ * in the constructor. In that case, no memory is allocated for a neighborship
+ * table. This can be useful for multiple grids sharing identical neighborships.
  */
 template<typename value_t>
 class UnstructuredGrid3D : 
@@ -37,16 +41,22 @@ virtual public Coord3BaseGrid<value_t> {
     UnstructuredGrid3D();
     void init();
     UnstructuredGrid3D(coord3 dimensions);
+    UnstructuredGrid3D(coord3 dimensions, int *neighbor_data);
     int index(coord3 coord);
     size_t num_neighbors(coord3 coord);
     int neighbor(coord3 coord, coord3 offset);
     
+    /** == data; pointer to the values. Use this instead of accessing data
+     * directly so we can be flexible if we want to put neighborship relations
+     * or values first in our data-block. */
+    value_t *values;
+
     /** Pointer to the neighbor memory block, where pointers to values of 
      * neighbors are stored. (See description above.) */
     int *neighbor_data;
 
     /** Static function that simply calculates how much memory required. */
-    static size_t space_req(coord3 dimensions);
+    static size_t space_req(coord3 dimensions, bool use_external_neighbor_data=false);
 
     /** Set B as the neighbor of A at offset (seen from A) offs. This also
      * adds A as a neighbor to B (neighborships are symmetric), but at the
@@ -84,25 +94,38 @@ template<typename value_t>
 UnstructuredGrid3D<value_t>::UnstructuredGrid3D(coord3 dimensions) :
 Grid<value_t, coord3>(dimensions, 
                       UnstructuredGrid3D<value_t>::space_req(dimensions)) {
+    this->neighbor_data = NULL;
+    this->init();
+
+}
+
+template<typename value_t>
+UnstructuredGrid3D<value_t>::UnstructuredGrid3D(coord3 dimensions, int *neighbor_data) :
+Grid<value_t, coord3>(dimensions,
+                      UnstructuredGrid3D<value_t>::space_req(dimensions, true)),
+neighbor_data(neighbor_data) {
     this->init();
 }
 
 template<typename value_t>
 void UnstructuredGrid3D<value_t>::init(){
     this->Grid<value_t, coord3>::init(); // this allocates this->data
+    this->values = this->data; // values are in the first part of our data block
     coord3 dimensions = this->dimensions;
-    int value_size = dimensions.x * dimensions.y * dimensions.z;
-    this->neighbor_data = (int*) (this->data + value_size);
-    int *end = (int *) ((char *)this->data + this->size );
-    for(int *ptr = this->neighbor_data; ptr < end; ptr++) {
-        *ptr = -1; // initialize to -1 to siginfy: "no neighbor set"
+    if(this->neighbor_data == NULL) {
+        int value_size = dimensions.x * dimensions.y * dimensions.z;
+        this->neighbor_data = (int*) (this->data + value_size);
+        int *end = (int *) ((char *)this->data + this->size );
+        for(int *ptr = this->neighbor_data; ptr < end; ptr++) {
+            *ptr = -1; // initialize to -1 to siginfy: "no neighbor set"
+        }
     }
 }
 
 template<typename value_t>
-size_t UnstructuredGrid3D<value_t>::space_req(coord3 dimensions) {
+size_t UnstructuredGrid3D<value_t>::space_req(coord3 dimensions, bool use_external_neighbor_data) {
     return (  sizeof(value_t) * dimensions.x*dimensions.y*dimensions.z /* for the values */
-            + sizeof(int) * 4 * dimensions.x*dimensions.y ); /* for the ptrs */
+            + (use_external_neighbor_data ? 0 : sizeof(int) * 4 * dimensions.x*dimensions.y) ); /* for the ptrs */
 }
 
 template<typename value_t>

@@ -6,13 +6,14 @@
  * cannot use the C++ classes inside the kernel). Pass this struct
  * to the appropriate kernel macros.
  */
- template<typename value_t>
- struct CudaUnstructuredGrid3DInfo {
-     value_t *data; /**< Pointer to the allocated CUDA memory, i.e. this->data */
-     int *neighbor_data;
-     coord3 dimensions;
-     coord3 strides;
- };
+template<typename value_t>
+struct CudaUnstructuredGrid3DInfo {
+    int *neighbor_data;
+    struct {
+        int y;
+        int z;
+    } strides;
+};
 
 /** Cuda version of the unstructured grid
  *
@@ -28,6 +29,7 @@
     public:
 
     CudaUnstructuredGrid3D(coord3 dimensions);
+    CudaUnstructuredGrid3D(coord3 dimensions, int *neighbor_data);
 
     CudaUnstructuredGrid3DInfo<value_t> get_gridinfo();
 
@@ -35,22 +37,12 @@
 
 };
 
-#define CUDA_UNSTR(grid_info, coords) \
-    (grid_info.data[CUDA_UNSTR_INDEX(grid_info, coords)])
-
-#define CUDA_UNSTR_AT(grid_info, index) \
-    (grid_info.data[index])
-
-/** Use this to get the value of a neighbor. */
-#define CUDA_UNSTR_NEIGH(grid_info, coords, x, y, z) \
-    (grid_info.data[CUDA_UNSTR_NEIGHBOR(grid_info, coords, x, y, z)])
-
 /** Use this macro instead of the CudaUnstructuredGrid3D::index() function for
  * getting the index of some coordinates inside the kernel. */
-#define CUDA_UNSTR_INDEX(grid_info, coords) \
-    ((int)  (  coords.x * grid_info.strides.x \
-             + coords.y * grid_info.strides.y \
-             + coords.z * grid_info.strides.z ))
+#define CUDA_UNSTR_INDEX(grid_info, _x, _y, _z) \
+    ((int)  (  (int)(_x) \
+             + (int)(_y) * grid_info.strides.y \
+             + (int)(_z) * grid_info.strides.z ))
 
 /** Use this macro instead of the CudaUnstructuredGrid3D::neighbor() function for
  * getting the index of some coordinate offset from within the kernel. 
@@ -62,36 +54,44 @@
                 + 1 * (y == -1) \
                 + 2 * (x == +1) \
                 + 3 * (y == +1))
-#define CUDA_UNSTR_NEIGHBOR_PTR(grid_info, coords, x, y, z) \
-        (CUDA_UNSTR_NEIGHBOR_PTR_AT(grid_info, CUDA_UNSTR_INDEX(grid_info, coords), x, y, z))
+
+#define CUDA_UNSTR_NEIGHBOR_PTR(grid_info, _x, _y, _z, neigh_x, neigh_y, neigh_z) \
+        (CUDA_UNSTR_NEIGHBOR_PTR_AT(grid_info, CUDA_UNSTR_INDEX(grid_info, _x, _y, _z), neigh_x, neigh_y, neigh_z))
 
 /** Gives the index of the neighbor. */
 #define CUDA_UNSTR_NEIGHBOR_AT(grid_info, index, x, y, _z) \
         ((int)(grid_info.neighbor_data[CUDA_UNSTR_NEIGHBOR_PTR_AT(grid_info, index, x, y, _z)]\
                + (index / grid_info.strides.z) * grid_info.strides.z \
                + _z*grid_info.strides.z))
-#define CUDA_UNSTR_NEIGHBOR(grid_info, coords, x, y, _z) \
-        ((int)(grid_info.neighbor_data[CUDA_UNSTR_NEIGHBOR_PTR(grid_info, coords, x, y, _z)] \
-               + coords.z*grid_info.strides.z \
-               + _z*grid_info.strides.z))
+
+#define CUDA_UNSTR_NEIGHBOR(grid_info, _x, _y, _z, neigh_x, neigh_y, neigh_z) \
+        ((int)(grid_info.neighbor_data[CUDA_UNSTR_NEIGHBOR_PTR(grid_info, _x, _y, _z, neigh_x, neigh_y, neigh_z)] \
+               + _z*grid_info.strides.z \
+               + neigh_z*grid_info.strides.z))
 
 
 template<typename value_t>
 CudaUnstructuredGrid3D<value_t>::CudaUnstructuredGrid3D(coord3 dimensions) :
 Grid<value_t, coord3>(dimensions,
                 UnstructuredGrid3D<value_t>::space_req(dimensions)) {
+    this->neighbor_data = NULL;
+    this->init();
+}
+
+template<typename value_t>
+CudaUnstructuredGrid3D<value_t>::CudaUnstructuredGrid3D(coord3 dimensions, int *neighbor_data) :
+Grid<value_t, coord3>(dimensions,
+                UnstructuredGrid3D<value_t>::space_req(dimensions, true)) {
+    this->neighbor_data = neighbor_data;
     this->init();
 }
 
 template<typename value_t>
 CudaUnstructuredGrid3DInfo<value_t> CudaUnstructuredGrid3D<value_t>::get_gridinfo() {
     coord3 dimensions = this->dimensions;
-    return {.data = this->data,
-            .neighbor_data = this->neighbor_data,
-            .dimensions = dimensions,
-            .strides = coord3(1, 
-                              dimensions.x,
-                              dimensions.y*dimensions.x) };
+    return {.neighbor_data = this->neighbor_data,
+            .strides = { .y = (int)dimensions.x,
+                         .z = (int)dimensions.x*(int)dimensions.y } };
 }
 
 template<typename value_t>

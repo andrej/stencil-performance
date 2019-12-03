@@ -18,7 +18,7 @@ namespace HdiffCudaUnstructuredSequential {
 
     // Laplace Kernel
     __global__
-    void kernel_lap(Info info, CudaUnstructuredGrid3DInfo<double> in, CudaUnstructuredGrid3DInfo<double> lap) {
+    void kernel_lap(Info info, CudaUnstructuredGrid3DInfo<double> grid_info, double *in, double *lap) {
         const int i = blockIdx.x * blockDim.x + threadIdx.x + info.halo.x - 1;
         const int j = blockIdx.y * blockDim.y + threadIdx.y + info.halo.y - 1;
         const int k = blockIdx.z * blockDim.z + threadIdx.z + info.halo.z;
@@ -27,17 +27,17 @@ namespace HdiffCudaUnstructuredSequential {
            k > info.max_coord.z) {
             return;
         }
-        CUDA_UNSTR(lap, coord3(i, j, k)) = 
-            4 * CUDA_UNSTR(in, coord3(i, j, k)) 
-            - (CUDA_UNSTR_NEIGH(in, coord3(i, j, k), -1, 0, 0) 
-                + CUDA_UNSTR_NEIGH(in, coord3(i, j, k), +1, 0, 0) 
-                + CUDA_UNSTR_NEIGH(in, coord3(i, j, k), 0, -1, 0) 
-                + CUDA_UNSTR_NEIGH(in, coord3(i, j, k), 0, +1, 0));
+        lap[CUDA_UNSTR_INDEX(grid_info, i, j, k)] = 
+            4 * in[CUDA_UNSTR_INDEX(grid_info, i, j, k)] 
+            - (in[CUDA_UNSTR_NEIGHBOR(grid_info, i, j, k, -1, 0, 0)] 
+                + in[CUDA_UNSTR_NEIGHBOR(grid_info, i, j, k, +1, 0, 0)] 
+                + in[CUDA_UNSTR_NEIGHBOR(grid_info, i, j, k, 0, -1, 0)] 
+                + in[CUDA_UNSTR_NEIGHBOR(grid_info, i, j, k, 0, +1, 0)]);
     }
 
     // Flx Kernel
     __global__
-    void kernel_flx(Info info, CudaUnstructuredGrid3DInfo<double> in, CudaUnstructuredGrid3DInfo<double> lap, CudaUnstructuredGrid3DInfo<double> flx) {
+    void kernel_flx(Info info, CudaUnstructuredGrid3DInfo<double> grid_info, double *in, double *lap, double *flx) {
         const int i = blockIdx.x * blockDim.x + threadIdx.x + info.halo.x - 1;
         const int j = blockIdx.y * blockDim.y + threadIdx.y + info.halo.y;
         const int k = blockIdx.z * blockDim.z + threadIdx.z + info.halo.z;
@@ -46,15 +46,15 @@ namespace HdiffCudaUnstructuredSequential {
             k > info.max_coord.z) {
              return;
         }
-        CUDA_UNSTR(flx, coord3(i, j, k)) = CUDA_UNSTR_NEIGH(lap, coord3(i, j, k), +1, 0, 0) - CUDA_UNSTR(lap, coord3(i, j, k));
-        if (CUDA_UNSTR(flx, coord3(i, j, k)) * (CUDA_UNSTR_NEIGH(in, coord3(i, j, k), +1, 0, 0) - CUDA_UNSTR(in, coord3(i, j, k))) > 0) {
-            CUDA_UNSTR(flx, coord3(i, j, k)) = 0.;
+        flx[CUDA_UNSTR_INDEX(grid_info, i, j, k)] = lap[CUDA_UNSTR_NEIGHBOR(grid_info, i, j, k, +1, 0, 0)] - lap[CUDA_UNSTR_INDEX(grid_info, i, j, k)];
+        if (flx[CUDA_UNSTR_INDEX(grid_info, i, j, k)] * (in[CUDA_UNSTR_NEIGHBOR(grid_info, i, j, k, +1, 0, 0)] - in[CUDA_UNSTR_INDEX(grid_info, i, j, k)]) > 0) {
+            flx[CUDA_UNSTR_INDEX(grid_info, i, j, k)] = 0.;
         }
     }
 
     // Fly Kernel
     __global__
-    void kernel_fly(Info info, CudaUnstructuredGrid3DInfo<double> in, CudaUnstructuredGrid3DInfo<double> lap, CudaUnstructuredGrid3DInfo<double> fly) {
+    void kernel_fly(Info info, CudaUnstructuredGrid3DInfo<double> grid_info, double *in, double *lap, double *fly) {
         const int i = blockIdx.x * blockDim.x + threadIdx.x + info.halo.x;
         const int j = blockIdx.y * blockDim.y + threadIdx.y + info.halo.y - 1;
         const int k = blockIdx.z * blockDim.z + threadIdx.z + info.halo.z;
@@ -63,15 +63,15 @@ namespace HdiffCudaUnstructuredSequential {
             k > info.max_coord.z) {
              return;
         }
-        CUDA_UNSTR(fly, coord3(i, j, k)) = CUDA_UNSTR_NEIGH(lap, coord3(i, j, k), 0, +1, 0) - CUDA_UNSTR(lap, coord3(i, j, k));
-        if (CUDA_UNSTR(fly, coord3(i, j, k)) * (CUDA_UNSTR_NEIGH(in, coord3(i, j, k), 0, +1, 0) - CUDA_UNSTR(in, coord3(i, j, k))) > 0) {
-            CUDA_UNSTR(fly, coord3(i, j, k)) = 0.;
+        fly[CUDA_UNSTR_INDEX(grid_info, i, j, k)] = lap[CUDA_UNSTR_NEIGHBOR(grid_info, i, j, k, 0, +1, 0)] - lap[CUDA_UNSTR_INDEX(grid_info, i, j, k)];
+        if (fly[CUDA_UNSTR_INDEX(grid_info, i, j, k)] * (in[CUDA_UNSTR_NEIGHBOR(grid_info, i, j, k, 0, +1, 0)] - in[CUDA_UNSTR_INDEX(grid_info, i, j, k)]) > 0) {
+            fly[CUDA_UNSTR_INDEX(grid_info, i, j, k)] = 0.;
         }
     }
 
     // Output kernel
     __global__
-    void kernel_out(Info info, CudaUnstructuredGrid3DInfo<double> in, CudaUnstructuredGrid3DInfo<double> coeff, CudaUnstructuredGrid3DInfo<double> flx, CudaUnstructuredGrid3DInfo<double> fly, CudaUnstructuredGrid3DInfo<double> out) {
+    void kernel_out(Info info, CudaUnstructuredGrid3DInfo<double> grid_info, double *in, double *coeff, double *flx, double *fly, double *out) {
         const int i = blockIdx.x * blockDim.x + threadIdx.x + info.halo.x;
         const int j = blockIdx.y * blockDim.y + threadIdx.y + info.halo.y;
         const int k = blockIdx.z * blockDim.z + threadIdx.z + info.halo.z;
@@ -80,10 +80,10 @@ namespace HdiffCudaUnstructuredSequential {
            k > info.max_coord.z) {
             return;
         }
-        CUDA_UNSTR(out, coord3(i, j, k)) =
-            CUDA_UNSTR(in, coord3(i, j, k)) -
-            CUDA_UNSTR(coeff, coord3(i, j, k)) * (CUDA_UNSTR(flx, coord3(i, j, k)) - CUDA_UNSTR_NEIGH(flx, coord3(i, j, k), -1, 0, 0) +
-                                            CUDA_UNSTR(fly, coord3(i, j, k)) - CUDA_UNSTR_NEIGH(fly, coord3(i, j, k), 0, -1, 0));
+        out[CUDA_UNSTR_INDEX(grid_info, i, j, k)] =
+            in[CUDA_UNSTR_INDEX(grid_info, i, j, k)] -
+            coeff[CUDA_UNSTR_INDEX(grid_info, i, j, k)] * (flx[CUDA_UNSTR_INDEX(grid_info, i, j, k)] - flx[CUDA_UNSTR_NEIGHBOR(grid_info, i, j, k, -1, 0, 0)] +
+                                            fly[CUDA_UNSTR_INDEX(grid_info, i, j, k)] - fly[CUDA_UNSTR_NEIGHBOR(grid_info, i, j, k, 0, -1, 0)]);
     }
 
 };
@@ -130,36 +130,39 @@ void HdiffCudaUnstructuredSequentialBenchmark::run() {
     dim3 nthreads = this->numthreads();
     coord3 _nthreads = coord3(nthreads.x, nthreads.y, nthreads.z);
     dim3 nblocks_lap = this->gridsize(_nthreads, coord3(-1, -1, 0), coord3(1, 1, 1), this->inner_size + coord3(+1, +1, 0));
-    /*(dynamic_cast<CudaUnstructuredGrid3D<double> *>(this->input))->get_gridinfo();*/
     CALL_KERNEL(HdiffCudaUnstructuredSequential::kernel_lap, \
                 nblocks_lap, nthreads, \
                 this->get_info(),
                 (dynamic_cast<CudaUnstructuredGrid3D<double> *>(this->input))->get_gridinfo(),
-                (dynamic_cast<CudaUnstructuredGrid3D<double> *>(this->lap))->get_gridinfo());
+                this->input->data,
+                this->lap->data);
     dim3 nblocks_flx = this->gridsize(_nthreads, coord3(-1, 0, 0), coord3(1, 1, 1), this->inner_size);
     CALL_KERNEL(HdiffCudaUnstructuredSequential::kernel_flx, \
                 nblocks_flx, nthreads, \
                 this->get_info(),
                 (dynamic_cast<CudaUnstructuredGrid3D<double> *>(this->input))->get_gridinfo(),
-                (dynamic_cast<CudaUnstructuredGrid3D<double> *>(this->lap))->get_gridinfo(),
-                (dynamic_cast<CudaUnstructuredGrid3D<double> *>(this->flx))->get_gridinfo());
+                this->input->data,
+                this->lap->data,
+                this->flx->data);
     // Fly does not depend on Flx, so no need to synchronize here.
     dim3 nblocks_fly = this->gridsize(_nthreads, coord3(0, -1, 0), coord3(1, 1, 1), this->inner_size);
     CALL_KERNEL(HdiffCudaUnstructuredSequential::kernel_fly, \
                 nblocks_fly, nthreads, \
                 this->get_info(),
                 (dynamic_cast<CudaUnstructuredGrid3D<double> *>(this->input))->get_gridinfo(),
-                (dynamic_cast<CudaUnstructuredGrid3D<double> *>(this->lap))->get_gridinfo(),
-                (dynamic_cast<CudaUnstructuredGrid3D<double> *>(this->fly))->get_gridinfo());
+                this->input->data,
+                this->lap->data,
+                this->fly->data);
     dim3 nblocks_out = this->gridsize(_nthreads, coord3(0, 0, 0), coord3(1, 1, 1), this->inner_size);
     CALL_KERNEL(HdiffCudaUnstructuredSequential::kernel_out, \
                 nblocks_out, nthreads, \
                 this->get_info(),
                 (dynamic_cast<CudaUnstructuredGrid3D<double> *>(this->input))->get_gridinfo(),
-                (dynamic_cast<CudaUnstructuredGrid3D<double> *>(this->coeff))->get_gridinfo(),
-                (dynamic_cast<CudaUnstructuredGrid3D<double> *>(this->flx))->get_gridinfo(),
-                (dynamic_cast<CudaUnstructuredGrid3D<double> *>(this->fly))->get_gridinfo(),
-                (dynamic_cast<CudaUnstructuredGrid3D<double> *>(this->output))->get_gridinfo());
+                this->input->data,
+                this->coeff->data,
+                this->flx->data,
+                this->fly->data,
+                this->output->data);
     if (cudaDeviceSynchronize() != cudaSuccess) {
         assert(false);
     }
@@ -183,11 +186,17 @@ dim3 HdiffCudaUnstructuredSequentialBenchmark::gridsize(coord3 blocksize, coord3
 
 void HdiffCudaUnstructuredSequentialBenchmark::setup() {
     this->input = CudaUnstructuredGrid3D<double>::create_regular(this->size);
-    this->output = CudaUnstructuredGrid3D<double>::create_regular(this->size);
-    this->coeff = CudaUnstructuredGrid3D<double>::create_regular(this->size);
-    this->lap = CudaUnstructuredGrid3D<double>::create_regular(this->size);
-    this->flx = CudaUnstructuredGrid3D<double>::create_regular(this->size);
-    this->fly = CudaUnstructuredGrid3D<double>::create_regular(this->size);
+    int *neighbor_data = dynamic_cast<CudaUnstructuredGrid3D<double> *>(this->input)->neighbor_data;
+    //this->output = CudaUnstructuredGrid3D<double>::create_regular(this->size);
+    //this->coeff = CudaUnstructuredGrid3D<double>::create_regular(this->size);
+    //this->lap = CudaUnstructuredGrid3D<double>::create_regular(this->size);
+    //this->flx = CudaUnstructuredGrid3D<double>::create_regular(this->size);
+    //this->fly = CudaUnstructuredGrid3D<double>::create_regular(this->size);
+    this->output = new CudaUnstructuredGrid3D<double>(this->size, neighbor_data);
+    this->coeff = new CudaUnstructuredGrid3D<double>(this->size, neighbor_data);
+    this->lap = new CudaUnstructuredGrid3D<double>(this->size, neighbor_data);
+    this->flx = new CudaUnstructuredGrid3D<double>(this->size, neighbor_data);
+    this->fly = new CudaUnstructuredGrid3D<double>(this->size, neighbor_data);
     this->HdiffBaseBenchmark::setup();
 }
 
