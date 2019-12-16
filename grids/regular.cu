@@ -8,7 +8,7 @@
 
 /** A regular cartesian grid of squares.
  * 
-* Memory layout: first x, then y, then z, so when we go through the memory
+ * Memory layout: first x, then y, then z, so when we go through the memory
  * one-by-one, x varies fastest, y second and z slowest. An allocator can be
  * provided to use instead of the standard malloc.
  * 

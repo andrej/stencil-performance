@@ -14,16 +14,17 @@ namespace HdiffCudaRegular {
     enum Variant { direct, kloop, idxvar, shared, shared_kloop, coop, jloop };
 
     /** Naive variant: Every thread computes all of its data dependencies by itself. */
+    template<typename value_t>
     __global__
     void kernel_direct(HdiffBase::Info info,
-                       CudaRegularGrid3DInfo<double> grids_info,
-                       double *in,
-                       double *out,
-                       double *coeff
+                       CudaRegularGrid3DInfo<value_t> grids_info,
+                       value_t *in,
+                       value_t *out,
+                       value_t *coeff
                        #ifdef HDIFF_DEBUG
-                       , double *dbg_lap
-                       , double *dbg_flx
-                       , double *dbg_fly
+                       , value_t *dbg_lap
+                       , value_t *dbg_flx
+                       , value_t *dbg_fly
                        #endif
                        ) {
 
@@ -56,37 +57,37 @@ namespace HdiffCudaRegular {
                     k += info.gridsize.z) {
         #endif
 
-                    const double lap_ij = 
+                    const value_t lap_ij = 
                         4 * in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, 0, 0)] 
                         - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, -1, 0, 0)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, +1, 0, 0)]
                         - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, -1, 0)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, +1, 0)];
-                    const double lap_imj = 
+                    const value_t lap_imj = 
                         4 * in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, -1, 0, 0)]
                         - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, -2, 0, 0)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, 0, 0)]
                         - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, -1, -1, 0)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, -1, +1, 0)];
-                    const double lap_ipj =
+                    const value_t lap_ipj =
                         4 * in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, +1, 0, 0)]
                         - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, 0, 0)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, +2, 0, 0)]
                         - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, +1, -1, 0)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, +1, +1, 0)];
-                    const double lap_ijm =
+                    const value_t lap_ijm =
                         4 * in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, -1, 0)]
                         - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, -1, -1, 0)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, +1, -1, 0)]
                         - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, -2, 0)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, 0, 0)];
-                    const double lap_ijp =
+                    const value_t lap_ijp =
                         4 * in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, +1, 0)]
                         - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, -1, +1, 0)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, +1, +1, 0)]
                         - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, 0, 0)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, +2, 0)];
             
-                    double flx_ij = lap_ipj - lap_ij;
+                    value_t flx_ij = lap_ipj - lap_ij;
                     flx_ij = flx_ij * (in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, +1, 0, 0)] - in[CUDA_REGULAR_INDEX(grids_info, i, j, k)]) > 0 ? 0 : flx_ij;
             
-                    double flx_imj = lap_ij - lap_imj;
+                    value_t flx_imj = lap_ij - lap_imj;
                     flx_imj = flx_imj * (in[CUDA_REGULAR_INDEX(grids_info, i, j, k)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, -1, 0, 0)]) > 0 ? 0 : flx_imj;
             
-                    double fly_ij = lap_ijp - lap_ij;
+                    value_t fly_ij = lap_ijp - lap_ij;
                     fly_ij = fly_ij * (in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, +1, 0)] - in[CUDA_REGULAR_INDEX(grids_info, i, j, k)]) > 0 ? 0 : fly_ij;
             
-                    double fly_ijm = lap_ij - lap_ijm;
+                    value_t fly_ijm = lap_ij - lap_ijm;
                     fly_ijm = fly_ijm * (in[CUDA_REGULAR_INDEX(grids_info, i, j, k)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, -1, 0)]) > 0 ? 0 : fly_ijm;
             
                     out[CUDA_REGULAR_INDEX(grids_info, i, j, k)] =
@@ -125,15 +126,16 @@ namespace HdiffCudaRegular {
      * 
      * This can be thought of as a kind of sequential version, but only on the
      * thread-level. */
+    template<typename value_t>
     __global__
     void kernel_coop(HdiffBase::Info info,
-                    CudaRegularGrid3DInfo<double> grids_info,
-                    double *in,
-                    double *out,
-                    double *coeff,
-                    double *lap,
-                    double *flx,
-                    double *fly) {
+                    CudaRegularGrid3DInfo<value_t> grids_info,
+                    value_t *in,
+                    value_t *out,
+                    value_t *coeff,
+                    value_t *lap,
+                    value_t *flx,
+                    value_t *fly) {
         
         // Global grid position
         const int i = threadIdx.x + blockIdx.x*blockDim.x + info.halo.x;
@@ -145,7 +147,7 @@ namespace HdiffCudaRegular {
         }
 
         // Calculate own laplace
-        double lap_ij = 4 * in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, 0, 0)] 
+        value_t lap_ij = 4 * in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, 0, 0)] 
             - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, -1, 0, 0)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, +1, 0, 0)]
             - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, -1, 0)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, +1, 0)];
         lap[CUDA_REGULAR_INDEX(grids_info, i, j, k)] = lap_ij;
@@ -153,7 +155,7 @@ namespace HdiffCudaRegular {
         // Sync threads to enable access to their laplace calculations
         __syncthreads();
 
-        double lap_ipj;
+        value_t lap_ipj;
         if(threadIdx.x == blockDim.x-1) {
             // rightmost in block, need to compute right dependency ourselves
             lap_ipj = 4 * in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, +1, 0, 0)]
@@ -163,7 +165,7 @@ namespace HdiffCudaRegular {
             lap_ipj = lap[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, +1, 0, 0)];
         }
 
-        double lap_ijp;
+        value_t lap_ijp;
         if(threadIdx.y == blockDim.y-1) {
             lap_ijp = 4 * in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, +1, 0)]
                 - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, -1, +1, 0)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, +1, +1, 0)]
@@ -173,21 +175,21 @@ namespace HdiffCudaRegular {
         }
 
         // Own flx/fly calculation
-        double flx_ij = lap_ipj - lap_ij;
+        value_t flx_ij = lap_ipj - lap_ij;
         flx_ij = flx_ij * (in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, +1, 0, 0)] - in[CUDA_REGULAR_INDEX(grids_info, i, j, k)]) > 0 ? 0 : flx_ij;
         flx[CUDA_REGULAR_INDEX(grids_info, i, j, k)] = flx_ij;
 
-        double fly_ij = lap_ijp - lap_ij;
+        value_t fly_ij = lap_ijp - lap_ij;
         fly_ij = fly_ij * (in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, +1, 0)] - in[CUDA_REGULAR_INDEX(grids_info, i, j, k)]) > 0 ? 0 : fly_ij;
         fly[CUDA_REGULAR_INDEX(grids_info, i, j, k)] = fly_ij;
 
         // Make flx/fly available to other threads by synchronizing
         __syncthreads();
 
-        double flx_imj;
+        value_t flx_imj;
         if(threadIdx.x == 0) {
             // leftmost in block, need to compute left dependency ourselves
-            double lap_imj = 4 * in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, -1, 0, 0)]
+            value_t lap_imj = 4 * in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, -1, 0, 0)]
                 - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, -2, 0, 0)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, 0, 0)]
                 - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, -1, -1, 0)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, -1, +1, 0)];
             flx_imj = lap_ij - lap_imj;
@@ -196,10 +198,10 @@ namespace HdiffCudaRegular {
             flx_imj = flx[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, -1, 0, 0)];
         }
 
-        double fly_ijm;
+        value_t fly_ijm;
         if(threadIdx.y == 0) {
             // need to also calculate lap for j - 1 as we are at boundary
-            double lap_ijm = 4 * in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, -1, 0)]
+            value_t lap_ijm = 4 * in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, -1, 0)]
                     - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, -1, -1, 0)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, +1, -1, 0)]
                     - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, -2, 0)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, 0, 0)];
             fly_ijm = lap_ij - lap_ijm;
@@ -215,13 +217,14 @@ namespace HdiffCudaRegular {
 
     /** Just like the coop kernel, but uses shared memory fo threads instead
      * of managed memory for the lap, flx, fly results. */
+    template<typename value_t>
     __global__
     void kernel_shared(HdiffBase::Info info,
-                    CudaRegularGrid3DInfo<double> grids_info,
-                    CudaRegularGrid3DInfo<double> local_grids_info,
-                    double *in,
-                    double *out,
-                    double *coeff) {
+                    CudaRegularGrid3DInfo<value_t> grids_info,
+                    CudaRegularGrid3DInfo<value_t> local_grids_info,
+                    value_t *in,
+                    value_t *out,
+                    value_t *coeff) {
         
         // Global grid position
         const int i = threadIdx.x + blockIdx.x*blockDim.x + info.halo.x;
@@ -233,16 +236,16 @@ namespace HdiffCudaRegular {
         }
 
         // Shared memory
-        extern __shared__ double smem[];
+        extern __shared__ char smem[];
         const int block_size = local_grids_info.strides.z*blockDim.z;
 
         // Local grids holding results for laplace, flx and fly calcualted by other threads
-        double *local_lap = smem;
-        double *local_flx = &smem[block_size];
-        double *local_fly = &smem[2*block_size];
+        value_t *local_lap = (value_t *)smem;
+        value_t *local_flx = &local_lap[block_size];
+        value_t *local_fly = &local_flx[block_size];
         
         // Calculate own laplace
-        double lap_ij = 4 * in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, 0, 0)] 
+        value_t lap_ij = 4 * in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, 0, 0)] 
             - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, -1, 0, 0)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, +1, 0, 0)]
             - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, -1, 0)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, +1, 0)];
         local_lap[CUDA_REGULAR_INDEX(local_grids_info, threadIdx.x, threadIdx.y, threadIdx.z)] = lap_ij;
@@ -250,7 +253,7 @@ namespace HdiffCudaRegular {
         // Sync threads to enable access to their laplace calculations
         __syncthreads();
 
-        double lap_ipj;
+        value_t lap_ipj;
         if(threadIdx.x == blockDim.x-1 || i == info.max_coord.x-1) {
             // rightmost in block, need to compute right dependency ourselves
             lap_ipj = 4 * in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, +1, 0, 0)]
@@ -260,7 +263,7 @@ namespace HdiffCudaRegular {
             lap_ipj = local_lap[CUDA_REGULAR_NEIGHBOR(local_grids_info, threadIdx.x, threadIdx.y, threadIdx.z, +1, 0, 0)];
         }
 
-        double lap_ijp;
+        value_t lap_ijp;
         if(threadIdx.y == blockDim.y-1 || j == info.max_coord.y-1) {
             lap_ijp = 4 * in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, +1, 0)]
                 - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, -1, +1, 0)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, +1, +1, 0)]
@@ -270,21 +273,21 @@ namespace HdiffCudaRegular {
         }
 
         // Own flx/fly calculation
-        double flx_ij = lap_ipj - lap_ij;
+        value_t flx_ij = lap_ipj - lap_ij;
         flx_ij = flx_ij * (in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, +1, 0, 0)] - in[CUDA_REGULAR_INDEX(grids_info, i, j, k)]) > 0 ? 0 : flx_ij;
         local_flx[CUDA_REGULAR_INDEX(local_grids_info, threadIdx.x, threadIdx.y, threadIdx.z)] = flx_ij;
 
-        double fly_ij = lap_ijp - lap_ij;
+        value_t fly_ij = lap_ijp - lap_ij;
         fly_ij = fly_ij * (in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, +1, 0)] - in[CUDA_REGULAR_INDEX(grids_info, i, j, k)]) > 0 ? 0 : fly_ij;
         local_fly[CUDA_REGULAR_INDEX(local_grids_info, threadIdx.x, threadIdx.y, threadIdx.z)] = fly_ij;
 
         // Make flx/fly available to other threads by synchronizing
         __syncthreads();
 
-        double flx_imj;
+        value_t flx_imj;
         if(threadIdx.x == 0) {
             // leftmost in block, need to compute left dependency ourselves
-            double lap_imj = 4 * in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, -1, 0, 0)]
+            value_t lap_imj = 4 * in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, -1, 0, 0)]
                 - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, -2, 0, 0)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, 0, 0)]
                 - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, -1, -1, 0)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, -1, +1, 0)];
             flx_imj = lap_ij - lap_imj;
@@ -293,10 +296,10 @@ namespace HdiffCudaRegular {
             flx_imj = local_flx[CUDA_REGULAR_NEIGHBOR(local_grids_info, threadIdx.x, threadIdx.y, threadIdx.z, -1, 0, 0)];
         }
 
-        double fly_ijm;
+        value_t fly_ijm;
         if(threadIdx.y == 0) {
             // need to also calculate lap for j - 1 as we are at boundary
-            double lap_ijm = 4 * in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, -1, 0)]
+            value_t lap_ijm = 4 * in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, -1, 0)]
                     - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, -1, -1, 0)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, +1, -1, 0)]
                     - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, -2, 0)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, 0, 0)];
             fly_ijm = lap_ij - lap_ijm;
@@ -312,13 +315,14 @@ namespace HdiffCudaRegular {
     /** Like kernel_shared, but uses a k loop and in each loop iteration
      * threads are synchronized. This reduces the amount of memory required,
      * as only the lap/flx/fly for one k-level is stored in shared memory. */
+    template<typename value_t>
     __global__
     void kernel_shared_kloop(const HdiffBase::Info info,
-                    const CudaRegularGrid3DInfo<double> input_grids_info,
+                    const CudaRegularGrid3DInfo<value_t> input_grids_info,
                     const int blocksize,
-                    const double *in,
-                    double *out,
-                    const double *coeff) {
+                    const value_t *in,
+                    value_t *out,
+                    const value_t *coeff) {
         
         // Global grid position
         const int i = threadIdx.x + blockIdx.x*blockDim.x + info.halo.x;
@@ -328,18 +332,18 @@ namespace HdiffCudaRegular {
         }
 
         // Shared memory
-        extern __shared__ double smem[];
+        extern __shared__ char smem[];
 
         // Local grids holding results for laplace, flx and fly calcualted by other threads
-        double *local_lap = smem;
-        double *local_flx = &smem[blocksize];
-        double *local_fly = &smem[2*blocksize];
+        value_t *local_lap = (value_t*)smem;
+        value_t *local_flx = &local_lap[blocksize];
+        value_t *local_fly = &local_flx[blocksize];
         
         // K-loop
         for(int k = info.halo.z; k < info.max_coord.z; k++) {
 
             // Calculate own laplace
-            const double lap_ij = 4 * in[CUDA_REGULAR_NEIGHBOR(input_grids_info, i, j, k, 0, 0, 0)] 
+            const value_t lap_ij = 4 * in[CUDA_REGULAR_NEIGHBOR(input_grids_info, i, j, k, 0, 0, 0)] 
                 - in[CUDA_REGULAR_NEIGHBOR_(input_grids_info.strides.y, input_grids_info.strides.z, i, j, k, -1, 0, 0)] - in[CUDA_REGULAR_NEIGHBOR_(input_grids_info.strides.y, input_grids_info.strides.z, i, j, k, +1, 0, 0)]
                 - in[CUDA_REGULAR_NEIGHBOR_(input_grids_info.strides.y, input_grids_info.strides.z, i, j, k, 0, -1, 0)] - in[CUDA_REGULAR_NEIGHBOR_(input_grids_info.strides.y, input_grids_info.strides.z, i, j, k, 0, +1, 0)];
             local_lap[CUDA_REGULAR_INDEX_(blockDim.x, 0, threadIdx.x, threadIdx.y, 0)] = lap_ij;
@@ -347,7 +351,7 @@ namespace HdiffCudaRegular {
             // Sync threads to enable access to their laplace calculations
             __syncthreads();
 
-            double lap_ipj;
+            value_t lap_ipj;
             if(threadIdx.x == blockDim.x-1 || i == info.max_coord.x-1) {
                 // rightmost in block, need to compute right dependency ourselves
                 lap_ipj = 4 * in[CUDA_REGULAR_NEIGHBOR_(input_grids_info.strides.y, input_grids_info.strides.z, i, j, k, +1, 0, 0)]
@@ -357,7 +361,7 @@ namespace HdiffCudaRegular {
                 lap_ipj = local_lap[CUDA_REGULAR_NEIGHBOR_(blockDim.x, 0, threadIdx.x, threadIdx.y, 0, +1, 0, 0)];
             }
 
-            double lap_ijp;
+            value_t lap_ijp;
             if(threadIdx.y == blockDim.y-1 || j == info.max_coord.y-1) {
                 lap_ijp = 4 * in[CUDA_REGULAR_NEIGHBOR_(input_grids_info.strides.y, input_grids_info.strides.z, i, j, k, 0, +1, 0)]
                     - in[CUDA_REGULAR_NEIGHBOR_(input_grids_info.strides.y, input_grids_info.strides.z, i, j, k, -1, +1, 0)] - in[CUDA_REGULAR_NEIGHBOR_(input_grids_info.strides.y, input_grids_info.strides.z, i, j, k, +1, +1, 0)]
@@ -367,21 +371,21 @@ namespace HdiffCudaRegular {
             }
 
             // Own flx/fly calculation
-            double flx_ij = lap_ipj - lap_ij;
+            value_t flx_ij = lap_ipj - lap_ij;
             flx_ij = flx_ij * (in[CUDA_REGULAR_NEIGHBOR_(input_grids_info.strides.y, input_grids_info.strides.z, i, j, k, +1, 0, 0)] - in[CUDA_REGULAR_INDEX_(input_grids_info.strides.y, input_grids_info.strides.z, i, j, k)]) > 0 ? 0 : flx_ij;
             local_flx[CUDA_REGULAR_INDEX_(blockDim.x, 0, threadIdx.x, threadIdx.y, 0)] = flx_ij;
 
-            double fly_ij = lap_ijp - lap_ij;
+            value_t fly_ij = lap_ijp - lap_ij;
             fly_ij = fly_ij * (in[CUDA_REGULAR_NEIGHBOR_(input_grids_info.strides.y, input_grids_info.strides.z, i, j, k, 0, +1, 0)] - in[CUDA_REGULAR_INDEX_(input_grids_info.strides.y, input_grids_info.strides.z, i, j, k)]) > 0 ? 0 : fly_ij;
             local_fly[CUDA_REGULAR_INDEX_(blockDim.x, 0, threadIdx.x, threadIdx.y, 0)] = fly_ij;
 
             // Make flx/fly available to other threads by synchronizing
             __syncthreads();
 
-            double flx_imj;
+            value_t flx_imj;
             if(threadIdx.x == 0) {
                 // leftmost in block, need to compute left dependency ourselves
-                double lap_imj = 4 * in[CUDA_REGULAR_NEIGHBOR_(input_grids_info.strides.y, input_grids_info.strides.z, i, j, k, -1, 0, 0)]
+                value_t lap_imj = 4 * in[CUDA_REGULAR_NEIGHBOR_(input_grids_info.strides.y, input_grids_info.strides.z, i, j, k, -1, 0, 0)]
                     - in[CUDA_REGULAR_NEIGHBOR_(input_grids_info.strides.y, input_grids_info.strides.z, i, j, k, -2, 0, 0)] - in[CUDA_REGULAR_NEIGHBOR_(input_grids_info.strides.y, input_grids_info.strides.z, i, j, k, 0, 0, 0)]
                     - in[CUDA_REGULAR_NEIGHBOR_(input_grids_info.strides.y, input_grids_info.strides.z, i, j, k, -1, -1, 0)] - in[CUDA_REGULAR_NEIGHBOR_(input_grids_info.strides.y, input_grids_info.strides.z, i, j, k, -1, +1, 0)];
                 flx_imj = lap_ij - lap_imj;
@@ -390,10 +394,10 @@ namespace HdiffCudaRegular {
                 flx_imj = local_flx[CUDA_REGULAR_NEIGHBOR_(blockDim.x, 0, threadIdx.x, threadIdx.y, 0, -1, 0, 0)];
             }
 
-            double fly_ijm;
+            value_t fly_ijm;
             if(threadIdx.y == 0) {
                 // need to also calculate lap for j - 1 as we are at boundary
-                double lap_ijm = 4 * in[CUDA_REGULAR_NEIGHBOR_(input_grids_info.strides.y, input_grids_info.strides.z, i, j, k, 0, -1, 0)]
+                value_t lap_ijm = 4 * in[CUDA_REGULAR_NEIGHBOR_(input_grids_info.strides.y, input_grids_info.strides.z, i, j, k, 0, -1, 0)]
                         - in[CUDA_REGULAR_NEIGHBOR_(input_grids_info.strides.y, input_grids_info.strides.z, i, j, k, -1, -1, 0)] - in[CUDA_REGULAR_NEIGHBOR_(input_grids_info.strides.y, input_grids_info.strides.z, i, j, k, +1, -1, 0)]
                         - in[CUDA_REGULAR_NEIGHBOR_(input_grids_info.strides.y, input_grids_info.strides.z, i, j, k, 0, -2, 0)] - in[CUDA_REGULAR_NEIGHBOR_(input_grids_info.strides.y, input_grids_info.strides.z, i, j, k, 0, 0, 0)];
                 fly_ijm = lap_ij - lap_ijm;
@@ -411,11 +415,12 @@ namespace HdiffCudaRegular {
      * not make use uf any structs etc and kept as simple as possible
      * (i.e. un-readable), in order to analyze if this has any impact on the
      * register usage, i.e. if the compiler is able to optimize this. */
+     template<typename value_t>
      __global__
      void kernel_shared_kloop_simplecode(const int halo_x, const int halo_y, const int halo_z, const int max_x, const int max_y, const int max_z,
             const int ystride, const int zstride,
             const int blocksize,
-            const double *in_data, double *out_data, const double *coeff_data) {
+            const value_t *in_data, value_t *out_data, const value_t *coeff_data) {
 
         // Global grid position
         const int i = threadIdx.x + blockIdx.x*blockDim.x + halo_x;
@@ -425,20 +430,20 @@ namespace HdiffCudaRegular {
         }
 
         // Shared memory
-        extern __shared__ double smem[];
+        extern __shared__ value_t smem[];
         
-        double *local_lap = smem;
-        double *local_flx = &smem[blocksize];
-        double *local_fly = &smem[2*blocksize];
+        value_t *local_lap = smem;
+        value_t *local_flx = &smem[blocksize];
+        value_t *local_fly = &smem[2*blocksize];
 
         // K-loop
         for(int k = halo_z; k < max_z; k++) {
-            const double lap_ij = 4 * in_data[i+j*ystride+k*zstride] 
+            const value_t lap_ij = 4 * in_data[i+j*ystride+k*zstride] 
                 - in_data[i+j*ystride+k*zstride + (-1)] - in_data[i+j*ystride+k*zstride + (+1)]
                 - in_data[i+j*ystride+k*zstride + (0) + (-1)*ystride] - in_data[i+j*ystride+k*zstride + (0) + (+1)*ystride];
             local_lap[threadIdx.x+threadIdx.y*blockDim.x] = lap_ij;
             __syncthreads();
-            double lap_ipj;
+            value_t lap_ipj;
             if(threadIdx.x == blockDim.x-1 || i == max_x-1) {
                 lap_ipj = 4 * in_data[i+j*ystride+k*zstride + (+1)]
                     - in_data[i+j*ystride+k*zstride] - in_data[i+j*ystride+k*zstride + (+2)]
@@ -446,7 +451,7 @@ namespace HdiffCudaRegular {
             } else {
                 lap_ipj = local_lap[threadIdx.x+threadIdx.y*blockDim.x + (+1)];
             }
-            double lap_ijp;
+            value_t lap_ijp;
             if(threadIdx.y == blockDim.y-1 || j == max_y-1) {
                 lap_ijp = 4 * in_data[i+j*ystride+k*zstride + (0) + (+1)*ystride]
                     - in_data[i+j*ystride+k*zstride + (-1) + (+1)*ystride] - in_data[i+j*ystride+k*zstride + (+1) + (+1)*ystride]
@@ -454,16 +459,16 @@ namespace HdiffCudaRegular {
             } else {
                 lap_ijp = local_lap[threadIdx.x+threadIdx.y*blockDim.x + (0) + (+1)*blockDim.x];
             }
-            double flx_ij = lap_ipj - lap_ij;
+            value_t flx_ij = lap_ipj - lap_ij;
             flx_ij = flx_ij * (in_data[i+j*ystride+k*zstride + (+1)] - in_data[i+j*ystride+k*zstride]) > 0 ? 0 : flx_ij;
             local_flx[threadIdx.x+threadIdx.y*blockDim.x] = flx_ij;
-            double fly_ij = lap_ijp - lap_ij;
+            value_t fly_ij = lap_ijp - lap_ij;
             fly_ij = fly_ij * (in_data[i+j*ystride+k*zstride + (0) + (+1)*ystride] - in_data[i+j*ystride+k*zstride]) > 0 ? 0 : fly_ij;
             local_fly[threadIdx.x+threadIdx.y*blockDim.x] = fly_ij;
             __syncthreads();
-            double flx_imj;
+            value_t flx_imj;
             if(threadIdx.x == 0) {
-                double lap_imj = 4 * in_data[i+j*ystride+k*zstride + (-1)]
+                value_t lap_imj = 4 * in_data[i+j*ystride+k*zstride + (-1)]
                     - in_data[i+j*ystride+k*zstride + (-2)] - in_data[i+j*ystride+k*zstride]
                     - in_data[i+j*ystride+k*zstride + (-1) + (-1)*ystride] - in_data[i+j*ystride+k*zstride + (-1) + (+1)*ystride];
                 flx_imj = lap_ij - lap_imj;
@@ -471,9 +476,9 @@ namespace HdiffCudaRegular {
             } else {
                 flx_imj = local_flx[threadIdx.x+threadIdx.y*blockDim.x-1];
             }
-            double fly_ijm;
+            value_t fly_ijm;
             if(threadIdx.y == 0) {
-                double lap_ijm = 4 * in_data[i+j*ystride+k*zstride + (0) + (-1)*ystride]
+                value_t lap_ijm = 4 * in_data[i+j*ystride+k*zstride + (0) + (-1)*ystride]
                         - in_data[i+j*ystride+k*zstride + (-1) + (-1)*ystride] - in_data[i+j*ystride+k*zstride + (+1) + (-1)*ystride]
                         - in_data[i+j*ystride+k*zstride + (0) + (-2)*ystride] - in_data[i+j*ystride+k*zstride];
                 fly_ijm = lap_ij - lap_ijm;
@@ -484,13 +489,14 @@ namespace HdiffCudaRegular {
             out_data[i+j*ystride+k*zstride] = in_data[i+j*ystride+k*zstride] - coeff_data[i+j*ystride+k*zstride] * (flx_ij - flx_imj + fly_ij - fly_ijm);
         }
      }
-
+    
+    template<typename value_t>
     __global__
     void kernel_kloop(HdiffBase::Info info,
-                      CudaRegularGrid3DInfo<double> grids_info,
-                      double *in,
-                      double *out,
-                      double *coeff) {
+                      CudaRegularGrid3DInfo<value_t> grids_info,
+                      value_t *in,
+                      value_t *out,
+                      value_t *coeff) {
         const int i = threadIdx.x + blockIdx.x*blockDim.x + info.halo.x;
         const int j = threadIdx.y + blockIdx.y*blockDim.y + info.halo.y;
         if(i >= info.max_coord.x || j >= info.max_coord.y) {
@@ -498,34 +504,34 @@ namespace HdiffCudaRegular {
         }
         
         for(int k = info.halo.z; k < info.max_coord.z; k++) {
-            double lap_ij = 
+            value_t lap_ij = 
                 4 * in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, 0, 0)] 
                 - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, -1, 0, 0)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, +1, 0, 0)]
                 - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, -1, 0)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, +1, 0)];
-            double lap_imj = 
+            value_t lap_imj = 
                 4 * in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, -1, 0, 0)]
                 - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, -2, 0, 0)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, 0, 0)]
                 - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, -1, -1, 0)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, -1, +1, 0)];
-            double lap_ipj =
+            value_t lap_ipj =
                 4 * in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, +1, 0, 0)]
                 - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, 0, 0)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, +2, 0, 0)]
                 - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, +1, -1, 0)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, +1, +1, 0)];
-            double lap_ijm =
+            value_t lap_ijm =
                 4 * in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, -1, 0)]
                 - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, -1, -1, 0)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, +1, -1, 0)]
                 - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, -2, 0)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, 0, 0)];
-            double lap_ijp =
+            value_t lap_ijp =
                 4 * in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, +1, 0)]
                 - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, -1, +1, 0)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, +1, +1, 0)]
                 - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, 0, 0)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, +2, 0)];
 
-            double flx_ij = lap_ipj - lap_ij;
+            value_t flx_ij = lap_ipj - lap_ij;
             flx_ij = flx_ij * (in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, +1, 0, 0)] - in[CUDA_REGULAR_INDEX(grids_info, i, j, k)]) > 0 ? 0 : flx_ij;
-            double flx_imj = lap_ij - lap_imj;
+            value_t flx_imj = lap_ij - lap_imj;
             flx_imj = flx_imj * (in[CUDA_REGULAR_INDEX(grids_info, i, j, k)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, -1, 0, 0)]) > 0 ? 0 : flx_imj;
-            double fly_ij = lap_ijp - lap_ij;
+            value_t fly_ij = lap_ijp - lap_ij;
             fly_ij = fly_ij * (in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, +1, 0)] - in[CUDA_REGULAR_INDEX(grids_info, i, j, k)]) > 0 ? 0 : fly_ij;
-            double fly_ijm = lap_ij - lap_ijm;
+            value_t fly_ijm = lap_ij - lap_ijm;
             fly_ijm = fly_ijm * (in[CUDA_REGULAR_INDEX(grids_info, i, j, k)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, -1, 0)]) > 0 ? 0 : fly_ijm;
 
             out[CUDA_REGULAR_INDEX(grids_info, i, j, k)] =
@@ -534,12 +540,13 @@ namespace HdiffCudaRegular {
         }
     }
 
+    template<typename value_t>
     __global__
     void kernel_idxvar(HdiffBase::Info info,
-                       CudaRegularGrid3DInfo<double> grids_info,
-                       double *in,
-                       double *out,
-                       double *coeff) {
+                       CudaRegularGrid3DInfo<value_t> grids_info,
+                       value_t *in,
+                       value_t *out,
+                       value_t *coeff) {
 
         const int i = threadIdx.x + blockIdx.x*blockDim.x + info.halo.x;
         const int j = threadIdx.y + blockIdx.y*blockDim.y + info.halo.y;
@@ -565,37 +572,37 @@ namespace HdiffCudaRegular {
 
         for(int k = info.halo.z; k < info.max_coord.z; k++) {
 
-            double lap_ij = 
+            value_t lap_ij = 
                 4 * in[n_0_0_0] 
                 - in[n_n1_0_0] - in[n_p1_0_0]
                 - in[n_0_n1_0] - in[n_0_p1_0];
-            double lap_imj = 
+            value_t lap_imj = 
                 4 * in[n_n1_0_0]
                 - in[n_n2_0_0] - in[n_0_0_0]
                 - in[n_n1_n1_0] - in[n_n1_p1_0];
-            double lap_ipj =
+            value_t lap_ipj =
                 4 * in[n_p1_0_0]
                 - in[n_0_0_0] - in[n_p2_0_0]
                 - in[n_p1_n1_0] - in[n_p1_p1_0];
-            double lap_ijm =
+            value_t lap_ijm =
                 4 * in[n_0_n1_0]
                 - in[n_n1_n1_0] - in[n_p1_n1_0]
                 - in[n_0_n2_0] - in[n_0_0_0];
-            double lap_ijp =
+            value_t lap_ijp =
                 4 * in[n_0_p1_0]
                 - in[n_n1_p1_0] - in[n_p1_p1_0]
                 - in[n_0_0_0] - in[n_0_p2_0];
     
-            double flx_ij = lap_ipj - lap_ij;
+            value_t flx_ij = lap_ipj - lap_ij;
             flx_ij = flx_ij * (in[n_p1_0_0] - in[n_0_0_0]) > 0 ? 0 : flx_ij;
     
-            double flx_imj = lap_ij - lap_imj;
+            value_t flx_imj = lap_ij - lap_imj;
             flx_imj = flx_imj * (in[n_0_0_0] - in[n_n1_0_0]) > 0 ? 0 : flx_imj;
     
-            double fly_ij = lap_ijp - lap_ij;
+            value_t fly_ij = lap_ijp - lap_ij;
             fly_ij = fly_ij * (in[n_0_p1_0] - in[n_0_0_0]) > 0 ? 0 : fly_ij;
     
-            double fly_ijm = lap_ij - lap_ijm;
+            value_t fly_ijm = lap_ij - lap_ijm;
             fly_ijm = fly_ijm * (in[n_0_0_0] - in[n_0_n1_0]) > 0 ? 0 : fly_ijm;
     
             out[n_0_0_0] =
@@ -621,13 +628,14 @@ namespace HdiffCudaRegular {
         }
     }
 
+    template<typename value_t>
     __global__
     void kernel_jloop(HdiffBase::Info info,
-                      CudaRegularGrid3DInfo<double> grids_info,
+                      CudaRegularGrid3DInfo<value_t> grids_info,
                       int j_per_thread,
-                      double *in,
-                      double *out,
-                      double *coeff) {
+                      value_t *in,
+                      value_t *out,
+                      value_t *coeff) {
         
         const int i = threadIdx.x + blockIdx.x*blockDim.x + info.halo.x;
         const int k = threadIdx.z + blockIdx.z*blockDim.z + info.halo.z;
@@ -642,15 +650,15 @@ namespace HdiffCudaRegular {
         }
         
         // first calculation outside of loop will be shifted into lap_ijm / fly_ijm on first iteration
-        double lap_ij = 4 * in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j_start, k, 0, -1, 0)]
+        value_t lap_ij = 4 * in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j_start, k, 0, -1, 0)]
                             - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j_start, k, -1, -1, 0)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j_start, k, +1, -1, 0)]
                             - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j_start, k, 0, -2, 0)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j_start, k, 0, 0, 0)];
         
-        double lap_ijp = 4 * in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j_start, k, 0, 0, 0)] 
+        value_t lap_ijp = 4 * in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j_start, k, 0, 0, 0)] 
                             - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j_start, k, -1, 0, 0)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j_start, k, +1, 0, 0)]
                             - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j_start, k, 0, -1, 0)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j_start, k, 0, +1, 0)];
         
-        double fly_ij = lap_ijp - lap_ij;
+        value_t fly_ij = lap_ijp - lap_ij;
         fly_ij = fly_ij * (in[CUDA_REGULAR_INDEX(grids_info, i, j_start, k)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j_start, k, 0, -1, 0)]) > 0 ? 0 : fly_ij;
 
 
@@ -658,16 +666,16 @@ namespace HdiffCudaRegular {
         for(int j = j_start; j < j_stop; j++) {
 
             // shift results from previous iteration
-            //double lap_ijm = lap_ij;
+            //value_t lap_ijm = lap_ij;
             lap_ij = lap_ijp;
-            double fly_ijm = fly_ij;
+            value_t fly_ijm = fly_ij;
 
             // x direction dependencies are recalculated for every cell
-            double lap_imj = 
+            value_t lap_imj = 
                 4 * in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, -1, 0, 0)]
                 - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, -2, 0, 0)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, 0, 0)]
                 - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, -1, -1, 0)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, -1, +1, 0)];
-            double lap_ipj =
+            value_t lap_ipj =
                 4 * in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, +1, 0, 0)]
                 - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, 0, 0)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, +2, 0, 0)]
                 - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, +1, -1, 0)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, +1, +1, 0)];
@@ -679,9 +687,9 @@ namespace HdiffCudaRegular {
                 - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, 0, 0)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, +2, 0)];
 
             // x direction dependencies are recalculated for every cell
-            double flx_ij = lap_ipj - lap_ij;
+            value_t flx_ij = lap_ipj - lap_ij;
             flx_ij = flx_ij * (in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, +1, 0, 0)] - in[CUDA_REGULAR_INDEX(grids_info, i, j, k)]) > 0 ? 0 : flx_ij;
-            double flx_imj = lap_ij - lap_imj;
+            value_t flx_imj = lap_ij - lap_imj;
             flx_imj = flx_imj * (in[CUDA_REGULAR_INDEX(grids_info, i, j, k)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, -1, 0, 0)]) > 0 ? 0 : flx_imj;
             
             // will be reused as fly_ijm in next iteration
@@ -699,7 +707,8 @@ namespace HdiffCudaRegular {
 
 /** This is the reference implementation for the horizontal diffusion kernel, 
  * which is executed on the CPU and used to verify other implementations. */
-class HdiffCudaBenchmark : public HdiffBaseBenchmark {
+template<typename value_t>
+class HdiffCudaBenchmark : public HdiffBaseBenchmark<value_t> {
 
     public:
 
@@ -726,8 +735,9 @@ class HdiffCudaBenchmark : public HdiffBaseBenchmark {
 
 // IMPLEMENTATIONS
 
-HdiffCudaBenchmark::HdiffCudaBenchmark(coord3 size, HdiffCudaRegular::Variant variant) :
-HdiffBaseBenchmark(size) {
+template<typename value_t>
+HdiffCudaBenchmark<value_t>::HdiffCudaBenchmark(coord3 size, HdiffCudaRegular::Variant variant) :
+HdiffBaseBenchmark<value_t>(size) {
     this->variant = variant;
     if(variant == HdiffCudaRegular::direct) {
         this->name = "hdiff-regular";
@@ -746,11 +756,12 @@ HdiffBaseBenchmark(size) {
     }
 }
 
-void HdiffCudaBenchmark::run() {
+template<typename value_t>
+void HdiffCudaBenchmark<value_t>::run() {
     if(this->variant == HdiffCudaRegular::direct) {
-        HdiffCudaRegular::kernel_direct<<<this->numblocks(), this->numthreads()>>>(
+        HdiffCudaRegular::kernel_direct<value_t><<<this->numblocks(), this->numthreads()>>>(
             this->get_info(),
-            (dynamic_cast<CudaRegularGrid3D<double>*>(this->input))->get_gridinfo(),
+            (dynamic_cast<CudaRegularGrid3D<value_t>*>(this->input))->get_gridinfo(),
             this->input->data,
             this->output->data,
             this->coeff->data
@@ -761,17 +772,17 @@ void HdiffCudaBenchmark::run() {
             #endif
         );
     } else if(this->variant == HdiffCudaRegular::kloop) {
-        HdiffCudaRegular::kernel_kloop<<<this->numblocks(), this->numthreads()>>>(
+        HdiffCudaRegular::kernel_kloop<value_t><<<this->numblocks(), this->numthreads()>>>(
             this->get_info(),
-            (dynamic_cast<CudaRegularGrid3D<double>*>(this->input))->get_gridinfo(),
+            (dynamic_cast<CudaRegularGrid3D<value_t>*>(this->input))->get_gridinfo(),
             this->input->data,
             this->output->data,
             this->coeff->data
         );
     } else if(this->variant == HdiffCudaRegular::coop) {
-        HdiffCudaRegular::kernel_coop<<<this->numblocks(), this->numthreads()>>>(
+        HdiffCudaRegular::kernel_coop<value_t><<<this->numblocks(), this->numthreads()>>>(
             this->get_info(),
-            (dynamic_cast<CudaRegularGrid3D<double>*>(this->input))->get_gridinfo(),
+            (dynamic_cast<CudaRegularGrid3D<value_t>*>(this->input))->get_gridinfo(),
             this->input->data,
             this->output->data,
             this->coeff->data,
@@ -781,11 +792,11 @@ void HdiffCudaBenchmark::run() {
         );
     } else if(this->variant == HdiffCudaRegular::shared) {
         dim3 numthreads = this->numthreads();
-        int smem_size = 3*numthreads.x*numthreads.y*numthreads.z*sizeof(double);
-        HdiffCudaRegular::kernel_shared<<<this->numblocks(), numthreads, smem_size>>>(
+        int smem_size = 3*numthreads.x*numthreads.y*numthreads.z*sizeof(value_t);
+        HdiffCudaRegular::kernel_shared<value_t><<<this->numblocks(), numthreads, smem_size>>>(
             this->get_info(),
-            (dynamic_cast<CudaRegularGrid3D<double>*>(this->input))->get_gridinfo(),
-            CudaRegularGrid3DInfo<double>{.strides = {.y = (int)numthreads.x, .z = (int)numthreads.x*(int)numthreads.y }}, 
+            (dynamic_cast<CudaRegularGrid3D<value_t>*>(this->input))->get_gridinfo(),
+            CudaRegularGrid3DInfo<value_t>{.strides = {.y = (int)numthreads.x, .z = (int)numthreads.x*(int)numthreads.y }}, 
             this->input->data,
             this->output->data,
             this->coeff->data
@@ -793,12 +804,12 @@ void HdiffCudaBenchmark::run() {
     } else if(this->variant == HdiffCudaRegular::shared_kloop) {
         dim3 numthreads = this->numthreads();
         dim3 numblocks = this->numblocks();
-        int smem_size = 3*numthreads.x*numthreads.y*sizeof(double);
-        HdiffCudaRegular::kernel_shared_kloop<<<numblocks, numthreads, smem_size>>>(
+        int smem_size = 3*numthreads.x*numthreads.y*sizeof(value_t);
+        HdiffCudaRegular::kernel_shared_kloop<value_t><<<numblocks, numthreads, smem_size>>>(
             this->get_info(),
-            (dynamic_cast<CudaRegularGrid3D<double>*>(this->input))->get_gridinfo(),
+            (dynamic_cast<CudaRegularGrid3D<value_t>*>(this->input))->get_gridinfo(),
             (int)numthreads.x*(int)numthreads.y,
-            //CudaRegularGrid3DInfo<double>{.strides = { .y = (int)numthreads.x, .z = (int)numthreads.x*(int)numthreads.y } }, 
+            //CudaRegularGrid3DInfo<value_t>{.strides = { .y = (int)numthreads.x, .z = (int)numthreads.x*(int)numthreads.y } }, 
             this->input->data,
             this->output->data,
             this->coeff->data
@@ -814,18 +825,18 @@ void HdiffCudaBenchmark::run() {
             this->coeff->data
         );*/
     } else if(this->variant == HdiffCudaRegular::jloop) {
-        HdiffCudaRegular::kernel_jloop<<<this->numblocks(), this->numthreads()>>>(
+        HdiffCudaRegular::kernel_jloop<value_t><<<this->numblocks(), this->numthreads()>>>(
             this->get_info(),
-            (dynamic_cast<CudaRegularGrid3D<double>*>(this->input))->get_gridinfo(),
+            (dynamic_cast<CudaRegularGrid3D<value_t>*>(this->input))->get_gridinfo(),
             this->jloop_j_per_thread,
             this->input->data,
             this->output->data,
             this->coeff->data
         );
     } else {
-        HdiffCudaRegular::kernel_idxvar<<<this->numblocks(), this->numthreads()>>>(
+        HdiffCudaRegular::kernel_idxvar<value_t><<<this->numblocks(), this->numthreads()>>>(
             this->get_info(),
-            (dynamic_cast<CudaRegularGrid3D<double>*>(this->input))->get_gridinfo(),
+            (dynamic_cast<CudaRegularGrid3D<value_t>*>(this->input))->get_gridinfo(),
             this->input->data,
             this->output->data,
             this->coeff->data
@@ -836,14 +847,15 @@ void HdiffCudaBenchmark::run() {
     }
 }
 
-void HdiffCudaBenchmark::setup() {
-    this->input = new CudaRegularGrid3D<double>(this->size);
-    this->output = new CudaRegularGrid3D<double>(this->size);
-    this->coeff = new CudaRegularGrid3D<double>(this->size);
-    this->lap = new CudaRegularGrid3D<double>(this->size);
-    this->flx = new CudaRegularGrid3D<double>(this->size);
-    this->fly = new CudaRegularGrid3D<double>(this->size);
-    this->HdiffBaseBenchmark::setup();
+template<typename value_t>
+void HdiffCudaBenchmark<value_t>::setup() {
+    this->input = new CudaRegularGrid3D<value_t>(this->size);
+    this->output = new CudaRegularGrid3D<value_t>(this->size);
+    this->coeff = new CudaRegularGrid3D<value_t>(this->size);
+    this->lap = new CudaRegularGrid3D<value_t>(this->size);
+    this->flx = new CudaRegularGrid3D<value_t>(this->size);
+    this->fly = new CudaRegularGrid3D<value_t>(this->size);
+    this->HdiffBaseBenchmark<value_t>::setup();
     int s1 = cudaMemPrefetchAsync(this->input->data, this->input->size, 0);
     int s2 = cudaMemPrefetchAsync(this->output->data, this->output->size, 0);
     int s3 = cudaMemPrefetchAsync(this->coeff->data, this->coeff->size, 0);
@@ -856,7 +868,8 @@ void HdiffCudaBenchmark::setup() {
     }
 }
 
-void HdiffCudaBenchmark::teardown() {
+template<typename value_t>
+void HdiffCudaBenchmark<value_t>::teardown() {
     this->input->deallocate();
     this->output->deallocate();
     this->coeff->deallocate();
@@ -869,16 +882,18 @@ void HdiffCudaBenchmark::teardown() {
     delete this->lap;
     delete this->flx;
     delete this->fly;
-    this->HdiffBaseBenchmark::teardown();
+    this->HdiffBaseBenchmark<value_t>::teardown();
 }
 
-void HdiffCudaBenchmark::post() {
+template<typename value_t>
+void HdiffCudaBenchmark<value_t>::post() {
     this->Benchmark::post();
-    this->HdiffBaseBenchmark::post();
+    this->HdiffBaseBenchmark<value_t>::post();
 }
 
-dim3 HdiffCudaBenchmark::numthreads() {
-    dim3 numthreads = this->HdiffBaseBenchmark::numthreads();
+template<typename value_t>
+dim3 HdiffCudaBenchmark<value_t>::numthreads() {
+    dim3 numthreads = this->HdiffBaseBenchmark<value_t>::numthreads();
     if(this->variant == HdiffCudaRegular::kloop ||
         this->variant == HdiffCudaRegular::idxvar ||
         this->variant == HdiffCudaRegular::shared_kloop) {
@@ -890,8 +905,9 @@ dim3 HdiffCudaBenchmark::numthreads() {
     return numthreads;
 }
 
-dim3 HdiffCudaBenchmark::numblocks() {
-    dim3 numblocks = this->HdiffBaseBenchmark::numblocks();
+template<typename value_t>
+dim3 HdiffCudaBenchmark<value_t>::numblocks() {
+    dim3 numblocks = this->HdiffBaseBenchmark<value_t>::numblocks();
     if(this->variant == HdiffCudaRegular::kloop ||
         this->variant == HdiffCudaRegular::idxvar ||
         this->variant == HdiffCudaRegular::shared_kloop) {
@@ -903,7 +919,8 @@ dim3 HdiffCudaBenchmark::numblocks() {
     return numblocks;
 }
 
-void HdiffCudaBenchmark::parse_args() {
+template<typename value_t>
+void HdiffCudaBenchmark<value_t>::parse_args() {
     if(this->argc > 0) {
         // only variant of this that takes an argument is the jloop variant
         if(this->variant == HdiffCudaRegular::jloop) {

@@ -19,12 +19,6 @@
 #include "benchmarks/hdiff-cuda-unstr.cu"
 #include "benchmarks/fast-waves-ref.cu"
 
-/** Benchmark results type: Vector of results for each individual benchmark.
- * The benchmark result at the first index contains the total running time.
- * At the second index is the time required for running the stencil itself.
- * At the third index is the time required for running the setup + teardown. */
-typedef std::vector<Benchmark<double> *> benchmark_list_t;
-
 /** List of all available benchmarks for mapping args to these values. */
 typedef enum {all_benchs, 
               hdiff_ref,
@@ -46,16 +40,27 @@ typedef enum {all_benchs,
               fastwaves_ref} 
 benchmark_type_t;
 
+/** Benchmarks can be run in single or double precision, this enum is used to differentiate the two. */
+typedef enum {single_prec, double_prec} precision_t;
+
 /** Type describing a benchmark type + its benchmark-specific arguments */
-struct parametrized_benchmark_type_t {
+struct benchmark_params_t {
     benchmark_type_t type;
+    precision_t precision;
     int argc;
     char **argv;
 };
 
-/** Struct describing the benchmark to be run (default arguments) */
+/** Benchmark results type: Vector of results for each individual benchmark.
+ * The benchmark result at the first index contains the total running time.
+ * At the second index is the time required for running the stencil itself.
+ * At the third index is the time required for running the setup + teardown. */
+ typedef struct { Benchmark *obj; benchmark_params_t params; } benchmark_t;
+ typedef std::vector<benchmark_t> benchmark_list_t;
+
+/** Struct used to store all parsed arguments from command line. */
 struct args_t {
-    std::vector<parametrized_benchmark_type_t> types;
+    std::vector<benchmark_params_t> types;
     std::vector<coord3> sizes; // default can be found in parse_args() function
     int runs = 20;
     std::vector<coord3> numthreads; // default can be found in parse_args() function
@@ -64,15 +69,15 @@ struct args_t {
     bool skip_errors = false; // skip printing output for erroneous benchmarks
     bool no_header = false; // print no header in the output table
     bool no_verify = false; // skip verification
+    std::vector<precision_t> precisions;
 };
-
 
 void get_benchmark_identifiers(std::map<std::string, benchmark_type_t> *ret);
 int scan_coord3(char **strs, int n, std::vector<coord3> *ret);
 args_t parse_args(int argc, char** argv);
-Benchmark<double> *create_benchmark(parametrized_benchmark_type_t type, coord3 size, coord3 numthreads, coord3 numblocks, int runs, bool quiet, bool no_verify);
+Benchmark *create_benchmark(benchmark_params_t type, coord3 size, coord3 numthreads, coord3 numblocks, int runs, bool quiet, bool no_verify);
 benchmark_list_t *create_benchmarks(args_t args);
-void run_benchmark(Benchmark<double> *bench, bool quiet = false);
+void run_benchmark(Benchmark *bench, bool quiet = false);
 void prettyprint(benchmark_list_t *benchmarks, bool skip_errors=false, bool header=true);
 void usage(int argc, char** argv);
 int main(int argc, char** argv);
@@ -89,8 +94,8 @@ void get_benchmark_identifiers(std::map<std::string, benchmark_type_t> *ret) {
             name = "all";
         } else {
             // create benchmark simply to ask for its name
-            parametrized_benchmark_type_t param_bench = { .type = type };
-            Benchmark<double> *bench = create_benchmark(param_bench, coord3(1, 1, 1), coord3(1, 1, 1), coord3(1, 1, 1), 1, true, true);
+            benchmark_params_t param_bench = { .type = type };
+            Benchmark *bench = create_benchmark(param_bench, coord3(1, 1, 1), coord3(1, 1, 1), coord3(1, 1, 1), 1, true, true);
             name = bench->name;
             delete bench;
         }
@@ -128,7 +133,7 @@ args_t parse_args(int argc, char** argv) {
     std::map<std::string, benchmark_type_t> benchmark_identifiers;
     get_benchmark_identifiers(&benchmark_identifiers);
 
-    parametrized_benchmark_type_t current_bench;
+    benchmark_params_t current_bench;
     current_bench.type = unspecified; // unspecified used for general arguments that apply to all benchmarks
     // note once a benchmark identifier was present, only benchmark-specific arguments may follow
 
@@ -162,6 +167,10 @@ args_t parse_args(int argc, char** argv) {
                 ret.no_header = true;
             } else if(arg == "--no-verify") {
                 ret.no_verify = true;
+            } else if(arg == "--single-prec") {
+                ret.precisions.push_back(single_prec);
+            } else if(arg == "--double-prec") {
+                ret.precisions.push_back(double_prec);
             } else {
                     fprintf(stderr, "Unrecognized or incomplete argument %s.\n", arg.c_str());
                     exit(1);
@@ -192,54 +201,88 @@ args_t parse_args(int argc, char** argv) {
     if(ret.sizes.empty()) {
         ret.sizes.push_back(coord3(32, 32, 32));
     }
+    if(ret.precisions.empty()) {
+        ret.precisions.push_back(double_prec);
+    }
     return ret;
 }
 
 /** Create the benchmark class for one of the available types. */
-Benchmark<double> *create_benchmark(parametrized_benchmark_type_t param_bench, coord3 size, coord3 numthreads, coord3 numblocks, int runs, bool quiet, bool no_verify) {
-    Benchmark<double> *ret = NULL;
+Benchmark *create_benchmark(benchmark_params_t param_bench, coord3 size,
+                            coord3 numthreads, coord3 numblocks, int runs,
+                            bool quiet, bool no_verify) {
+    Benchmark *ret = NULL;
+    precision_t precision = param_bench.precision;
     switch(param_bench.type) {
         case hdiff_ref:
-        ret = new HdiffReferenceBenchmark(size);
+        ret = (precision == single_prec ?
+               (Benchmark *) new HdiffReferenceBenchmark<float>(size) :
+               (Benchmark *) new HdiffReferenceBenchmark<double>(size) );
         break;
         case hdiff_ref_unstr:
-        ret = new HdiffCPUUnstrBenchmark(size);
+        ret = (precision == single_prec ?
+            (Benchmark *) new HdiffCPUUnstrBenchmark<float>(size) :
+            (Benchmark *) new HdiffCPUUnstrBenchmark<double>(size) );
         break;
         case hdiff_cuda_regular:
-        ret = new HdiffCudaBenchmark(size);
+        ret = (precision == single_prec ?
+            (Benchmark *) new HdiffCudaBenchmark<float>(size) :
+            (Benchmark *) new HdiffCudaBenchmark<double>(size) );
         break;
         case hdiff_cuda_regular_kloop:
-        ret = new HdiffCudaBenchmark(size, HdiffCudaRegular::kloop);
+        ret = (precision == single_prec ?
+            (Benchmark *) new HdiffCudaBenchmark<float>(size, HdiffCudaRegular::kloop) :
+            (Benchmark *) new HdiffCudaBenchmark<double>(size, HdiffCudaRegular::kloop) );
         break;
         case hdiff_cuda_regular_idxvar:
-        ret = new HdiffCudaBenchmark(size, HdiffCudaRegular::idxvar);
+        ret = (precision == single_prec ?
+            (Benchmark *) new HdiffCudaBenchmark<float>(size, HdiffCudaRegular::idxvar) :
+            (Benchmark *) new HdiffCudaBenchmark<double>(size, HdiffCudaRegular::idxvar) );
         break;
         case hdiff_cuda_regular_coop:
-        ret = new HdiffCudaBenchmark(size, HdiffCudaRegular::coop);
+        ret = (precision == single_prec ?
+            (Benchmark *) new HdiffCudaBenchmark<float>(size, HdiffCudaRegular::coop) :
+            (Benchmark *) new HdiffCudaBenchmark<double>(size, HdiffCudaRegular::coop) );
         break;
         case hdiff_cuda_regular_shared:
-        ret = new HdiffCudaBenchmark(size, HdiffCudaRegular::shared);
+        ret = (precision == single_prec ?
+            (Benchmark *) new HdiffCudaBenchmark<float>(size, HdiffCudaRegular::shared) :
+            (Benchmark *) new HdiffCudaBenchmark<double>(size, HdiffCudaRegular::shared) );
         break;
         case hdiff_cuda_regular_shared_kloop:
-        ret = new HdiffCudaBenchmark(size, HdiffCudaRegular::shared_kloop);
+        ret = (precision == single_prec ?
+            (Benchmark *) new HdiffCudaBenchmark<float>(size, HdiffCudaRegular::shared_kloop) :
+            (Benchmark *) new HdiffCudaBenchmark<double>(size, HdiffCudaRegular::shared_kloop) );
         break;
         case hdiff_cuda_regular_jloop:
-        ret = new HdiffCudaBenchmark(size, HdiffCudaRegular::jloop);
+        ret = (precision == single_prec ?
+            (Benchmark *) new HdiffCudaBenchmark<float>(size, HdiffCudaRegular::jloop) :
+            (Benchmark *) new HdiffCudaBenchmark<double>(size, HdiffCudaRegular::jloop) );
         break;
         case hdiff_cuda_sequential:
-        ret = new HdiffCudaSequentialBenchmark(size);
+        ret = (precision == single_prec ?
+            (Benchmark *) new HdiffCudaSequentialBenchmark<float>(size) :
+            (Benchmark *) new HdiffCudaSequentialBenchmark<double>(size) );
         break;
         case hdiff_cuda_unstr_naive:
-        ret = new HdiffCudaUnstrBenchmark(size);
+        ret = (precision == single_prec ?
+            (Benchmark *) new HdiffCudaUnstrBenchmark<float>(size) :
+            (Benchmark *) new HdiffCudaUnstrBenchmark<double>(size) );
         break;
         case hdiff_cuda_unstr_kloop:
-        ret = new HdiffCudaUnstrBenchmark(size, HdiffCudaUnstr::UnstrKloop);
+        ret = (precision == single_prec ?
+            (Benchmark *) new HdiffCudaUnstrBenchmark<float>(size, HdiffCudaUnstr::UnstrKloop) :
+            (Benchmark *) new HdiffCudaUnstrBenchmark<double>(size, HdiffCudaUnstr::UnstrKloop) );
         break;
         case hdiff_cuda_unstr_idxvars:
-        ret = new HdiffCudaUnstrBenchmark(size, HdiffCudaUnstr::UnstrIdxvars);
+        ret = (precision == single_prec ?
+            (Benchmark *) new HdiffCudaUnstrBenchmark<float>(size, HdiffCudaUnstr::UnstrIdxvars) :
+            (Benchmark *) new HdiffCudaUnstrBenchmark<double>(size, HdiffCudaUnstr::UnstrIdxvars) );
         break;
         case hdiff_cuda_unstr_seq:
-        ret = new HdiffCudaUnstructuredSequentialBenchmark(size);
+        ret = (precision == single_prec ?
+            (Benchmark *) new HdiffCudaUnstructuredSequentialBenchmark<float>(size) :
+            (Benchmark *) new HdiffCudaUnstructuredSequentialBenchmark<double>(size) );
         break;
         case fastwaves_ref:
         ret = new FastWavesRefBenchmark(size);
@@ -260,7 +303,7 @@ Benchmark<double> *create_benchmark(parametrized_benchmark_type_t param_bench, c
 
 /** From the given arguments, create a vector of benchmarks to execute. */
 benchmark_list_t *create_benchmarks(args_t args) {
-    std::vector<parametrized_benchmark_type_t> types;
+    std::vector<benchmark_params_t> types;
     for(auto it=args.types.begin(); it != args.types.end(); ++it) {
         if(it->type == all_benchs) {
             types.clear();
@@ -269,9 +312,7 @@ benchmark_list_t *create_benchmarks(args_t args) {
                     // reference and unstructured cpu are not included in "all" benchmarks
                     continue;
                 }
-                parametrized_benchmark_type_t param_bench = {
-                    .type = (benchmark_type_t)it
-                };
+                benchmark_params_t param_bench = { .type = (benchmark_type_t)it };
                 types.push_back(param_bench);
             }
             break;
@@ -281,48 +322,53 @@ benchmark_list_t *create_benchmarks(args_t args) {
 
     benchmark_list_t *ret = new benchmark_list_t();
     for(auto it=types.begin(); it != types.end(); ++it) {
-        parametrized_benchmark_type_t param_bench = *it;
+        benchmark_type_t type = it->type;
+        int argc = it->argc;
+        char **argv = it->argv;
         for(auto s_it = args.sizes.begin(); s_it != args.sizes.end(); ++s_it) {
             coord3 size = *s_it;
-            int added = 0;
-            for(auto t_it = args.numthreads.begin(); t_it != args.numthreads.end(); ++t_it) {
-                coord3 numthreads = *t_it;
-                for(auto b_it = args.numblocks.begin(); b_it != args.numblocks.end(); ++b_it) {
-                    coord3 numblocks = *b_it;
-                    Benchmark<double> *bench = create_benchmark(param_bench,
-                                                                size,
-                                                                numthreads,
-                                                                numblocks,
-                                                                args.runs,
-                                                                !args.print,
-                                                                args.no_verify);
-                    // Skip if creation somehow failed
-                    if(!bench) {
-                        continue;
+            for(auto p_it = args.precisions.begin(); p_it != args.precisions.end(); ++p_it) {
+                precision_t precision = *p_it;
+                int added = 0;
+                benchmark_params_t params = { .type = type,
+                                              .precision = precision,
+                                              .argc = argc,
+                                              .argv = argv};
+                for(auto t_it = args.numthreads.begin(); t_it != args.numthreads.end(); ++t_it) {
+                    coord3 numthreads = *t_it;
+                    for(auto b_it = args.numblocks.begin(); b_it != args.numblocks.end(); ++b_it) {
+                        coord3 numblocks = *b_it;
+
+                        Benchmark *bench = create_benchmark(params, size, numthreads,
+                                                            numblocks, args.runs,
+                                                            !args.print, args.no_verify);
+                        // Skip if creation somehow failed
+                        if(!bench) {
+                            continue;
+                        }
+                        // only add benchmark if it respected the requested
+                        // numthreads/numblocks; it can happen that less threads/
+                        // blocks than requested are used if the benchmark does not
+                        // support it
+                        if(numthreads != coord3(0, 0, 0) && numthreads != bench->numthreads()) {
+                            continue;
+                        }
+                        if(numblocks != coord3(0, 0, 0) && numblocks != bench->numblocks()) {
+                            continue;
+                        }
+                        benchmark_t add = {.obj = bench, .params = params};
+                        ret->push_back(add);
+                        added++;
                     }
-                    // only add benchmark if it respected the requested
-                    // numthreads/numblocks; it can happen that less threads/
-                    // blocks than requested are used if the benchmark does not
-                    // support it
-                    if(numthreads != coord3(0, 0, 0) && numthreads != bench->numthreads()) {
-                        continue;
-                    }
-                    if(numblocks != coord3(0, 0, 0) && numblocks != bench->numblocks()) {
-                        continue;
-                    }
-                    ret->push_back(bench);
-                    added++;
                 }
-            }
-            if(added == 0) {
-                Benchmark<double> *bench = create_benchmark(param_bench,
-                                                            size,
-                                                            args.numthreads[0],
-                                                            args.numblocks[0],
-                                                            args.runs,
-                                                            !args.print,
-                                                            args.no_verify);
-                ret->push_back(bench);
+                if(added == 0) {
+                    Benchmark *bench = create_benchmark(params, size,
+                                                        args.numthreads[0], args.numblocks[0],
+                                                        args.runs, !args.print,
+                                                        args.no_verify);
+                    benchmark_t add = {.obj = bench, .params = params};
+                    ret->push_back(add);
+                }
             }
         }
     }
@@ -332,7 +378,7 @@ benchmark_list_t *create_benchmarks(args_t args) {
 
 /** Create the benchmark described in bench_info, execute it and then return
  * its performance metrics. */
-void run_benchmark(Benchmark<double> *bench, bool quiet) {
+void run_benchmark(Benchmark *bench, bool quiet) {
     if(!quiet) {
         dim3 numblocks = bench->numblocks();
         dim3 numthreads = bench->numthreads();
@@ -356,18 +402,20 @@ void run_benchmark(Benchmark<double> *bench, bool quiet) {
 void prettyprint(benchmark_list_t *benchmarks, bool skip_errors, bool header) {
     if(header) {
         // TODO: print # runs
-        printf("Benchmark                   , Domain size,,, Blocks     ,,, Threads    ,,, Total execution time                    ,,, Kernel-only execution time                \n");
-        printf("                            ,   X,   Y,   Z,   X,   Y,   Z,   X,   Y,   Z,   Average,    Median,   Minimum,   Maximum,   Average,    Median,   Minimum ,   Maximum\n");
+        printf("Benchmark                   , Precision, Domain size,,, Blocks     ,,, Threads    ,,, Total execution time                    ,,, Kernel-only execution time                \n");
+        printf("                            ,              X,   Y,   Z,   X,   Y,   Z,   X,   Y,   Z,   Average,    Median,   Minimum,   Maximum,   Average,    Median,   Minimum ,   Maximum\n");
     }
     for(auto it=benchmarks->begin(); it != benchmarks->end(); ++it) {
-        Benchmark<double> *bench = *it;
+        benchmark_params_t params = it->params;
+        Benchmark *bench = it->obj;
         if(bench->error && skip_errors) {
             continue;
         }
         dim3 numblocks = bench->numblocks();
         dim3 numthreads = bench->numthreads();
-        printf("%-28s,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%10.6f,%10.6f,%10.6f,%10.6f,%10.6f,%10.6f,%10.6f,%10.6f%s\n",
+        printf("%-28s,%10s,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%10.6f,%10.6f,%10.6f,%10.6f,%10.6f,%10.6f,%10.6f,%10.6f%s\n",
                bench->name.c_str(),
+               (params.precision == single_prec ? "single" : "double"),
                bench->size.x, bench->size.y, bench->size.z,
                numblocks.x, numblocks.y, numblocks.z,
                numthreads.x, numthreads.y, numthreads.z,
@@ -394,7 +442,7 @@ int main(int argc, char** argv) {
     }
     benchmark_list_t *benchmarks = create_benchmarks(args);
     for(auto it=benchmarks->begin(); it != benchmarks->end(); ++it) {
-        run_benchmark(*it);
+        run_benchmark(it->obj);
     }
     fprintf(stderr, "\n");
     // Print command that was used to generate these benchmarks for reproducibility
@@ -407,7 +455,7 @@ int main(int argc, char** argv) {
     prettyprint(benchmarks, args.skip_errors, !args.no_header);
     // destruct
     for(auto it=benchmarks->begin(); it != benchmarks->end(); ++it) {
-        delete *it;
+        delete it->obj;
     }
     delete benchmarks;
     return 0;

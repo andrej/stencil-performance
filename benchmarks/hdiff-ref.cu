@@ -8,17 +8,20 @@
 
 /** This is the reference implementation for the horizontal diffusion kernel, 
  * which is executed on the CPU and used to verify other implementations. */
-class HdiffReferenceBenchmark : public Benchmark<double> {
+template<typename value_t>
+class HdiffReferenceBenchmark : public Benchmark {
 
     public:
 
     // The padding option currently only applies to regular grids
     HdiffReferenceBenchmark(coord3 size, size_t padding=0);
  
-    RegularGrid3D<double> *coeff = NULL;
-    RegularGrid3D<double> *lap = NULL;
-    RegularGrid3D<double> *flx = NULL;
-    RegularGrid3D<double> *fly = NULL;
+    RegularGrid3D<value_t> *input = NULL;
+    RegularGrid3D<value_t> *output = NULL;
+    RegularGrid3D<value_t> *coeff = NULL;
+    RegularGrid3D<value_t> *lap = NULL;
+    RegularGrid3D<value_t> *flx = NULL;
+    RegularGrid3D<value_t> *fly = NULL;
 
     // Setup Input values
     // As in hdiff_stencil_variant.h
@@ -44,8 +47,9 @@ class HdiffReferenceBenchmark : public Benchmark<double> {
 
 // IMPLEMENTATIONS
 
-HdiffReferenceBenchmark::HdiffReferenceBenchmark(coord3 size, size_t padding) :
-Benchmark<double>(size),
+template<typename value_t>
+HdiffReferenceBenchmark<value_t>::HdiffReferenceBenchmark(coord3 size, size_t padding) :
+Benchmark(size),
 padding(padding),
 halo(coord3(2,2,0)){
     if(this->padding > 0) {
@@ -55,14 +59,15 @@ halo(coord3(2,2,0)){
     }
 }
 
-void HdiffReferenceBenchmark::setup(){
+template<typename value_t>
+void HdiffReferenceBenchmark<value_t>::setup(){
     // Set up grids
-    this->input = new RegularGrid3D<double>(this->size, this->padding);
-    this->output = new RegularGrid3D<double>(this->size, this->padding);
-    this->coeff = new RegularGrid3D<double>(this->size, this->padding);
-    this->lap = new RegularGrid3D<double>(this->size, this->padding);
-    this->flx = new RegularGrid3D<double>(this->size, this->padding);
-    this->fly = new RegularGrid3D<double>(this->size, this->padding);
+    this->input = new RegularGrid3D<value_t>(this->size, this->padding);
+    this->output = new RegularGrid3D<value_t>(this->size, this->padding);
+    this->coeff = new RegularGrid3D<value_t>(this->size, this->padding);
+    this->lap = new RegularGrid3D<value_t>(this->size, this->padding);
+    this->flx = new RegularGrid3D<value_t>(this->size, this->padding);
+    this->fly = new RegularGrid3D<value_t>(this->size, this->padding);
     // Algorithm requires a halo: padding that is not touched
     this->inner_size = this->size - 2*this->halo;
     // Populate with data
@@ -71,28 +76,29 @@ void HdiffReferenceBenchmark::setup(){
     // in base setup we create a reference benchmark such as this one
 }
 
-void HdiffReferenceBenchmark::populate_grids() {
+template<typename value_t>
+void HdiffReferenceBenchmark<value_t>::populate_grids() {
     // Populate memory with values as in reference implementation (copied 1:1)
-    double *m_in = this->input->data;
-    double *m_out = this->output->data;
-    double *m_coeff = this->coeff->data;
-    double *m_lap = this->lap->data;
-    double *m_flx = this->flx->data;
-    double *m_fly = this->fly->data;
+    value_t *m_in = this->input->data;
+    value_t *m_out = this->output->data;
+    value_t *m_coeff = this->coeff->data;
+    value_t *m_lap = this->lap->data;
+    value_t *m_flx = this->flx->data;
+    value_t *m_fly = this->fly->data;
     const int isize = this->inner_size.x;
     const int jsize = this->inner_size.y;
     const int ksize = this->inner_size.z;
     // original code starts here
-    double dx = 1. / (double)(isize);
-    double dy = 1. / (double)(jsize);
-    double dz = 1. / (double)(ksize);
+    value_t dx = 1. / (value_t)(isize);
+    value_t dy = 1. / (value_t)(jsize);
+    value_t dz = 1. / (value_t)(ksize);
     for (int j = 0; j < isize; j++) {
         for (int i = 0; i < jsize; i++) {
-            double x = dx * (double)(i);
-            double y = dy * (double)(j);
+            value_t x = dx * (value_t)(i);
+            value_t y = dy * (value_t)(j);
             for (int k = 0; k < ksize; k++) {
                 int cnt = this->input->index(this->inner_coord(coord3(j, i, k))); // MODIFIED
-                double z = dz * (double)(k);
+                value_t z = dz * (value_t)(k);
                 // u values between 5 and 9
                 m_in[cnt] = 3.0 +
                             1.25 * (2.5 + cos(M_PI * (18.4 * x + 20.3 * y)) +
@@ -111,14 +117,15 @@ void HdiffReferenceBenchmark::populate_grids() {
     }
 }
 
-void HdiffReferenceBenchmark::run() {
+template<typename value_t>
+void HdiffReferenceBenchmark<value_t>::run() {
     // Grids
-    double *in = this->input->data;
-    double *coeff = this->coeff->data;
-    double *out_ref = this->output->data;
-    double *lap_ref = this->lap->data;
-    double *flx_ref = this->flx->data;
-    double *fly_ref = this->fly->data;
+    value_t *in = this->input->data;
+    value_t *coeff = this->coeff->data;
+    value_t *out_ref = this->output->data;
+    value_t *lap_ref = this->lap->data;
+    value_t *flx_ref = this->flx->data;
+    value_t *fly_ref = this->fly->data;
     // convenience variables
     const int isize = this->inner_size.x;
     const int jsize = this->inner_size.y;
@@ -158,7 +165,8 @@ void HdiffReferenceBenchmark::run() {
     }
 }
 
-void HdiffReferenceBenchmark::teardown() {
+template<typename value_t>
+void HdiffReferenceBenchmark<value_t>::teardown() {
     this->input->deallocate();
     this->output->deallocate();
     this->coeff->deallocate();
@@ -173,15 +181,18 @@ void HdiffReferenceBenchmark::teardown() {
     delete this->fly;
 }
 
-coord3 HdiffReferenceBenchmark::inner_coord(coord3 coord){
+template<typename value_t>
+coord3 HdiffReferenceBenchmark<value_t>::inner_coord(coord3 coord){
     return coord + this->halo;
 }
 
-dim3 HdiffReferenceBenchmark::numblocks() {
+template<typename value_t>
+dim3 HdiffReferenceBenchmark<value_t>::numblocks() {
     return dim3(1, 1, 1);
 }
 
-dim3 HdiffReferenceBenchmark::numthreads() {
+template<typename value_t>
+dim3 HdiffReferenceBenchmark<value_t>::numthreads() {
     return dim3(1, 1, 1);
 }
 

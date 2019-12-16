@@ -17,8 +17,9 @@ namespace HdiffCudaUnstructuredSequential {
     };
 
     // Laplace Kernel
+    template<typename value_t>
     __global__
-    void kernel_lap(Info info, CudaUnstructuredGrid3DInfo<double> grid_info, double *in, double *lap) {
+    void kernel_lap(Info info, CudaUnstructuredGrid3DInfo<value_t> grid_info, value_t *in, value_t *lap) {
         const int i = blockIdx.x * blockDim.x + threadIdx.x + info.halo.x - 1;
         const int j = blockIdx.y * blockDim.y + threadIdx.y + info.halo.y - 1;
         const int k = blockIdx.z * blockDim.z + threadIdx.z + info.halo.z;
@@ -36,8 +37,9 @@ namespace HdiffCudaUnstructuredSequential {
     }
 
     // Flx Kernel
+    template<typename value_t>
     __global__
-    void kernel_flx(Info info, CudaUnstructuredGrid3DInfo<double> grid_info, double *in, double *lap, double *flx) {
+    void kernel_flx(Info info, CudaUnstructuredGrid3DInfo<value_t> grid_info, value_t *in, value_t *lap, value_t *flx) {
         const int i = blockIdx.x * blockDim.x + threadIdx.x + info.halo.x - 1;
         const int j = blockIdx.y * blockDim.y + threadIdx.y + info.halo.y;
         const int k = blockIdx.z * blockDim.z + threadIdx.z + info.halo.z;
@@ -53,8 +55,9 @@ namespace HdiffCudaUnstructuredSequential {
     }
 
     // Fly Kernel
+    template<typename value_t>
     __global__
-    void kernel_fly(Info info, CudaUnstructuredGrid3DInfo<double> grid_info, double *in, double *lap, double *fly) {
+    void kernel_fly(Info info, CudaUnstructuredGrid3DInfo<value_t> grid_info, value_t *in, value_t *lap, value_t *fly) {
         const int i = blockIdx.x * blockDim.x + threadIdx.x + info.halo.x;
         const int j = blockIdx.y * blockDim.y + threadIdx.y + info.halo.y - 1;
         const int k = blockIdx.z * blockDim.z + threadIdx.z + info.halo.z;
@@ -70,8 +73,9 @@ namespace HdiffCudaUnstructuredSequential {
     }
 
     // Output kernel
+    template<typename value_t>
     __global__
-    void kernel_out(Info info, CudaUnstructuredGrid3DInfo<double> grid_info, double *in, double *coeff, double *flx, double *fly, double *out) {
+    void kernel_out(Info info, CudaUnstructuredGrid3DInfo<value_t> grid_info, value_t *in, value_t *coeff, value_t *flx, value_t *fly, value_t *out) {
         const int i = blockIdx.x * blockDim.x + threadIdx.x + info.halo.x;
         const int j = blockIdx.y * blockDim.y + threadIdx.y + info.halo.y;
         const int k = blockIdx.z * blockDim.z + threadIdx.z + info.halo.z;
@@ -90,7 +94,8 @@ namespace HdiffCudaUnstructuredSequential {
 
 /** This is the reference implementation for the horizontal diffusion kernel, 
  * which is executed on the CPU and used to verify other implementations. */
-class HdiffCudaUnstructuredSequentialBenchmark : public HdiffBaseBenchmark {
+template<typename value_t>
+class HdiffCudaUnstructuredSequentialBenchmark : public HdiffBaseBenchmark<value_t> {
 
     public:
 
@@ -113,13 +118,15 @@ class HdiffCudaUnstructuredSequentialBenchmark : public HdiffBaseBenchmark {
 
 // IMPLEMENTATIONS
 
-HdiffCudaUnstructuredSequentialBenchmark::HdiffCudaUnstructuredSequentialBenchmark(coord3 size) :
-HdiffBaseBenchmark(size) {
+template<typename value_t>
+HdiffCudaUnstructuredSequentialBenchmark<value_t>::HdiffCudaUnstructuredSequentialBenchmark(coord3 size) :
+HdiffBaseBenchmark<value_t>(size) {
     this->name = "hdiff-unstr-seq";
     this->error = false;
 }
 
-void HdiffCudaUnstructuredSequentialBenchmark::run() {
+template<typename value_t>
+void HdiffCudaUnstructuredSequentialBenchmark<value_t>::run() {
     /*#define CALL_KERNEL(knl_func, nblocks, nthreads, ...) \
     knl_func<<<nblocks, nthreads>>>(__VA_ARGS__); \
     if (cudaGetLastError() != cudaSuccess) { \
@@ -133,14 +140,14 @@ void HdiffCudaUnstructuredSequentialBenchmark::run() {
     CALL_KERNEL(HdiffCudaUnstructuredSequential::kernel_lap, \
                 nblocks_lap, nthreads, \
                 this->get_info(),
-                (dynamic_cast<CudaUnstructuredGrid3D<double> *>(this->input))->get_gridinfo(),
+                (dynamic_cast<CudaUnstructuredGrid3D<value_t> *>(this->input))->get_gridinfo(),
                 this->input->data,
                 this->lap->data);
     dim3 nblocks_flx = this->gridsize(_nthreads, coord3(-1, 0, 0), coord3(1, 1, 1), this->inner_size);
     CALL_KERNEL(HdiffCudaUnstructuredSequential::kernel_flx, \
                 nblocks_flx, nthreads, \
                 this->get_info(),
-                (dynamic_cast<CudaUnstructuredGrid3D<double> *>(this->input))->get_gridinfo(),
+                (dynamic_cast<CudaUnstructuredGrid3D<value_t> *>(this->input))->get_gridinfo(),
                 this->input->data,
                 this->lap->data,
                 this->flx->data);
@@ -149,7 +156,7 @@ void HdiffCudaUnstructuredSequentialBenchmark::run() {
     CALL_KERNEL(HdiffCudaUnstructuredSequential::kernel_fly, \
                 nblocks_fly, nthreads, \
                 this->get_info(),
-                (dynamic_cast<CudaUnstructuredGrid3D<double> *>(this->input))->get_gridinfo(),
+                (dynamic_cast<CudaUnstructuredGrid3D<value_t> *>(this->input))->get_gridinfo(),
                 this->input->data,
                 this->lap->data,
                 this->fly->data);
@@ -157,7 +164,7 @@ void HdiffCudaUnstructuredSequentialBenchmark::run() {
     CALL_KERNEL(HdiffCudaUnstructuredSequential::kernel_out, \
                 nblocks_out, nthreads, \
                 this->get_info(),
-                (dynamic_cast<CudaUnstructuredGrid3D<double> *>(this->input))->get_gridinfo(),
+                (dynamic_cast<CudaUnstructuredGrid3D<value_t> *>(this->input))->get_gridinfo(),
                 this->input->data,
                 this->coeff->data,
                 this->flx->data,
@@ -171,7 +178,8 @@ void HdiffCudaUnstructuredSequentialBenchmark::run() {
 // Returns the correct amount of blocks (each of given blocksize) to implement
 // a loop that runs from start, in increments of step, up to (not including) stop
 // assumes step is positive!
-dim3 HdiffCudaUnstructuredSequentialBenchmark::gridsize(coord3 blocksize, coord3 start, coord3 step, coord3 stop) {
+template<typename value_t>
+dim3 HdiffCudaUnstructuredSequentialBenchmark<value_t>::gridsize(coord3 blocksize, coord3 start, coord3 step, coord3 stop) {
     dim3 n_iterations = dim3(
         (unsigned int) (stop.x-start.x)/(step.x),
         (unsigned int) (stop.y-start.y)/(step.y),
@@ -184,23 +192,25 @@ dim3 HdiffCudaUnstructuredSequentialBenchmark::gridsize(coord3 blocksize, coord3
     );
 }
 
-void HdiffCudaUnstructuredSequentialBenchmark::setup() {
-    this->input = CudaUnstructuredGrid3D<double>::create_regular(this->size);
-    int *neighbor_data = dynamic_cast<CudaUnstructuredGrid3D<double> *>(this->input)->neighbor_data;
-    //this->output = CudaUnstructuredGrid3D<double>::create_regular(this->size);
-    //this->coeff = CudaUnstructuredGrid3D<double>::create_regular(this->size);
-    //this->lap = CudaUnstructuredGrid3D<double>::create_regular(this->size);
-    //this->flx = CudaUnstructuredGrid3D<double>::create_regular(this->size);
-    //this->fly = CudaUnstructuredGrid3D<double>::create_regular(this->size);
-    this->output = new CudaUnstructuredGrid3D<double>(this->size, neighbor_data);
-    this->coeff = new CudaUnstructuredGrid3D<double>(this->size, neighbor_data);
-    this->lap = new CudaUnstructuredGrid3D<double>(this->size, neighbor_data);
-    this->flx = new CudaUnstructuredGrid3D<double>(this->size, neighbor_data);
-    this->fly = new CudaUnstructuredGrid3D<double>(this->size, neighbor_data);
-    this->HdiffBaseBenchmark::setup();
+template<typename value_t>
+void HdiffCudaUnstructuredSequentialBenchmark<value_t>::setup() {
+    this->input = CudaUnstructuredGrid3D<value_t>::create_regular(this->size);
+    int *neighbor_data = dynamic_cast<CudaUnstructuredGrid3D<value_t> *>(this->input)->neighbor_data;
+    //this->output = CudaUnstructuredGrid3D<value_t>::create_regular(this->size);
+    //this->coeff = CudaUnstructuredGrid3D<value_t>::create_regular(this->size);
+    //this->lap = CudaUnstructuredGrid3D<value_t>::create_regular(this->size);
+    //this->flx = CudaUnstructuredGrid3D<value_t>::create_regular(this->size);
+    //this->fly = CudaUnstructuredGrid3D<value_t>::create_regular(this->size);
+    this->output = new CudaUnstructuredGrid3D<value_t>(this->size, neighbor_data);
+    this->coeff = new CudaUnstructuredGrid3D<value_t>(this->size, neighbor_data);
+    this->lap = new CudaUnstructuredGrid3D<value_t>(this->size, neighbor_data);
+    this->flx = new CudaUnstructuredGrid3D<value_t>(this->size, neighbor_data);
+    this->fly = new CudaUnstructuredGrid3D<value_t>(this->size, neighbor_data);
+    this->HdiffBaseBenchmark<value_t>::setup();
 }
 
-void HdiffCudaUnstructuredSequentialBenchmark::teardown() {
+template<typename value_t>
+void HdiffCudaUnstructuredSequentialBenchmark<value_t>::teardown() {
     this->input->deallocate();
     this->output->deallocate();
     this->coeff->deallocate();
@@ -213,17 +223,19 @@ void HdiffCudaUnstructuredSequentialBenchmark::teardown() {
     delete this->lap;
     delete this->flx;
     delete this->fly;
-    this->HdiffBaseBenchmark::teardown();
+    this->HdiffBaseBenchmark<value_t>::teardown();
 }
 
-HdiffCudaUnstructuredSequential::Info HdiffCudaUnstructuredSequentialBenchmark::get_info() {
+template<typename value_t>
+HdiffCudaUnstructuredSequential::Info HdiffCudaUnstructuredSequentialBenchmark<value_t>::get_info() {
     return { .halo = this->halo,
              .max_coord = this->input->dimensions-this->halo};
 }
 
-void HdiffCudaUnstructuredSequentialBenchmark::post() {
+template<typename value_t>
+void HdiffCudaUnstructuredSequentialBenchmark<value_t>::post() {
     this->Benchmark::post();
-    this->HdiffBaseBenchmark::post();
+    this->HdiffBaseBenchmark<value_t>::post();
 }
 
 #endif

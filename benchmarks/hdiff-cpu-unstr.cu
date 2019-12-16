@@ -10,7 +10,8 @@
 
 /** This is a CPU-version of the hdiff reference implementation that runs on
 * top of a unstructured grid and respects its neighborship relations. */
-class HdiffCPUUnstrBenchmark :  public HdiffBaseBenchmark {
+template<typename value_t>
+class HdiffCPUUnstrBenchmark :  public HdiffBaseBenchmark<value_t> {
 
     public:
 
@@ -34,22 +35,25 @@ class HdiffCPUUnstrBenchmark :  public HdiffBaseBenchmark {
 
 // IMPLEMENTATIONS
 
-HdiffCPUUnstrBenchmark::HdiffCPUUnstrBenchmark(coord3 size) :
-HdiffBaseBenchmark(size) {
+template<typename value_t>
+HdiffCPUUnstrBenchmark<value_t>::HdiffCPUUnstrBenchmark(coord3 size) :
+HdiffBaseBenchmark<value_t>(size) {
     this->name = "hdiff-unstr-cpu";
 }
 
-void HdiffCPUUnstrBenchmark::setup(){
-    this->input = UnstructuredGrid3D<double>::create_regular(this->size);
-    this->coeff = UnstructuredGrid3D<double>::create_regular(this->size);
-    this->output = UnstructuredGrid3D<double>::create_regular(this->size);
-    this->lap = UnstructuredGrid3D<double>::create_regular(this->size);
-    this->flx = UnstructuredGrid3D<double>::create_regular(this->size);
-    this->fly = UnstructuredGrid3D<double>::create_regular(this->size);
-    this->HdiffBaseBenchmark::setup(); /**< Fills input, output and coeff and also sets up reference benchmark. */
+template<typename value_t>
+void HdiffCPUUnstrBenchmark<value_t>::setup(){
+    this->input = UnstructuredGrid3D<value_t>::create_regular(this->size);
+    this->coeff = UnstructuredGrid3D<value_t>::create_regular(this->size);
+    this->output = UnstructuredGrid3D<value_t>::create_regular(this->size);
+    this->lap = UnstructuredGrid3D<value_t>::create_regular(this->size);
+    this->flx = UnstructuredGrid3D<value_t>::create_regular(this->size);
+    this->fly = UnstructuredGrid3D<value_t>::create_regular(this->size);
+    this->HdiffBaseBenchmark<value_t>::setup(); /**< Fills input, output and coeff and also sets up reference benchmark. */
 }
 
-void HdiffCPUUnstrBenchmark::teardown() {
+template<typename value_t>
+void HdiffCPUUnstrBenchmark<value_t>::teardown() {
     this->input->deallocate();
     this->coeff->deallocate();
     this->output->deallocate();
@@ -62,20 +66,21 @@ void HdiffCPUUnstrBenchmark::teardown() {
     delete this->lap;
     delete this->flx;
     delete this->fly;
-    this->HdiffBaseBenchmark::teardown();
+    this->HdiffBaseBenchmark<value_t>::teardown();
 }
 
 // Same as calc ref, but uses neighbors relations instead of directly indexing
-void HdiffCPUUnstrBenchmark::run() {
+template<typename value_t>
+void HdiffCPUUnstrBenchmark<value_t>::run() {
     const int isize = this->inner_size.x;
     const int jsize = this->inner_size.y;
     const int ksize = this->inner_size.z;
-    double *in = this->input->data;
-    double *out_ref = this->output->data;
-    double *coeff = this->coeff->data;
-    double *lap_ref = this->lap->data;
-    double *flx_ref = this->flx->data;
-    double *fly_ref = this->fly->data;
+    value_t *in = this->input->data;
+    value_t *out_ref = this->output->data;
+    value_t *coeff = this->coeff->data;
+    value_t *lap_ref = this->lap->data;
+    value_t *flx_ref = this->flx->data;
+    value_t *fly_ref = this->fly->data;
     // begin copied code
     for (int k = 0; k < ksize; ++k) {
         for (int j = -1; j < jsize + 1; ++j) {
@@ -128,11 +133,13 @@ void HdiffCPUUnstrBenchmark::run() {
     }
 }
 
-dim3 HdiffCPUUnstrBenchmark::numblocks() {
+template<typename value_t>
+dim3 HdiffCPUUnstrBenchmark<value_t>::numblocks() {
     return dim3(1, 1, 1);
 }
 
-dim3 HdiffCPUUnstrBenchmark::numthreads() {
+template<typename value_t>
+dim3 HdiffCPUUnstrBenchmark<value_t>::numthreads() {
     return dim3(1, 1, 1);
 }
 

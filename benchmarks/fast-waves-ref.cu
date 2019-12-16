@@ -8,7 +8,7 @@
 
 /** Reference implementation of fast waves kernel. Runs on CPU. Ported from
  * given source with fewest possible modifications. */
-class FastWavesRefBenchmark : public Benchmark<double> {
+class FastWavesRefBenchmark : public Benchmark {
 
     public:
 

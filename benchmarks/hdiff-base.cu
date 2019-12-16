@@ -30,28 +30,31 @@ namespace HdiffBase {
 /** Base class for horizontal diffusion benchmarks. Provides verification
  * against reference benchmark and "halo" functionality, i.e. padding the
  * coordinate space on its sides to prevent out of bounds accesses. */
-class HdiffBaseBenchmark :  public Benchmark<double> {
+template<typename value_t>
+class HdiffBaseBenchmark :  public Benchmark {
 
     public:
 
     HdiffBaseBenchmark(coord3 size);
 
-    Grid<double, coord3> *coeff = NULL;
-    Grid<double, coord3> *lap = NULL;
-    Grid<double, coord3> *flx = NULL;
-    Grid<double, coord3> *fly = NULL;
+    Grid<value_t, coord3> *input = NULL;
+    Grid<value_t, coord3> *output = NULL;
+    Grid<value_t, coord3> *coeff = NULL;
+    Grid<value_t, coord3> *lap = NULL;
+    Grid<value_t, coord3> *flx = NULL;
+    Grid<value_t, coord3> *fly = NULL;
 
     // reference grids used for verification
     // in debug mode, we keep a grid for each intermediate step to aid
     // debugging (at which step do we go wrong)
-    HdiffReferenceBenchmark *reference_bench = NULL;
+    HdiffReferenceBenchmark<value_t> *reference_bench = NULL;
     bool reference_calculated = false;
     
     // Cache for reference benchmarks
     // maps size to reference benchmark, so that if a reference has been
     // calculated for a given size before, it will be reused instead of
     // reacalculated (so the benchmarks run faster)
-    static std::map<coord3, HdiffReferenceBenchmark *> *reference_benchs;
+    static std::map<coord3, HdiffReferenceBenchmark<value_t> *> *reference_benchs;
 
     // Setup Input values
     // As in hdiff_stencil_variant.h
@@ -74,27 +77,30 @@ class HdiffBaseBenchmark :  public Benchmark<double> {
 
 };
 
-std::map<coord3, HdiffReferenceBenchmark *> *HdiffBaseBenchmark::reference_benchs = NULL;//new std::map<coord3, HdiffReferenceBenchmark *>();
+template<typename value_t>
+std::map<coord3, HdiffReferenceBenchmark<value_t> *> *HdiffBaseBenchmark<value_t>::reference_benchs = NULL;//new std::map<coord3, HdiffReferenceBenchmark<value_t> *>();
 
 // IMPLEMENTATIONS
 
-HdiffBaseBenchmark::HdiffBaseBenchmark(coord3 size) :
+template<typename value_t>
+HdiffBaseBenchmark<value_t>::HdiffBaseBenchmark(coord3 size) :
 Benchmark(size),
 halo(coord3(2,2,0)) {
     this->name = "hdiff";
-    if(!HdiffBaseBenchmark::reference_benchs) {
-        HdiffBaseBenchmark::reference_benchs = new std::map<coord3, HdiffReferenceBenchmark *>();
+    if(!HdiffBaseBenchmark<value_t>::reference_benchs) {
+        HdiffBaseBenchmark<value_t>::reference_benchs = new std::map<coord3, HdiffReferenceBenchmark<value_t> *>();
     }
 }
 
-void HdiffBaseBenchmark::setup(){
+template<typename value_t>
+void HdiffBaseBenchmark<value_t>::setup(){
     if(!this->reference_bench) {
-        if(HdiffBaseBenchmark::reference_benchs->count(this->size) > 0) {
+        if(HdiffBaseBenchmark<value_t>::reference_benchs->count(this->size) > 0) {
             // already calculated in cache
-            this->reference_bench = (*HdiffBaseBenchmark::reference_benchs)[this->size];
+            this->reference_bench = (*HdiffBaseBenchmark<value_t>::reference_benchs)[this->size];
             this->reference_calculated = true;
         } else {
-            this->reference_bench = new HdiffReferenceBenchmark(this->size);
+            this->reference_bench = new HdiffReferenceBenchmark<value_t>(this->size);
             this->reference_bench->setup();
         }
     }
@@ -105,23 +111,26 @@ void HdiffBaseBenchmark::setup(){
     this->inner_size = this->size - 2*this->halo;
 }
 
-void HdiffBaseBenchmark::teardown() {
+template<typename value_t>
+void HdiffBaseBenchmark<value_t>::teardown() {
     if(this->reference_bench && !this->do_verify) {
         this->reference_bench->teardown();
         delete this->reference_bench;
         this->reference_bench = NULL;
-        (*HdiffBaseBenchmark::reference_benchs).erase(this->size);
+        (*HdiffBaseBenchmark<value_t>::reference_benchs).erase(this->size);
     }
     // Don't free, because this reference benchmark will be reused.
     // This is ugly but not important enough to fix right now. If the memory 
     // leak becomes an issue, simply run gridbenchmark with --no-verify option.
 }
 
-coord3 HdiffBaseBenchmark::inner_coord(coord3 coord){
+template<typename value_t>
+coord3 HdiffBaseBenchmark<value_t>::inner_coord(coord3 coord){
     return coord + this->halo;
 }
 
-HdiffBase::Info HdiffBaseBenchmark::get_info() {
+template<typename value_t>
+HdiffBase::Info HdiffBaseBenchmark<value_t>::get_info() {
     coord3 inner_size = this->inner_size;
     dim3 numthreads = this->numthreads();
     dim3 numblocks = this->numblocks();
@@ -134,23 +143,25 @@ HdiffBase::Info HdiffBaseBenchmark::get_info() {
             };
 }
 
-void HdiffBaseBenchmark::calc_ref() {
+template<typename value_t>
+void HdiffBaseBenchmark<value_t>::calc_ref() {
     this->reference_bench->run();
     if(this->reference_bench->error) {
         return;
     }
     this->reference_calculated = true;
-    (*HdiffBaseBenchmark::reference_benchs)[this->size] = this->reference_bench;
+    (*HdiffBaseBenchmark<value_t>::reference_benchs)[this->size] = this->reference_bench;
 }
 
-void HdiffBaseBenchmark::post() {
+template<typename value_t>
+void HdiffBaseBenchmark<value_t>::post() {
     if(!this->do_verify) {
         return;
     }
     if(!this->reference_calculated) {
         this->calc_ref();
     }
-    if(!this->verify(this->reference_bench->output)) {
+    if(!this->verify(this->reference_bench->output, this->output)) {
         this->error = true;
     }
     #ifdef HDIFF_DEBUG

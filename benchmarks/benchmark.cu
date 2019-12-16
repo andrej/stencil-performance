@@ -24,17 +24,15 @@
 
 /** Benchmark result: Average, minimum and maximum runtime in seconds. */
 typedef struct { 
-	struct {double avg; double median; double min; double max; } total;
-	struct {double avg; double median; double min; double max; } kernel;
+	struct {double avg; double median; double min; double max;} total;
+	struct {double avg; double median; double min; double max;} kernel;
 	bool error; 
 } benchmark_result_t;
 
 /** Benchmark operating on some three dimensional grid
  *
  * This is mainly a wrapper around a run() function which the subclass should
- * overwrite. This run() function should operate on the provided input grid and
- * (whose size is given in input_size) and should transform it into something
- * else and store that in output_grid.
+ * overwrite.
  *
  * The value of output_grid() can be verified for correctness against another
  * grid by calling verify()
@@ -42,16 +40,12 @@ typedef struct {
  * Subclasses should overwrite the run method, which is supposed to operate on
  * the input Grid.
  */
-template<typename value_t>
 class Benchmark {
 
 	public:
 
 	Benchmark();
 	Benchmark(coord3 size);
-
-	Grid<value_t, coord3> *input;
-	Grid<value_t, coord3> *output;
 
 	coord3 size;
     dim3 _numblocks;
@@ -76,8 +70,7 @@ class Benchmark {
     virtual void parse_args(); /**< do some setup based on argc, argv */
 
 	/** Subclasses (benchmarks) must at least overwrite this function an perform
-	 * the computations to be benchmarked inside here. Computations should be
-	 * performed on this->input and stored to this->output. */
+	 * the computations to be benchmarked inside here. */
 	virtual void run() = 0;
 
 	/** Executes a certain number of runs of the given benchmark and stores some
@@ -86,8 +79,9 @@ class Benchmark {
 	
 	/** Compares the value in each cell of this->output grid with the given
 	 * reference grid and returns true only if all the cells match (up to the
-	 * optionally given tolerance). */
-	virtual bool verify(Grid<value_t, coord3> *reference, Grid<value_t, coord3> *other=NULL, double tol=1e-8);
+     * optionally given tolerance). */
+    template<typename value_t>
+	/*virtual*/ bool verify(Grid<value_t, coord3> *reference, Grid<value_t, coord3> *other, double tol=1e-5);
 
 	// Setup and teardown are called when the benchmark is initialized, only once
 	virtual void setup() {};
@@ -106,13 +100,11 @@ class Benchmark {
 };
 
 /** Computes the median of a vector of (unsorted) values. */
-template<typename value_t>
-value_t median(std::vector<value_t> vec);
+double median(std::vector<double> vec);
 
 // IMPLEMENTATIONS
 
-template<typename value_t>
-value_t median(std::vector<value_t> vec) {
+double median(std::vector<double> vec) {
     if(vec.size() % 2 == 0) {
         std::nth_element(vec.begin(), vec.begin()+vec.size()/2+1, vec.end());
         return (vec[vec.size()/2]+vec[vec.size()/2+1])/2;
@@ -122,14 +114,11 @@ value_t median(std::vector<value_t> vec) {
     }
 }
 
-template<typename value_t>
-Benchmark<value_t>::Benchmark() {}
+Benchmark::Benchmark() {}
 
-template<typename value_t>
-Benchmark<value_t>::Benchmark(coord3 size) : size(size) {}
+Benchmark::Benchmark(coord3 size) : size(size) {}
 
-template<typename value_t>
-void Benchmark<value_t>::post() {
+void Benchmark::post() {
     if(cudaGetLastError() != cudaSuccess) {
         this->error = true;
         std::ostringstream msg;
@@ -141,8 +130,7 @@ void Benchmark<value_t>::post() {
     }
 }
 
-template<typename value_t>
-dim3 Benchmark<value_t>::numblocks() {
+dim3 Benchmark::numblocks() {
     if(this->_numblocks.x != 0 &&
         this->_numblocks.y != 0 &&
         this->_numblocks.z != 0) {
@@ -155,8 +143,7 @@ dim3 Benchmark<value_t>::numblocks() {
     return dim3( (unsigned int) x, (unsigned int) y, (unsigned int) z );
 }
 
-template<typename value_t>
-dim3 Benchmark<value_t>::numthreads() {
+dim3 Benchmark::numthreads() {
     if(this->_numthreads.x != 0 &&
         this->_numthreads.y != 0 &&
         this->_numthreads.z != 0) {
@@ -174,8 +161,7 @@ dim3 Benchmark<value_t>::numthreads() {
     return dim3( (unsigned int) x, (unsigned int) y, (unsigned int) z );
 }
 
-template<typename value_t>
-benchmark_result_t Benchmark<value_t>::execute() {
+benchmark_result_t Benchmark::execute() {
 	using clock = std::chrono::high_resolution_clock;
 	this->setup();
     double avg, min, max;
@@ -209,10 +195,10 @@ benchmark_result_t Benchmark<value_t>::execute() {
         kernel_avg += kernel_time;
         kernel_min = std::min(kernel_time, min);
         kernel_max = std::max(kernel_time, max);
-        if(!this->quiet) {
+        /*if(!this->quiet) {
             fprintf(stderr, "Benchmark %s, Run #%d Results\n", this->name.c_str(), i+1);
             this->output->print();
-        }
+        }*/
     }
     this->teardown();
     avg /= runs;
@@ -227,10 +213,7 @@ benchmark_result_t Benchmark<value_t>::execute() {
 }
 
 template<typename value_t>
-bool Benchmark<value_t>::verify(Grid<value_t, coord3> *reference, Grid<value_t, coord3> *other, double tol) {
-    if(!other) {
-        other = this->output;
-    }
+bool Benchmark::verify(Grid<value_t, coord3> *reference, Grid<value_t, coord3> *other, double tol) {
     if(other->dimensions != reference->dimensions) {
         return false;
     }
@@ -246,8 +229,7 @@ bool Benchmark<value_t>::verify(Grid<value_t, coord3> *reference, Grid<value_t, 
     return true;
 }
 
-template<typename value_t>
-void Benchmark<value_t>::parse_args() {
+void Benchmark::parse_args() {
 }
 
 #endif

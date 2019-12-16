@@ -17,8 +17,9 @@ namespace HdiffCudaSequential {
     };
 
     // Laplace Kernel
+    template<typename value_t>
     __global__
-    void kernel_lap(Info info, CudaRegularGrid3DInfo<double> grid_info, double *in, double *lap) {
+    void kernel_lap(Info info, CudaRegularGrid3DInfo<value_t> grid_info, value_t *in, value_t *lap) {
         const int i = blockIdx.x * blockDim.x + threadIdx.x + info.halo.x - 1; // ref implementation starts at i = -1
         const int j = blockIdx.y * blockDim.y + threadIdx.y + info.halo.y - 1;
         const int k = blockIdx.z * blockDim.z + threadIdx.z + info.halo.z;
@@ -36,8 +37,9 @@ namespace HdiffCudaSequential {
     }
 
     // Flx Kernel
+    template<typename value_t>
     __global__
-    void kernel_flx(Info info, CudaRegularGrid3DInfo<double> grid_info, double *in, double *lap, double *flx) {
+    void kernel_flx(Info info, CudaRegularGrid3DInfo<value_t> grid_info, value_t *in, value_t *lap, value_t *flx) {
         const int i = blockIdx.x * blockDim.x + threadIdx.x + info.halo.x - 1;
         const int j = blockIdx.y * blockDim.y + threadIdx.y + info.halo.y;
         const int k = blockIdx.z * blockDim.z + threadIdx.z + info.halo.z;
@@ -53,8 +55,9 @@ namespace HdiffCudaSequential {
     }
 
     // Fly Kernel
+    template<typename value_t>
     __global__
-    void kernel_fly(Info info, CudaRegularGrid3DInfo<double> grid_info, double *in, double *lap, double *fly) {
+    void kernel_fly(Info info, CudaRegularGrid3DInfo<value_t> grid_info, value_t *in, value_t *lap, value_t *fly) {
         const int i = blockIdx.x * blockDim.x + threadIdx.x + info.halo.x;
         const int j = blockIdx.y * blockDim.y + threadIdx.y + info.halo.y - 1;
         const int k = blockIdx.z * blockDim.z + threadIdx.z + info.halo.z;
@@ -70,8 +73,9 @@ namespace HdiffCudaSequential {
     }
 
     // Output kernel
+    template<typename value_t>
     __global__
-    void kernel_out(Info info, CudaRegularGrid3DInfo<double> grid_info, double *in, double *coeff, double *flx, double *fly, double *out) {
+    void kernel_out(Info info, CudaRegularGrid3DInfo<value_t> grid_info, value_t *in, value_t *coeff, value_t *flx, value_t *fly, value_t *out) {
         const int i = blockIdx.x * blockDim.x + threadIdx.x + info.halo.x;
         const int j = blockIdx.y * blockDim.y + threadIdx.y + info.halo.y;
         const int k = blockIdx.z * blockDim.z + threadIdx.z + info.halo.z;
@@ -91,7 +95,8 @@ namespace HdiffCudaSequential {
 
 /** This is the reference implementation for the horizontal diffusion kernel, 
  * which is executed on the CPU and used to verify other implementations. */
-class HdiffCudaSequentialBenchmark : public HdiffBaseBenchmark {
+template<typename value_t>
+class HdiffCudaSequentialBenchmark : public HdiffBaseBenchmark<value_t> {
 
     public:
 
@@ -114,13 +119,15 @@ class HdiffCudaSequentialBenchmark : public HdiffBaseBenchmark {
 
 // IMPLEMENTATIONS
 
-HdiffCudaSequentialBenchmark::HdiffCudaSequentialBenchmark(coord3 size) :
-HdiffBaseBenchmark(size) {
+template<typename value_t>
+HdiffCudaSequentialBenchmark<value_t>::HdiffCudaSequentialBenchmark(coord3 size) :
+HdiffBaseBenchmark<value_t>(size) {
     this->name = "hdiff-regular-seq";
     this->error = false;
 }
 
-void HdiffCudaSequentialBenchmark::run() {
+template<typename value_t>
+void HdiffCudaSequentialBenchmark<value_t>::run() {
     #define CALL_KERNEL(knl_func, nblocks, nthreads, ...) \
     knl_func<<<nblocks, nthreads>>>(__VA_ARGS__); \
     if (cudaGetLastError() != cudaSuccess) { \
@@ -134,7 +141,7 @@ void HdiffCudaSequentialBenchmark::run() {
     CALL_KERNEL(HdiffCudaSequential::kernel_lap, \
                 nblocks_lap, nthreads, \
                 this->get_info(),
-                (dynamic_cast<CudaRegularGrid3D<double> *>(this->input))->get_gridinfo(),
+                (dynamic_cast<CudaRegularGrid3D<value_t> *>(this->input))->get_gridinfo(),
                 this->input->data,
                 this->lap->data);
     /*if (cudaDeviceSynchronize() != cudaSuccess) {
@@ -145,7 +152,7 @@ void HdiffCudaSequentialBenchmark::run() {
     CALL_KERNEL(HdiffCudaSequential::kernel_flx, \
                 nblocks_flx, nthreads, \
                 this->get_info(),
-                (dynamic_cast<CudaRegularGrid3D<double> *>(this->input))->get_gridinfo(),
+                (dynamic_cast<CudaRegularGrid3D<value_t> *>(this->input))->get_gridinfo(),
                 this->input->data,
                 this->lap->data,
                 this->flx->data);
@@ -157,7 +164,7 @@ void HdiffCudaSequentialBenchmark::run() {
     CALL_KERNEL(HdiffCudaSequential::kernel_fly, \
                 nblocks_fly, nthreads, \
                 this->get_info(),
-                (dynamic_cast<CudaRegularGrid3D<double> *>(this->input))->get_gridinfo(),
+                (dynamic_cast<CudaRegularGrid3D<value_t> *>(this->input))->get_gridinfo(),
                 this->input->data,
                 this->lap->data,
                 this->fly->data);
@@ -168,7 +175,7 @@ void HdiffCudaSequentialBenchmark::run() {
     CALL_KERNEL(HdiffCudaSequential::kernel_out, \
                 nblocks_out, nthreads, \
                 this->get_info(),
-                (dynamic_cast<CudaRegularGrid3D<double> *>(this->input))->get_gridinfo(),
+                (dynamic_cast<CudaRegularGrid3D<value_t> *>(this->input))->get_gridinfo(),
                 this->input->data,
                 this->coeff->data,
                 this->flx->data,
@@ -182,7 +189,8 @@ void HdiffCudaSequentialBenchmark::run() {
 // Returns the correct amount of blocks (each of given blocksize) to implement
 // a loop that runs from start, in increments of step, up to (not including) stop
 // assumes step is positive!
-dim3 HdiffCudaSequentialBenchmark::gridsize(coord3 blocksize, coord3 start, coord3 step, coord3 stop) {
+template<typename value_t>
+dim3 HdiffCudaSequentialBenchmark<value_t>::gridsize(coord3 blocksize, coord3 start, coord3 step, coord3 stop) {
     dim3 n_iterations = dim3(
         (unsigned int) (stop.x-start.x)/(step.x),
         (unsigned int) (stop.y-start.y)/(step.y),
@@ -195,17 +203,19 @@ dim3 HdiffCudaSequentialBenchmark::gridsize(coord3 blocksize, coord3 start, coor
     );
 }
 
-void HdiffCudaSequentialBenchmark::setup() {
-    this->input = new CudaRegularGrid3D<double>(this->size);
-    this->output = new CudaRegularGrid3D<double>(this->size);
-    this->coeff = new CudaRegularGrid3D<double>(this->size);
-    this->lap = new CudaRegularGrid3D<double>(this->size);
-    this->flx = new CudaRegularGrid3D<double>(this->size);
-    this->fly = new CudaRegularGrid3D<double>(this->size);
-    this->HdiffBaseBenchmark::setup();
+template<typename value_t>
+void HdiffCudaSequentialBenchmark<value_t>::setup() {
+    this->input = new CudaRegularGrid3D<value_t>(this->size);
+    this->output = new CudaRegularGrid3D<value_t>(this->size);
+    this->coeff = new CudaRegularGrid3D<value_t>(this->size);
+    this->lap = new CudaRegularGrid3D<value_t>(this->size);
+    this->flx = new CudaRegularGrid3D<value_t>(this->size);
+    this->fly = new CudaRegularGrid3D<value_t>(this->size);
+    this->HdiffBaseBenchmark<value_t>::setup();
 }
 
-void HdiffCudaSequentialBenchmark::teardown() {
+template<typename value_t>
+void HdiffCudaSequentialBenchmark<value_t>::teardown() {
     this->input->deallocate();
     this->output->deallocate();
     this->coeff->deallocate();
@@ -218,17 +228,19 @@ void HdiffCudaSequentialBenchmark::teardown() {
     delete this->lap;
     delete this->flx;
     delete this->fly;
-    this->HdiffBaseBenchmark::teardown();
+    this->HdiffBaseBenchmark<value_t>::teardown();
 }
 
-HdiffCudaSequential::Info HdiffCudaSequentialBenchmark::get_info() {
+template<typename value_t>
+HdiffCudaSequential::Info HdiffCudaSequentialBenchmark<value_t>::get_info() {
     return { .halo = this->halo,
              .max_coord = this->input->dimensions - this->halo};
 }
 
-void HdiffCudaSequentialBenchmark::post() {
+template<typename value_t>
+void HdiffCudaSequentialBenchmark<value_t>::post() {
     this->Benchmark::post();
-    this->HdiffBaseBenchmark::post();
+    this->HdiffBaseBenchmark<value_t>::post();
 }
 
 #endif
