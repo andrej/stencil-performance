@@ -11,7 +11,7 @@
 
 namespace HdiffCudaRegular {
 
-    enum Variant { direct, kloop, idxvar, shared, shared_kloop, coop, jloop };
+    enum Variant { direct, kloop, idxvar, shared, shared_kloop, coop, jloop, iloop };
 
     /** Naive variant: Every thread computes all of its data dependencies by itself. */
     template<typename value_t>
@@ -703,6 +703,81 @@ namespace HdiffCudaRegular {
 
     }
 
+    template<typename value_t>
+    __global__
+    void kernel_iloop(HdiffBase::Info info,
+                      CudaRegularGrid3DInfo<value_t> grids_info,
+                      int i_per_thread,
+                      value_t *in,
+                      value_t *out,
+                      value_t *coeff) {
+        
+        const int j = threadIdx.y + blockIdx.y*blockDim.y + info.halo.y;
+        const int k = threadIdx.z + blockIdx.z*blockDim.z + info.halo.z;
+        int i_start = threadIdx.x*i_per_thread + blockIdx.x*blockDim.x*i_per_thread + info.halo.x;
+        if(j >= info.max_coord.y || i_start >= info.max_coord.x || k >= info.max_coord.z) {
+            return;
+        }
+
+        int i_stop = i_start + i_per_thread;
+        if(i_stop > info.max_coord.x) {
+            i_stop = info.max_coord.x;
+        }
+        
+        // first calculation outside of loop will be shifted into lap_imj / flx_imj on first iteration
+        // therefore lap_ij => lap_imj und lap_ipj => lap_ij
+        value_t lap_ij = 4 * in[CUDA_REGULAR_NEIGHBOR(grids_info, i_start, j, k, -1, 0, 0)] /* center */
+                            - in[CUDA_REGULAR_NEIGHBOR(grids_info, i_start, j, k, -2, 0, 0)] /* left */ - in[CUDA_REGULAR_NEIGHBOR(grids_info, i_start, j, k, 0, 0, 0)] /* right */
+                            - in[CUDA_REGULAR_NEIGHBOR(grids_info, i_start, j, k, -1, -1, 0)] /* top */ - in[CUDA_REGULAR_NEIGHBOR(grids_info, i_start, j, k, -1, +1, 0)] /* bottom */;
+        
+        value_t lap_ipj = 4 * in[CUDA_REGULAR_NEIGHBOR(grids_info, i_start, j, k, 0, 0, 0)]  /* center */
+                            - in[CUDA_REGULAR_NEIGHBOR(grids_info, i_start, j, k, -1, 0, 0)] /* left */ - in[CUDA_REGULAR_NEIGHBOR(grids_info, i_start, j, k, +1, 0, 0)] /* right */ 
+                            - in[CUDA_REGULAR_NEIGHBOR(grids_info, i_start, j, k, 0, -1, 0)] /* top */ - in[CUDA_REGULAR_NEIGHBOR(grids_info, i_start, j, k, 0, +1, 0)]; /* bottom */
+        
+        value_t flx_ij = lap_ipj - lap_ij;
+        flx_ij = flx_ij * (in[CUDA_REGULAR_INDEX(grids_info, i_start, j, k)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i_start, j, k, -1, 0, 0)]) > 0 ? 0 : flx_ij;
+
+        // i-loop, shifts results from previous round for reuse
+        for(int i = i_start; i < i_stop; i++) {
+
+            // shift results from previous iteration
+            //value_t lap_imj = lap_ij;
+            lap_ij = lap_ipj;
+            value_t flx_imj = flx_ij;
+
+            // y direction dependencies are recalculated for every cell
+            value_t lap_ijm = 
+                4 * in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, -1, 0)] /* center */
+                - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, -1, -1, 0)] /* left */ - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, +1, -1, 0)] /* right */
+                - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, -2, 0)] /* top */ - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, 0, 0)] /* bottom */;
+            value_t lap_ijp =
+                4 * in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, +1, 0)] /* center */
+                - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, -1, +1, 0)] /* left */ - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, +1, +1, 0)] /* right */
+                - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, 0, 0)] /* top */ - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, +2, 0)] /* bottom */;
+
+            // will be reused as lap_ij in next iteration
+            lap_ipj =
+                4 * in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, +1, 0, 0)] /* center */
+                - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, 0, 0)] /* left */ - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, +2, 0, 0)] /* right */
+                - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, +1, -1, 0)] /* top */ - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, +1, +1, 0)] /* bottom */;
+
+            // y direction dependencies are recalculated for every cell
+            value_t fly_ij = lap_ijp - lap_ij;
+            fly_ij = fly_ij * (in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, +1, 0)] - in[CUDA_REGULAR_INDEX(grids_info, i, j, k)]) > 0 ? 0 : fly_ij;
+            value_t fly_ijm = lap_ij - lap_ijm;
+            fly_ijm = fly_ijm * (in[CUDA_REGULAR_INDEX(grids_info, i, j, k)] - in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, 0, -1, 0)]) > 0 ? 0 : fly_ijm;
+
+            // will be reused as flx_ijm in next iteration
+            flx_ij = lap_ipj - lap_ij;
+            flx_ij = flx_ij * (in[CUDA_REGULAR_NEIGHBOR(grids_info, i, j, k, +1, 0, 0)] - in[CUDA_REGULAR_INDEX(grids_info, i, j, k)]) > 0 ? 0 : flx_ij;
+
+            out[CUDA_REGULAR_INDEX(grids_info, i, j, k)] =
+                in[CUDA_REGULAR_INDEX(grids_info, i, j, k)]
+                - coeff[CUDA_REGULAR_INDEX(grids_info, i, j, k)] * (flx_ij - flx_imj + fly_ij - fly_ijm);
+        }
+
+    }
+
 };
 
 /** This is the reference implementation for the horizontal diffusion kernel, 
@@ -730,6 +805,7 @@ class HdiffCudaBenchmark : public HdiffBaseBenchmark<value_t> {
     // parameter for the jloop kernel only
     virtual void parse_args();
     int jloop_j_per_thread;
+    int iloop_i_per_thread;
 
 };
 
@@ -751,6 +827,8 @@ HdiffBaseBenchmark<value_t>(size) {
         this->name = "hdiff-regular-coop";
     } else if(variant == HdiffCudaRegular::jloop) {
         this->name = "hdiff-regular-jloop";
+    } else if(variant == HdiffCudaRegular::iloop) {
+        this->name = "hdiff-regular-iloop";
     } else {
         this->name = "hdiff-regular-idxvar";
     }
@@ -833,6 +911,15 @@ void HdiffCudaBenchmark<value_t>::run() {
             this->output->data,
             this->coeff->data
         );
+    } else if(this->variant == HdiffCudaRegular::iloop) {
+        HdiffCudaRegular::kernel_iloop<value_t><<<this->numblocks(), this->numthreads()>>>(
+            this->get_info(),
+            (dynamic_cast<CudaRegularGrid3D<value_t>*>(this->input))->get_gridinfo(),
+            this->iloop_i_per_thread,
+            this->input->data,
+            this->output->data,
+            this->coeff->data
+        );
     } else {
         HdiffCudaRegular::kernel_idxvar<value_t><<<this->numblocks(), this->numthreads()>>>(
             this->get_info(),
@@ -902,6 +989,9 @@ dim3 HdiffCudaBenchmark<value_t>::numthreads() {
     if(this->variant == HdiffCudaRegular::jloop) {
         numthreads.y = 1;
     }
+    if(this->variant == HdiffCudaRegular::iloop) {
+        numthreads.x = 1;
+    }
     return numthreads;
 }
 
@@ -916,6 +1006,9 @@ dim3 HdiffCudaBenchmark<value_t>::numblocks() {
     if(this->variant == HdiffCudaRegular::jloop) {
         numblocks.y = (this->size.y + this->jloop_j_per_thread - 1) / this->jloop_j_per_thread;
     }
+    if(this->variant == HdiffCudaRegular::iloop) {
+        numblocks.x = (this->size.x + this->iloop_i_per_thread - 1) / this->iloop_i_per_thread;
+    }
     return numblocks;
 }
 
@@ -926,9 +1019,15 @@ void HdiffCudaBenchmark<value_t>::parse_args() {
         if(this->variant == HdiffCudaRegular::jloop) {
             sscanf(this->argv[0], "%d", &this->jloop_j_per_thread);
         }
+        if(this->variant == HdiffCudaRegular::iloop) {
+            sscanf(this->argv[0], "%d", &this->iloop_i_per_thread);
+        }
     } else {
         if(this->variant == HdiffCudaRegular::jloop) {
             this->jloop_j_per_thread = 16; // default value of 16
+        }
+        if(this->variant == HdiffCudaRegular::iloop) {
+            this->iloop_i_per_thread = 16;
         }
     }
 }
