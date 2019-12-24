@@ -414,7 +414,7 @@ void run_benchmark(Benchmark *bench, bool quiet) {
 void prettyprint(benchmark_list_t *benchmarks, bool skip_errors, bool header) {
     if(header) {
         // TODO: print # runs
-        printf("Benchmark                   , Precision, Domain size,,, Blocks     ,,, Threads    ,,, Total execution time                    ,,, Kernel-only execution time                \n");
+        printf("Benchmark                   , Precision, Domain size,,, Blocks     ,,, Threads    ,,, Total execution time                   ,,,, Kernel-only execution time                \n");
         printf("                            ,          ,   X,   Y,   Z,   X,   Y,   Z,   X,   Y,   Z,   Average,    Median,   Minimum,   Maximum,   Average,    Median,   Minimum ,   Maximum\n");
     }
     for(auto it=benchmarks->begin(); it != benchmarks->end(); ++it) {

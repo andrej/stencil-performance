@@ -41,20 +41,20 @@ namespace HdiffCudaUnstr {
         }
         
         const int n_0_0_0       = CUDA_UNSTR_INDEX(grid_info, i, j, k);
-        const int n_0_n1_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_0_0, 0, -1, 0);
-        const int n_0_n2_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_n1_0, 0, -1, 0);
-        const int n_n1_0_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_0_0, -1, 0, 0);
-        const int n_n1_n1_0     = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_n1_0_0, 0, -1, 0);
-        const int n_n2_0_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_n1_0_0, -1, 0, 0);
+        const int n_0_n1_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_0_0, 0, -1, 0); /* left */
+        const int n_0_n2_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_n1_0, 0, -1, 0); /* 2 left */
+        const int n_n1_0_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_0_0, -1, 0, 0); /* top */
+        const int n_n1_n1_0     = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_n1_0_0, 0, -1, 0); /* top left */
+        const int n_n2_0_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_n1_0_0, -1, 0, 0); /* 2 top */
         //const int n_n2_n1_0     = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_n2_0_0, 0, -1, 0);
-        const int n_0_p1_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_0_0, 0, +1, 0);
-        const int n_0_p2_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_p1_0, 0, +1, 0);
-        const int n_p1_0_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_0_0, +1, 0, 0);
-        const int n_p1_p1_0     = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_p1_0_0, 0, +1, 0);
-        const int n_p2_0_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_p1_0_0, +1, 0, 0);
+        const int n_0_p1_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_0_0, 0, +1, 0); /* right */
+        const int n_0_p2_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_p1_0, 0, +1, 0); /* 2 right */
+        const int n_p1_0_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_0_0, +1, 0, 0); /* bottom */
+        const int n_p1_p1_0     = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_p1_0_0, 0, +1, 0); /* bottom right */
+        const int n_p2_0_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_p1_0_0, +1, 0, 0); /* 2 bottom */
         //const int n_p2_p1_0     = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_p2_0_0, 0, +1, 0);     
-        const int n_n1_p1_0     = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_n1_0_0, 0, +1, 0);
-        const int n_p1_n1_0     = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_p1_0_0, 0, -1, 0);
+        const int n_n1_p1_0     = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_n1_0_0, 0, +1, 0); /* top right */
+        const int n_p1_n1_0     = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_p1_0_0, 0, -1, 0); /* bottom left */
 
         value_t lap_ij = 
             4 * in[n_0_0_0] 

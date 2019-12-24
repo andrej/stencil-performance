@@ -8,6 +8,9 @@
 #include <sstream>
 #include <algorithm>
 #include <vector>
+#ifdef CUDA_PROFILER
+#include <cuda_profiler_api.h>
+#endif
 #include "coord3.cu"
 #include "grids/coord3-base.cu"
 
@@ -166,6 +169,8 @@ benchmark_result_t Benchmark::execute() {
 	this->setup();
     double avg, min, max;
     double kernel_avg, kernel_min, kernel_max;
+    max = 0;
+    kernel_max = 0;
     min = DBL_MAX;
     kernel_min = DBL_MAX;
     bool error = false;
@@ -174,9 +179,15 @@ benchmark_result_t Benchmark::execute() {
     for(int i=-1; i<this->runs; i++) {
         auto start = clock::now();
         this->pre();
+        #ifdef CUDA_PROFILER
+        cudaProfilerStart();
+        #endif
         auto kernel_start = clock::now();
         this->run();
         auto kernel_stop = clock::now();
+        #ifdef CUDA_PROFILER
+        cudaProfilerStop();
+        #endif
         this->post();
         error = error || this->error;
         if(i == -1) {

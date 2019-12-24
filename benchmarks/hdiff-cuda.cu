@@ -28,7 +28,6 @@ namespace HdiffCudaRegular {
                        #endif
                        ) {
 
-
         // the loops below replace this condition if gridstride is activated
         #ifdef HDIFF_NO_GRIDSTRIDE
         const int i = threadIdx.x + blockIdx.x*blockDim.x + info.halo.x;

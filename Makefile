@@ -1,5 +1,5 @@
 CXX=nvcc
-CPPFLAGS=-I./ -D HDIFF_NO_GRIDSTRIDE --ptxas-options=-v
+CPPFLAGS=-I./ -D HDIFF_NO_GRIDSTRIDE -D CUDA_PROFILER --ptxas-options=-v
 CPPDEBUGFLAGS=-g -G -D HDIFF_DEBUG
 SRCS=$(wildcard *.cu)
 SRCS_BENCHMARKS=$(wildcard benchmarks/*.cu)
