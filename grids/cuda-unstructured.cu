@@ -50,9 +50,9 @@ struct CudaUnstructuredGrid3DInfo {
  * Note only ONE of X, Y, Z may be -1 or +1 for this to work! Because
  * neighborship relations are stored only for direct neighbors! */
 #define CUDA_UNSTR_NEIGHBOR_PTR_AT_UNSAFE(grid_info, index, x, y) \
-        (index * 4 + 1 * (y == -1) \
-                   + 2 * (x == +1) \
-                   + 3 * (y == +1))
+        (index + grid_info.strides.z * 1 * (y == -1) \
+               + grid_info.strides.z * 2 * (x == +1) \
+               + grid_info.strides.z * 3 * (y == +1))
 
 #define CUDA_UNSTR_NEIGHBOR_PTR_AT(grid_info, index, x, y, _z) \
         CUDA_UNSTR_NEIGHBOR_PTR_AT_UNSAFE(grid_info, index % grid_info.strides.z, x, y)

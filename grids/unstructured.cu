@@ -161,13 +161,13 @@ int UnstructuredGrid3D<value_t>::neighbor(coord3 coord, coord3 offs) {
 
 template<typename value_t>
 int UnstructuredGrid3D<value_t>::neighbor_pointer(coord3 coord, coord3 offs) {
-    const int N = 4; // Max num neighbors
-    int idx = this->index(coord3(coord.x, coord.y, 0)) * N;
+    const int N = this->dimensions.x*this->dimensions.y;
+    int idx = this->index(coord3(coord.x, coord.y, 0));
     assert(offs.x == 0 || offs.y == 0); /* no diagonal neighbors */
-    return idx + 0 * (offs.x == -1) /* just for clarity */
-               + 1 * (offs.y == -1)
-               + 2 * (offs.x == +1)
-               + 3 * (offs.y == +1);
+    return idx + N * 0 * (offs.x == -1) /* just for clarity */
+               + N * 1 * (offs.y == -1)
+               + N * 2 * (offs.x == +1)
+               + N * 3 * (offs.y == +1);
 }
 
 template<typename value_t>
