@@ -8,8 +8,14 @@
 #include <sstream>
 #include <algorithm>
 #include <vector>
+#include <numeric>
+#ifdef CUDA_PROFILER
+#include <cuda_profiler_api.h>
+#endif
 #include "coord3.cu"
 #include "grids/coord3-base.cu"
+
+using clk = std::chrono::high_resolution_clock;
 
 /** The maxnumthreads limits are only enforced if the total nubmer of threads
  * (product of x, y and z) is exceeded. It is therefore well possible to have
@@ -24,8 +30,7 @@
 
 /** Benchmark result: Average, minimum and maximum runtime in seconds. */
 typedef struct { 
-	struct {double avg; double median; double min; double max;} total;
-	struct {double avg; double median; double min; double max;} kernel;
+	struct {double avg; double median; double min; double max;} runtime;
 	bool error; 
 } benchmark_result_t;
 
@@ -100,11 +105,13 @@ class Benchmark {
 };
 
 /** Computes the median of a vector of (unsorted) values. */
-double median(std::vector<double> vec);
+template<typename T>
+T median(std::vector<T> vec);
 
 // IMPLEMENTATIONS
 
-double median(std::vector<double> vec) {
+template<typename T>
+T median<T>(std::vector<T> vec) {
     if(vec.size() % 2 == 0) {
         std::nth_element(vec.begin(), vec.begin()+vec.size()/2+1, vec.end());
         return (vec[vec.size()/2]+vec[vec.size()/2+1])/2;
@@ -162,51 +169,37 @@ dim3 Benchmark::numthreads() {
 }
 
 benchmark_result_t Benchmark::execute() {
-	using clock = std::chrono::high_resolution_clock;
 	this->setup();
-    double avg, min, max;
-    double kernel_avg, kernel_min, kernel_max;
-    min = DBL_MAX;
-    kernel_min = DBL_MAX;
     bool error = false;
-    std::vector<double> total_times;
-    std::vector<double> kernel_times;
+    std::vector<double> runtimes;
     for(int i=-1; i<this->runs; i++) {
-        auto start = clock::now();
         this->pre();
-        auto kernel_start = clock::now();
+        #ifdef CUDA_PROFILER
+        cudaProfilerStart();
+        #endif
+
+        clk::time_point start = clk::now();
         this->run();
-        auto kernel_stop = clock::now();
+        clk::time_point stop = clk::now();
+
+        #ifdef CUDA_PROFILER
+        cudaProfilerStop();
+        #endif
         this->post();
         error = error || this->error;
         if(i == -1) {
-            // First run is untimed, as Cuda recompiles the kernel on first run
-            // which would distort our measurements.
+            // First run is untimed, as Cuda recompiles the kernel on first run which would distort our measurements.
             continue;
         }
-        auto stop = clock::now();
-        double total_time = std::chrono::duration<double>(stop-start).count();
-        double kernel_time = std::chrono::duration<double>(kernel_stop-kernel_start).count();
-        total_times.push_back(total_time);
-        kernel_times.push_back(kernel_time);
-        avg += total_time;
-        min = std::min(total_time, min);
-        max = std::max(total_time, max);
-        kernel_avg += kernel_time;
-        kernel_min = std::min(kernel_time, min);
-        kernel_max = std::max(kernel_time, max);
-        /*if(!this->quiet) {
-            fprintf(stderr, "Benchmark %s, Run #%d Results\n", this->name.c_str(), i+1);
-            this->output->print();
-        }*/
+        double runtime = std::chrono::duration_cast<std::chrono::microseconds>(stop-start).count();
+        runtimes.push_back(runtime);
     }
     this->teardown();
-    avg /= runs;
-    kernel_avg /= runs;
-    double med = median(total_times);
-    double kernel_med = median(kernel_times);
-    benchmark_result_t res = { .total = { avg, med, min, max },
-                               .kernel = { kernel_avg, kernel_med, kernel_min, kernel_max },
+    double avg = std::accumulate(runtimes.begin(), runtimes.end(), 0.0) / runtimes.size();
+    double med = median<double>(runtimes);
+    double min = *std::min_element(runtimes.begin(), runtimes.end());
+    double max = *std::max_element(runtimes.begin(), runtimes.end());
+    benchmark_result_t res = { .runtime = { avg, med, min, max },
 							   .error = error };
 	this->results = res; // not using temporary variable res gives NVCC compiler segfault ...
 	return this->results;
@@ -220,9 +213,19 @@ bool Benchmark::verify(Grid<value_t, coord3> *reference, Grid<value_t, coord3> *
     for(int x=0; x<other->dimensions.x; x++) {
         for(int y=0; y<other->dimensions.y; y++) {
             for(int z=0; z<other->dimensions.z; z++) {
+                /* The reason the benchmark times slow down this much if we use --no-verify flag
+                is because comparing to the reference throws the values that the kernel needs out
+                of the cache. The following proves that; i.e. not accessing the reference benchmarks
+                keeps the other benchmark in cache and as such the next kernel run will be faster.
+                */if(abs((*other)[coord3(x, y, z)]) > 1) {
+                    return true;
+                    //this->error = true;
+                    //continue;
+                }
+                /*
                 if(abs((*other)[coord3(x, y, z)] - (*reference)[coord3(x, y, z)]) > tol) {
                     return false;
-                }
+                }*/
             }
         }
     }

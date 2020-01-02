@@ -30,10 +30,12 @@ typedef enum {all_benchs,
               hdiff_cuda_regular_shared,
               hdiff_cuda_regular_shared_kloop,
               hdiff_cuda_regular_jloop,
+              hdiff_cuda_regular_iloop,
               hdiff_cuda_sequential,
               hdiff_cuda_unstr_naive,
               hdiff_cuda_unstr_kloop,
               hdiff_cuda_unstr_idxvars,
+              hdiff_cuda_unstr_shared_idxvar,
               hdiff_cuda_unstr_seq,
               unspecified, 
               // the benchmarks past this comment won't be included in the "all" benchmarks executions
@@ -259,6 +261,11 @@ Benchmark *create_benchmark(benchmark_params_t param_bench, coord3 size,
             (Benchmark *) new HdiffCudaBenchmark<float>(size, HdiffCudaRegular::jloop) :
             (Benchmark *) new HdiffCudaBenchmark<double>(size, HdiffCudaRegular::jloop) );
         break;
+        case hdiff_cuda_regular_iloop:
+        ret = (precision == single_prec ?
+            (Benchmark *) new HdiffCudaBenchmark<float>(size, HdiffCudaRegular::iloop) : 
+            (Benchmark *) new HdiffCudaBenchmark<double>(size, HdiffCudaRegular::iloop) );
+        break;
         case hdiff_cuda_sequential:
         ret = (precision == single_prec ?
             (Benchmark *) new HdiffCudaSequentialBenchmark<float>(size) :
@@ -278,6 +285,11 @@ Benchmark *create_benchmark(benchmark_params_t param_bench, coord3 size,
         ret = (precision == single_prec ?
             (Benchmark *) new HdiffCudaUnstrBenchmark<float>(size, HdiffCudaUnstr::UnstrIdxvars) :
             (Benchmark *) new HdiffCudaUnstrBenchmark<double>(size, HdiffCudaUnstr::UnstrIdxvars) );
+        break;
+        case hdiff_cuda_unstr_shared_idxvar:
+        ret = (precision == single_prec ?
+            (Benchmark *) new HdiffCudaUnstrBenchmark<float>(size, HdiffCudaUnstr::UnstrSharedIdxvar) :
+            (Benchmark *) new HdiffCudaUnstrBenchmark<double>(size, HdiffCudaUnstr::UnstrSharedIdxvar) );
         break;
         case hdiff_cuda_unstr_seq:
         ret = (precision == single_prec ?
@@ -402,8 +414,8 @@ void run_benchmark(Benchmark *bench, bool quiet) {
 void prettyprint(benchmark_list_t *benchmarks, bool skip_errors, bool header) {
     if(header) {
         // TODO: print # runs
-        printf("Benchmark                   , Precision, Domain size,,, Blocks     ,,, Threads    ,,, Total execution time                    ,,, Kernel-only execution time                \n");
-        printf("                            ,              X,   Y,   Z,   X,   Y,   Z,   X,   Y,   Z,   Average,    Median,   Minimum,   Maximum,   Average,    Median,   Minimum ,   Maximum\n");
+        printf("Benchmark                   , Precision, Domain size,,, Blocks     ,,, Threads    ,,, Kernel-only execution time                \n");
+        printf("                            ,          ,   X,   Y,   Z,   X,   Y,   Z,   X,   Y,   Z,   Average,    Median,   Minimum,   Maximum\n");
     }
     for(auto it=benchmarks->begin(); it != benchmarks->end(); ++it) {
         benchmark_params_t params = it->params;
@@ -413,14 +425,13 @@ void prettyprint(benchmark_list_t *benchmarks, bool skip_errors, bool header) {
         }
         dim3 numblocks = bench->numblocks();
         dim3 numthreads = bench->numthreads();
-        printf("%-28s,%10s,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%10.6f,%10.6f,%10.6f,%10.6f,%10.6f,%10.6f,%10.6f,%10.6f%s\n",
+        printf("%-28s,%10s,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%10.0f,%10.0f,%10.0f,%10.0f%s\n",
                bench->name.c_str(),
                (params.precision == single_prec ? "single" : "double"),
                bench->size.x, bench->size.y, bench->size.z,
                numblocks.x, numblocks.y, numblocks.z,
                numthreads.x, numthreads.y, numthreads.z,
-               bench->results.total.avg, bench->results.total.median, bench->results.total.min, bench->results.total.max,
-               bench->results.kernel.avg, bench->results.kernel.median, bench->results.kernel.min, bench->results.kernel.max,
+               bench->results.runtime.avg, bench->results.runtime.median, bench->results.runtime.min, bench->results.runtime.max,
                (bench->error ? ", (Error)" : ""));
     }
 }
