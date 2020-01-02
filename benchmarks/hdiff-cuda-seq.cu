@@ -23,9 +23,9 @@ namespace HdiffCudaSequential {
         const int i = blockIdx.x * blockDim.x + threadIdx.x + info.halo.x - 1; // ref implementation starts at i = -1
         const int j = blockIdx.y * blockDim.y + threadIdx.y + info.halo.y - 1;
         const int k = blockIdx.z * blockDim.z + threadIdx.z + info.halo.z;
-        if(i > info.max_coord.x-1 ||
-           j > info.max_coord.y-1 ||
-           k > info.max_coord.z) {
+        if(i >= info.max_coord.x-1 ||
+           j >= info.max_coord.y-1 ||
+           k >= info.max_coord.z) {
             return;
         }
         lap[CUDA_REGULAR_INDEX(grid_info, i, j, k)] = 
@@ -43,9 +43,9 @@ namespace HdiffCudaSequential {
         const int i = blockIdx.x * blockDim.x + threadIdx.x + info.halo.x - 1;
         const int j = blockIdx.y * blockDim.y + threadIdx.y + info.halo.y;
         const int k = blockIdx.z * blockDim.z + threadIdx.z + info.halo.z;
-        if(i > info.max_coord.x-1 ||
-            j > info.max_coord.y ||
-            k > info.max_coord.z) {
+        if(i >= info.max_coord.x-1 ||
+            j >= info.max_coord.y ||
+            k >= info.max_coord.z) {
              return;
          }
         flx[CUDA_REGULAR_INDEX(grid_info, i, j, k)] = lap[CUDA_REGULAR_INDEX(grid_info, i+1, j, k)] - lap[CUDA_REGULAR_INDEX(grid_info, i, j, k)];
@@ -61,9 +61,9 @@ namespace HdiffCudaSequential {
         const int i = blockIdx.x * blockDim.x + threadIdx.x + info.halo.x;
         const int j = blockIdx.y * blockDim.y + threadIdx.y + info.halo.y - 1;
         const int k = blockIdx.z * blockDim.z + threadIdx.z + info.halo.z;
-        if(i > info.max_coord.x ||
-            j > info.max_coord.y-1 ||
-            k > info.max_coord.z) {
+        if(i >= info.max_coord.x ||
+            j >= info.max_coord.y-1 ||
+            k >= info.max_coord.z) {
              return;
          }
         fly[CUDA_REGULAR_INDEX(grid_info, i, j, k)] = lap[CUDA_REGULAR_INDEX(grid_info, i, j+1, k)] - lap[CUDA_REGULAR_INDEX(grid_info, i, j, k)];
@@ -79,9 +79,9 @@ namespace HdiffCudaSequential {
         const int i = blockIdx.x * blockDim.x + threadIdx.x + info.halo.x;
         const int j = blockIdx.y * blockDim.y + threadIdx.y + info.halo.y;
         const int k = blockIdx.z * blockDim.z + threadIdx.z + info.halo.z;
-        if(i > info.max_coord.x ||
-            j > info.max_coord.y ||
-            k > info.max_coord.z) {
+        if(i >= info.max_coord.x ||
+            j >= info.max_coord.y ||
+            k >= info.max_coord.z) {
              return;
          }
         out[CUDA_REGULAR_INDEX(grid_info, i, j, k)] =
@@ -182,7 +182,7 @@ void HdiffCudaSequentialBenchmark<value_t>::run() {
                 this->fly->data,
                 this->output->data);
     if (cudaDeviceSynchronize() != cudaSuccess) {
-        assert(false);
+        this->error = true;
     }
 }
 

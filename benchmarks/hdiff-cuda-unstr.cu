@@ -9,7 +9,7 @@
 namespace HdiffCudaUnstr {
 
     /** Variants of this benchmark. */
-    enum Variant { RegNaive, RegKloop, UnstrNaive, UnstrKloop, UnstrIdxvars };
+    enum Variant { RegNaive, RegKloop, UnstrNaive, UnstrKloop, UnstrIdxvars, UnstrSharedIdxvar };
 
     /** Information about this benchmark for use in the kernels. */
     struct Info {
@@ -36,43 +36,43 @@ namespace HdiffCudaUnstr {
         const int i = threadIdx.x + blockIdx.x*blockDim.x + info.halo.x;
         const int j = threadIdx.y + blockIdx.y*blockDim.y + info.halo.y;
         const int k = threadIdx.z + blockIdx.z*blockDim.z + info.halo.z;
-        if(i >= info.max_coord.x || j >= info.max_coord.y || info.halo.z >= info.max_coord.z) {
+        if(i >= info.max_coord.x || j >= info.max_coord.y || k >= info.max_coord.z) {
             return;
         }
         
-        int n_0_0_0       = CUDA_UNSTR_INDEX(grid_info, i, j, k);
-        int n_0_n1_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_0_0, 0, -1, 0);
-        int n_0_n2_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_n1_0, 0, -1, 0);
-        int n_n1_0_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_0_0, -1, 0, 0);
-        int n_n1_n1_0     = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_n1_0_0, 0, -1, 0);
-        int n_n2_0_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_n1_0_0, -1, 0, 0);
-        //int n_n2_n1_0     = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_n2_0_0, 0, -1, 0);
-        int n_0_p1_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_0_0, 0, +1, 0);
-        int n_0_p2_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_p1_0, 0, +1, 0);
-        int n_p1_0_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_0_0, +1, 0, 0);
-        int n_p1_p1_0     = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_p1_0_0, 0, +1, 0);
-        int n_p2_0_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_p1_0_0, +1, 0, 0);
-        //int n_p2_p1_0     = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_p2_0_0, 0, +1, 0);     
-        int n_n1_p1_0     = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_n1_0_0, 0, +1, 0);
-        int n_p1_n1_0     = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_p1_0_0, 0, -1, 0);
+        const int n_0_0_0       = CUDA_UNSTR_INDEX(grid_info, i, j, k);
+        const int n_0_n1_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_0_0, 0, -1, 0); /* left */
+        const int n_0_n2_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_n1_0, 0, -1, 0); /* 2 left */
+        const int n_n1_0_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_0_0, -1, 0, 0); /* top */
+        const int n_n1_n1_0     = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_n1_0_0, 0, -1, 0); /* top left */
+        const int n_n2_0_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_n1_0_0, -1, 0, 0); /* 2 top */
+        //const int n_n2_n1_0     = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_n2_0_0, 0, -1, 0);
+        const int n_0_p1_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_0_0, 0, +1, 0); /* right */
+        const int n_0_p2_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_p1_0, 0, +1, 0); /* 2 right */
+        const int n_p1_0_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_0_0, +1, 0, 0); /* bottom */
+        const int n_p1_p1_0     = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_p1_0_0, 0, +1, 0); /* bottom right */
+        const int n_p2_0_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_p1_0_0, +1, 0, 0); /* 2 bottom */
+        //const int n_p2_p1_0     = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_p2_0_0, 0, +1, 0);     
+        const int n_n1_p1_0     = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_n1_0_0, 0, +1, 0); /* top right */
+        const int n_p1_n1_0     = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_p1_0_0, 0, -1, 0); /* bottom left */
 
-        value_t lap_ij = 
+        const value_t lap_ij = 
             4 * in[n_0_0_0] 
             - in[n_n1_0_0] - in[n_p1_0_0]
             - in[n_0_n1_0] - in[n_0_p1_0];
-        value_t lap_imj = 
+        const value_t lap_imj = 
             4 * in[n_n1_0_0]
             - in[n_n2_0_0] - in[n_0_0_0]
             - in[n_n1_n1_0] - in[n_n1_p1_0];
-        value_t lap_ipj =
+        const value_t lap_ipj =
             4 * in[n_p1_0_0]
             - in[CUDA_UNSTR_INDEX(grid_info, i, j, k)] - in[n_p2_0_0]
             - in[n_p1_n1_0] - in[n_p1_p1_0];
-        value_t lap_ijm =
+        const value_t lap_ijm =
             4 * in[n_0_n1_0]
             - in[n_n1_n1_0] - in[n_p1_n1_0]
             - in[n_0_n2_0] - in[CUDA_UNSTR_INDEX(grid_info, i, j, k)];
-        value_t lap_ijp =
+        const value_t lap_ijp =
             4 * in[n_0_p1_0]
             - in[n_n1_p1_0] - in[n_p1_p1_0]
             - in[CUDA_UNSTR_INDEX(grid_info, i, j, k)] - in[n_0_p2_0];
@@ -232,20 +232,20 @@ namespace HdiffCudaUnstr {
          * idx of neighbor X Y Z = n_X_Y_Z with p for positive offset and 
          * n for negative offset. */
         int n_0_0_0       = CUDA_UNSTR_INDEX(grid_info, i, j, 0);
-        int n_0_n1_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_0_0, 0, -1, 0);
-        int n_0_n2_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_n1_0, 0, -1, 0);
-        int n_n1_0_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_0_0, -1, 0, 0);
-        int n_n1_n1_0     = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_n1_0_0, 0, -1, 0);
-        int n_n2_0_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_n1_0_0, -1, 0, 0);
-        //int n_n2_n1_0     = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_n2_0_0, 0, -1, 0);
-        int n_0_p1_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_0_0, 0, +1, 0);
-        int n_0_p2_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_p1_0, 0, +1, 0);
-        int n_p1_0_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_0_0_0, +1, 0, 0);
-        int n_p1_p1_0     = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_p1_0_0, 0, +1, 0);
-        int n_p2_0_0      = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_p1_0_0, +1, 0, 0);
-        //int n_p2_p1_0     = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_p2_0_0, 0, +1, 0);     
-        int n_n1_p1_0     = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_n1_0_0, 0, +1, 0);
-        int n_p1_n1_0     = CUDA_UNSTR_NEIGHBOR_AT(grid_info, n_p1_0_0, 0, -1, 0);
+        int n_0_n1_0      = CUDA_UNSTR_NEIGHBOR_AT_UNSAFE(grid_info, n_0_0_0, 0, -1);
+        int n_0_n2_0      = CUDA_UNSTR_NEIGHBOR_AT_UNSAFE(grid_info, n_0_n1_0, 0, -1);
+        int n_n1_0_0      = CUDA_UNSTR_NEIGHBOR_AT_UNSAFE(grid_info, n_0_0_0, -1, 0);
+        int n_n1_n1_0     = CUDA_UNSTR_NEIGHBOR_AT_UNSAFE(grid_info, n_n1_0_0, 0, -1);
+        int n_n2_0_0      = CUDA_UNSTR_NEIGHBOR_AT_UNSAFE(grid_info, n_n1_0_0, -1, 0);
+        //int n_n2_n1_0     = CUDA_UNSTR_NEIGHBOR_AT_UNSAFE(grid_info, n_n2_0_0, 0, -1);
+        int n_0_p1_0      = CUDA_UNSTR_NEIGHBOR_AT_UNSAFE(grid_info, n_0_0_0, 0, +1);
+        int n_0_p2_0      = CUDA_UNSTR_NEIGHBOR_AT_UNSAFE(grid_info, n_0_p1_0, 0, +1);
+        int n_p1_0_0      = CUDA_UNSTR_NEIGHBOR_AT_UNSAFE(grid_info, n_0_0_0, +1, 0);
+        int n_p1_p1_0     = CUDA_UNSTR_NEIGHBOR_AT_UNSAFE(grid_info, n_p1_0_0, 0, +1);
+        int n_p2_0_0      = CUDA_UNSTR_NEIGHBOR_AT_UNSAFE(grid_info, n_p1_0_0, +1, 0);
+        //int n_p2_p1_0     = CUDA_UNSTR_NEIGHBOR_AT_UNSAFE(grid_info, n_p2_0_0, 0, +1);     
+        int n_n1_p1_0     = CUDA_UNSTR_NEIGHBOR_AT_UNSAFE(grid_info, n_n1_0_0, 0, +1);
+        int n_p1_n1_0     = CUDA_UNSTR_NEIGHBOR_AT_UNSAFE(grid_info, n_p1_0_0, 0, -1);
 
         for (int k = info.halo.z; k < info.max_coord.z; k++) {
 
@@ -321,6 +321,124 @@ namespace HdiffCudaUnstr {
         }
     }
 
+    /** A designated kernel invocation (at k=0) loads the neighborship relation
+     * for the given x and y coordinates of this kernel. The other kernel
+     * invocations at higher levels rely on shared memory to access the
+     * neighborship information.
+     */
+     template<typename value_t>
+     __global__
+     void kernel_shared_idxvars(Info info,
+                                CudaUnstructuredGrid3DInfo<value_t> grid_info,
+                                value_t* in,
+                                value_t* out,
+                                value_t* coeff
+                                #ifdef HDIFF_DEBUG
+                                , value_t* dbg_lap
+                                , value_t* dbg_flx
+                                , value_t* dbg_fly
+                                #endif
+                                ) {
+        const int i = threadIdx.x + blockIdx.x*blockDim.x + info.halo.x;
+        const int j = threadIdx.y + blockIdx.y*blockDim.y + info.halo.y;
+        const int k = threadIdx.z + blockIdx.z*blockDim.z + info.halo.z;
+        if(i >= info.max_coord.x || j >= info.max_coord.y || k >= info.max_coord.z) {
+            return;
+        }
+        
+        extern __shared__ int smem[]; // stores four neighbors of cell i at smem[i*4]
+        const int local_idx = (threadIdx.x + threadIdx.y*blockDim.x) * 12;
+        const int global_idx_2d = CUDA_UNSTR_INDEX(grid_info, i, j, 0);
+
+        if(k % blockDim.z == 0) {
+            // We are the thread responsible for looking up neighbor info
+            /*  0 -1 */ smem[local_idx+0] = CUDA_UNSTR_NEIGHBOR_AT_UNSAFE(grid_info, global_idx_2d, 0, -1);
+            /*  0 -2 */ smem[local_idx+1] = CUDA_UNSTR_NEIGHBOR_AT_UNSAFE(grid_info, smem[local_idx+0], 0, -1);
+            /* -1  0 */ smem[local_idx+2] = CUDA_UNSTR_NEIGHBOR_AT_UNSAFE(grid_info, global_idx_2d, -1, 0);
+            /* -1 -1 */ smem[local_idx+3] = CUDA_UNSTR_NEIGHBOR_AT_UNSAFE(grid_info, smem[local_idx+2], 0, -1);
+            /* -2  0 */ smem[local_idx+4] = CUDA_UNSTR_NEIGHBOR_AT_UNSAFE(grid_info, smem[local_idx+2], -1, 0);
+            //n_n2_n1_0     = CUDA_UNSTR_NEIGHBOR_AT_UNSAFE(grid_info, smem_n_n2_0_0, 0, -1);
+            /*  0 +1 */ smem[local_idx+5] = CUDA_UNSTR_NEIGHBOR_AT_UNSAFE(grid_info, global_idx_2d, 0, +1);
+            /*  0 +2 */ smem[local_idx+6] = CUDA_UNSTR_NEIGHBOR_AT_UNSAFE(grid_info, smem[local_idx+5], 0, +1);
+            /* +1  0 */ smem[local_idx+7] = CUDA_UNSTR_NEIGHBOR_AT_UNSAFE(grid_info, global_idx_2d, +1, 0);
+            /* +1 +1 */ smem[local_idx+8] = CUDA_UNSTR_NEIGHBOR_AT_UNSAFE(grid_info, smem[local_idx+7], 0, +1);
+            /* +2  0 */ smem[local_idx+9] = CUDA_UNSTR_NEIGHBOR_AT_UNSAFE(grid_info, smem[local_idx+7], +1, 0);
+            //n_p2_p1_0     = CUDA_UNSTR_NEIGHBOR_AT_UNSAFE(grid_info, smem_n_p2_0_0, 0, +1);     
+            /* -1 +1 */ smem[local_idx+10]= CUDA_UNSTR_NEIGHBOR_AT_UNSAFE(grid_info, smem[local_idx+2], 0, +1);
+            /* +1 -1 */ smem[local_idx+11]= CUDA_UNSTR_NEIGHBOR_AT_UNSAFE(grid_info, smem[local_idx+7], 0, -1);
+        }
+        
+        __syncthreads();
+        const int k_step = k*grid_info.strides.z;
+        const int n_0_0_0       = global_idx_2d + k_step;
+        const int n_0_n1_0      = smem[local_idx+0] + k_step;
+        const int n_0_n2_0      = smem[local_idx+1] + k_step;
+        const int n_n1_0_0      = smem[local_idx+2] + k_step;
+        const int n_n1_n1_0     = smem[local_idx+3] + k_step;
+        const int n_n2_0_0      = smem[local_idx+4] + k_step;
+        //const int n_n2_n1_0     = smem_n_n2_n1_0 + k_step;
+        const int n_0_p1_0      = smem[local_idx+5] + k_step;
+        const int n_0_p2_0      = smem[local_idx+6] + k_step;
+        const int n_p1_0_0      = smem[local_idx+7] + k_step;
+        const int n_p1_p1_0     = smem[local_idx+8] + k_step;
+        const int n_p2_0_0      = smem[local_idx+9] + k_step;
+        //const int n_p2_p1_0     = smem_n_p2_p1_0 + k_step;
+        const int n_n1_p1_0     = smem[local_idx+10] + k_step;
+        const int n_p1_n1_0     = smem[local_idx+11] + k_step;
+
+        const value_t lap_ij = 
+            4 * in[n_0_0_0] 
+            - in[n_n1_0_0] - in[n_p1_0_0]
+            - in[n_0_n1_0] - in[n_0_p1_0];
+        const value_t lap_imj = 
+            4 * in[n_n1_0_0]
+            - in[n_n2_0_0] - in[n_0_0_0]
+            - in[n_n1_n1_0] - in[n_n1_p1_0];
+        const value_t lap_ipj =
+            4 * in[n_p1_0_0]
+            - in[CUDA_UNSTR_INDEX(grid_info, i, j, k)] - in[n_p2_0_0]
+            - in[n_p1_n1_0] - in[n_p1_p1_0];
+        const value_t lap_ijm =
+            4 * in[n_0_n1_0]
+            - in[n_n1_n1_0] - in[n_p1_n1_0]
+            - in[n_0_n2_0] - in[CUDA_UNSTR_INDEX(grid_info, i, j, k)];
+        const value_t lap_ijp =
+            4 * in[n_0_p1_0]
+            - in[n_n1_p1_0] - in[n_p1_p1_0]
+            - in[CUDA_UNSTR_INDEX(grid_info, i, j, k)] - in[n_0_p2_0];
+
+        value_t flx_ij = lap_ipj - lap_ij;
+        flx_ij = flx_ij * (in[n_p1_0_0] - in[CUDA_UNSTR_INDEX(grid_info, i, j, k)]) > 0 ? 0 : flx_ij;
+
+        value_t flx_imj = lap_ij - lap_imj;
+        flx_imj = flx_imj * (in[CUDA_UNSTR_INDEX(grid_info, i, j, k)] - in[n_n1_0_0]) > 0 ? 0 : flx_imj;
+
+        value_t fly_ij = lap_ijp - lap_ij;
+        fly_ij = fly_ij * (in[n_0_p1_0] - in[CUDA_UNSTR_INDEX(grid_info, i, j, k)]) > 0 ? 0 : fly_ij;
+
+        value_t fly_ijm = lap_ij - lap_ijm;
+        fly_ijm = fly_ijm * (in[CUDA_UNSTR_INDEX(grid_info, i, j, k)] - in[n_0_n1_0]) > 0 ? 0 : fly_ijm;
+
+        out[CUDA_UNSTR_INDEX(grid_info, i, j, k)] =
+            in[CUDA_UNSTR_INDEX(grid_info, i, j, k)]
+            - coeff[CUDA_UNSTR_INDEX(grid_info, i, j, k)] * (flx_ij - flx_imj + fly_ij - fly_ijm);
+        
+        // for debugging purposes:
+        #ifdef HDIFF_DEBUG
+        dbg_lap[CUDA_UNSTR_INDEX(grid_info, i, j, k)] = lap_ij;
+        dbg_lap[CUDA_UNSTR_NEIGHBOR(grid_info, i, j, k, -1, 0, 0)] = lap_imj;
+        dbg_lap[CUDA_UNSTR_NEIGHBOR(grid_info, i, j, k, 0, -1, 0)] = lap_ijm;
+        dbg_lap[CUDA_UNSTR_NEIGHBOR(grid_info, i, j, k, +1, 0, 0)] = lap_ipj;
+        dbg_lap[CUDA_UNSTR_NEIGHBOR(grid_info, i, j, k, 0, +1, 0)] = lap_ijp;
+        dbg_flx[CUDA_UNSTR_INDEX(grid_info, i, j, k)] = flx_ij;
+        dbg_flx[CUDA_UNSTR_NEIGHBOR(grid_info, i, j, k, -1, 0, 0)] = flx_imj;
+        dbg_fly[CUDA_UNSTR_INDEX(grid_info, i, j, k)] = fly_ij;
+        dbg_fly[CUDA_UNSTR_NEIGHBOR(grid_info, i, j, k, 0, -1, 0)] = fly_ijm;
+        #endif
+ 
+    }
+
+
 };
 
 /** Cuda implementation of different variants of the horizontal diffusion
@@ -357,6 +475,8 @@ HdiffBaseBenchmark<value_t>(size) {
         this->name = "hdiff-unstr-naive";
     } else if(variant == HdiffCudaUnstr::UnstrKloop) {
         this->name = "hdiff-unstr-kloop";
+    } else if(variant == HdiffCudaUnstr::UnstrSharedIdxvar) {
+        this->name = "hdiff-unstr-shared";
     } else {
         this->name = "hdiff-unstr-idxvar";
     }
@@ -367,12 +487,17 @@ HdiffBaseBenchmark<value_t>(size) {
 template<typename value_t>
 void HdiffCudaUnstrBenchmark<value_t>::run() {
     auto kernel_fun = &HdiffCudaUnstr::kernel_naive<value_t>;
+    int smem = 0;
     if(this->variant == HdiffCudaUnstr::UnstrIdxvars) {
         kernel_fun = &HdiffCudaUnstr::kernel_idxvars<value_t>;
     } else if(this->variant == HdiffCudaUnstr::UnstrKloop) {
         kernel_fun = &HdiffCudaUnstr::kernel_naive_kloop<value_t>;
+    } else if(this->variant == HdiffCudaUnstr::UnstrSharedIdxvar) {
+        kernel_fun = &HdiffCudaUnstr::kernel_shared_idxvars<value_t>;
+        dim3 numthreads = this->numthreads();
+        smem = numthreads.x*numthreads.y*12*sizeof(int);
     }
-    (*kernel_fun)<<<this->numblocks(), this->numthreads()>>>(
+    (*kernel_fun)<<<this->numblocks(), this->numthreads(), smem>>>(
         this->get_info(),
         (dynamic_cast<CudaUnstructuredGrid3D<value_t>*>(this->input))->get_gridinfo(),
         this->input->data,

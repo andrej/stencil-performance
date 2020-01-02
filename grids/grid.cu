@@ -38,7 +38,7 @@ class Grid {
      * this is not necessarily the item at index (0, 0, 0) -- the
      * implementations may chose to lay out the first element in memory
      * somewhere else. Use index() to get the memory location.*/
-    value_t *data;
+    value_t* __restrict__ data;
 
     /** Return the offset (as number of sizeof(value_t)-sized steps from the 
      * beginning of the memory block of a particular cell of the grid, i.e. the 

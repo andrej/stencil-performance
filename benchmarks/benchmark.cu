@@ -177,11 +177,9 @@ benchmark_result_t Benchmark::execute() {
         #ifdef CUDA_PROFILER
         cudaProfilerStart();
         #endif
-
         clk::time_point start = clk::now();
         this->run();
         clk::time_point stop = clk::now();
-
         #ifdef CUDA_PROFILER
         cudaProfilerStop();
         #endif
@@ -213,19 +211,9 @@ bool Benchmark::verify(Grid<value_t, coord3> *reference, Grid<value_t, coord3> *
     for(int x=0; x<other->dimensions.x; x++) {
         for(int y=0; y<other->dimensions.y; y++) {
             for(int z=0; z<other->dimensions.z; z++) {
-                /* The reason the benchmark times slow down this much if we use --no-verify flag
-                is because comparing to the reference throws the values that the kernel needs out
-                of the cache. The following proves that; i.e. not accessing the reference benchmarks
-                keeps the other benchmark in cache and as such the next kernel run will be faster.
-                */if(abs((*other)[coord3(x, y, z)]) > 1) {
-                    return true;
-                    //this->error = true;
-                    //continue;
-                }
-                /*
                 if(abs((*other)[coord3(x, y, z)] - (*reference)[coord3(x, y, z)]) > tol) {
                     return false;
-                }*/
+                }
             }
         }
     }

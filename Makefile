@@ -1,6 +1,6 @@
 CXX=nvcc
-CPPFLAGS=-I./ -D HDIFF_NO_GRIDSTRIDE --ptxas-options=-v
-CPPDEBUGFLAGS=-g -G -D HDIFF_DEBUG
+CPPFLAGS=-I./ -arch sm_60 -O3 -DHDIFF_NO_GRIDSTRIDE -DCUDA_PROFILER -DNDEBUG -lineinfo --ptxas-options=-v
+CPPDEBUGFLAGS=-g -G -DHDIFF_DEBUG
 SRCS=$(wildcard *.cu)
 SRCS_BENCHMARKS=$(wildcard benchmarks/*.cu)
 SRCS_GRIDS=$(wildcard grids/*.cu)

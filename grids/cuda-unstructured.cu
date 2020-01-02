@@ -49,16 +49,24 @@ struct CudaUnstructuredGrid3DInfo {
  *
  * Note only ONE of X, Y, Z may be -1 or +1 for this to work! Because
  * neighborship relations are stored only for direct neighbors! */
+#define CUDA_UNSTR_NEIGHBOR_PTR_AT_UNSAFE(grid_info, index, x, y) \
+        (index + grid_info.strides.z * 1 * (y == -1) \
+               + grid_info.strides.z * 2 * (x == +1) \
+               + grid_info.strides.z * 3 * (y == +1))
+
 #define CUDA_UNSTR_NEIGHBOR_PTR_AT(grid_info, index, x, y, _z) \
-        ((index % grid_info.strides.z) * 4 \
-                + 1 * (y == -1) \
-                + 2 * (x == +1) \
-                + 3 * (y == +1))
+        CUDA_UNSTR_NEIGHBOR_PTR_AT_UNSAFE(grid_info, index % grid_info.strides.z, x, y)
+
+#define CUDA_UNSTR_NEIGHBOR_PTR_UNSAFE(grid_info, _x, _y, _z, neigh_x, neigh_y, neigh_z) \
+        (CUDA_UNSTR_NEIGHBOR_PTR_AT_UNSAFE(grid_info, CUDA_UNSTR_INDEX(grid_info, _x, _y, _z), neigh_x, neigh_y, neigh_z))
 
 #define CUDA_UNSTR_NEIGHBOR_PTR(grid_info, _x, _y, _z, neigh_x, neigh_y, neigh_z) \
         (CUDA_UNSTR_NEIGHBOR_PTR_AT(grid_info, CUDA_UNSTR_INDEX(grid_info, _x, _y, _z), neigh_x, neigh_y, neigh_z))
 
 /** Gives the index of the neighbor. */
+#define CUDA_UNSTR_NEIGHBOR_AT_UNSAFE(grid_info, index, x, y) \
+        ((int)(grid_info.neighbor_data[CUDA_UNSTR_NEIGHBOR_PTR_AT_UNSAFE(grid_info, index, x, y)]))
+
 #define CUDA_UNSTR_NEIGHBOR_AT(grid_info, index, x, y, _z) \
         ((int)(grid_info.neighbor_data[CUDA_UNSTR_NEIGHBOR_PTR_AT(grid_info, index, x, y, _z)]\
                + (index / grid_info.strides.z) * grid_info.strides.z \
