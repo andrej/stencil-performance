@@ -1,7 +1,7 @@
 #ifndef HDIFF_CPU_UNSTR_H
 #define HDIFF_CPU_UNSTR_H
 #include "benchmarks/benchmark.cu"
-#include "benchmarks/hdiff-base.cu"
+#include "benchmarks/hdiff-cuda-base.cu"
 #include "coord3.cu"
 #include "grids/grid.cu"
 #include "grids/regular.cu"
@@ -11,7 +11,7 @@
 /** This is a CPU-version of the hdiff reference implementation that runs on
 * top of a unstructured grid and respects its neighborship relations. */
 template<typename value_t>
-class HdiffCPUUnstrBenchmark :  public HdiffBaseBenchmark<value_t> {
+class HdiffCPUUnstrBenchmark :  public HdiffCudaBaseBenchmark<value_t> {
 
     public:
 
@@ -37,7 +37,7 @@ class HdiffCPUUnstrBenchmark :  public HdiffBaseBenchmark<value_t> {
 
 template<typename value_t>
 HdiffCPUUnstrBenchmark<value_t>::HdiffCPUUnstrBenchmark(coord3 size) :
-HdiffBaseBenchmark<value_t>(size) {
+HdiffCudaBaseBenchmark<value_t>(size) {
     this->name = "hdiff-unstr-cpu";
 }
 
@@ -49,7 +49,7 @@ void HdiffCPUUnstrBenchmark<value_t>::setup(){
     this->lap = UnstructuredGrid3D<value_t>::create_regular(this->size);
     this->flx = UnstructuredGrid3D<value_t>::create_regular(this->size);
     this->fly = UnstructuredGrid3D<value_t>::create_regular(this->size);
-    this->HdiffBaseBenchmark<value_t>::setup(); /**< Fills input, output and coeff and also sets up reference benchmark. */
+    this->HdiffCudaBaseBenchmark<value_t>::setup(); /**< Fills input, output and coeff and also sets up reference benchmark. */
 }
 
 template<typename value_t>
@@ -66,7 +66,7 @@ void HdiffCPUUnstrBenchmark<value_t>::teardown() {
     delete this->lap;
     delete this->flx;
     delete this->fly;
-    this->HdiffBaseBenchmark<value_t>::teardown();
+    this->HdiffCudaBaseBenchmark<value_t>::teardown();
 }
 
 // Same as calc ref, but uses neighbors relations instead of directly indexing

@@ -19,15 +19,10 @@
  * pointed to by data just as in the regular grid, accessible by their
  * (x, y, z)-coordinates. 
  *
- * The neighborship relations are stored in the second
- * part of the memory block. For convenience, there is another pointer,
- * "neighbors" which points to these neighborship relations. A pointer to each
- * of the four neighbors of a  cell (x, y, z) can be found at
- *   neighbor_data[4 * (x + y * x_size)]     <-- index of (-1,  0, 0) neighbor
- *   neighbor_data[4 * (x + y * x_size) + 1] <-- inxex of ( 0, -1, 0) neighbor
- *   neighbor_data[4 * (x + y * x_size) + 2] <-- inxex of ( +1, 0, 0) neighbor
- *   neighbor_data[4 * (x + y * x_size) + 3] <-- inxex of ( 0, +1, 0) neighbor
- * with neighbor_data = data + (sizeof(value_t)*x_size*y_size*z_size)
+ * The neighborship relations are stored in the second part of the memory block.
+ * Neighborship relations are stored for one 2D level. First we list all left
+ * neighbors, then all top neighbors, then all right neighbors thenn all bottom
+ * neighbors.
  *
  * Alternatively, a different memory location can be given for the neighborships
  * in the constructor. In that case, no memory is allocated for a neighborship
@@ -52,10 +47,10 @@ virtual public Coord3BaseGrid<value_t> {
     value_t *values;
 
     /** Pointer to the neighbor memory block, where pointers to values of 
-     * neighbors are stored. (See description above.) */
+     * neighbors are stored. */
     int *neighbor_data;
 
-    /** Static function that simply calculates how much memory required. */
+    /** Static function that calculates how much memory required. */
     static size_t space_req(coord3 dimensions, bool use_external_neighbor_data=false);
 
     /** Set B as the neighbor of A at offset (seen from A) offs. This also

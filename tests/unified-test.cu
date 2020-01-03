@@ -1,11 +1,23 @@
 #include <chrono>
 #include <stdio.h>
 
+#define CHECK(cmd) do { \
+        cudaError_t err = cmd; \
+        if(err != cudaSuccess) { \
+            printf("%s, line %d:\n%s\n%s\n", __FILE__, __LINE__, \
+                cudaGetErrorName(err), cudaGetErrorString(err)); \
+            exit(1); \
+        } \
+    } while(0)
+
+#define CHECK_LAST() CHECK(cudaGetLastError())
+
 __global__
-void kernel(double *data_in, double *data_out) {
+void kernel(const double *data_in, double *data_out, int N) {
+    //const int i = blockIdx.x*blockDim.x + threadIdx.x;
     for(int i = blockIdx.x*blockDim.x + threadIdx.x;
-            i < gridDim.x*blockDim.x;
-            i += gridDim.x) {
+            i < N;
+            i += gridDim.x*blockDim.x) {
         data_out[i] = 2*data_in[i];
     }
 }
@@ -13,11 +25,15 @@ void kernel(double *data_in, double *data_out) {
 int main(int argc, char** argv) {
     bool do_read = false;
     bool use_unified = false;
+    bool do_prefetch = true;
     if(argc > 1 && argv[1][0] == '1') {
         do_read = true;
     }
     if(argc > 2 && argv[2][0] == '1') {
         use_unified = true;
+    }
+    if(argc > 3 && argv[3][0] == '0') {
+        do_prefetch = false;
     }
     if(do_read) {
         printf("do read, ");
@@ -29,6 +45,7 @@ int main(int argc, char** argv) {
     } else {
         printf("manual memory allocation and copying\n");
     }
+
     int device = -1;
     cudaGetDevice(&device);
     int N=256*256*64; //1<<16;
@@ -37,56 +54,62 @@ int main(int argc, char** argv) {
     double *data_in_dev;
     double *data_out_dev;
     if(!use_unified) { // manual
-        cudaMallocHost(&data_in, N*sizeof(double));
-        cudaMallocHost(&data_out, N*sizeof(double));
-        cudaMalloc(&data_in_dev, N*sizeof(double));
-        cudaMalloc(&data_out_dev, N*sizeof(double));
+        //CHECK( cudaMallocHost(&data_in, N*sizeof(double)) );
+        //CHECK( cudaMallocHost(&data_out, N*sizeof(double)) );
+        data_in = (double*) malloc(N*sizeof(double));
+        data_out = (double*) malloc(N*sizeof(double));
+        CHECK( cudaMalloc(&data_in_dev, N*sizeof(double)) );
+        CHECK( cudaMalloc(&data_out_dev, N*sizeof(double)) );
     } else { // unified memory
-        cudaMallocManaged(&data_in, N*sizeof(double));
-        cudaMallocManaged(&data_out, N*sizeof(double));
+        CHECK( cudaMallocManaged(&data_in, N*sizeof(double)) );
+        CHECK( cudaMallocManaged(&data_out, N*sizeof(double)) );
         data_in_dev = data_in;
         data_out_dev = data_out;
-        cudaMemPrefetchAsync(data_in, N*sizeof(double), device, NULL);
-        cudaMemPrefetchAsync(data_out, N*sizeof(double), device, NULL);
     }
     for(int i = 0; i < N; i++) {
         data_in[i] = i;
     }
-    if(!use_unified) {
-        cudaMemcpy(data_in_dev, data_in, N*sizeof(double), cudaMemcpyHostToDevice);
-        cudaMemcpy(data_out_dev, data_out, N*sizeof(double), cudaMemcpyHostToDevice);
-    }
     for(int i=0; i<5; i++) {
+        // COPY HOST -> DEVICE
+        if(i == 0 || do_read) {
+            if(!use_unified) {
+                CHECK( cudaMemcpy(data_in_dev, data_in, N*sizeof(double), cudaMemcpyHostToDevice) );
+            } else if(do_prefetch) {
+                CHECK( cudaMemPrefetchAsync(data_in_dev, N*sizeof(double), device) );
+                CHECK( cudaMemPrefetchAsync(data_out_dev, N*sizeof(double), device) );
+                CHECK( cudaDeviceSynchronize() );
+            }
+        }
+
+        // EXECUTE KERNEL
         std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
-        kernel<<<1024, 1, 1>>>(data_in_dev, data_out_dev);
-        cudaDeviceSynchronize();
+        kernel<<<1, 1024>>>(data_in_dev, data_out_dev, N);
+        CHECK_LAST();
+        CHECK( cudaDeviceSynchronize() );
         std::chrono::high_resolution_clock::time_point stop = std::chrono::high_resolution_clock::now();
         std::chrono::nanoseconds duration = std::chrono::duration_cast<std::chrono::nanoseconds>(stop - start);
+
         if(do_read) {
+            // COPY DEVICE -> HOST
             if(!use_unified) {
-                //cudaMemcpy(data_in, data_in_dev, N*sizeof(double), cudaMemcpyDeviceToHost);
-                cudaMemcpy(data_out, data_out_dev, N*sizeof(double), cudaMemcpyDeviceToHost);
+                CHECK( cudaMemcpy(data_out, data_out_dev, N*sizeof(double), cudaMemcpyDeviceToHost) );
+            } else if(do_prefetch) {
+                CHECK( cudaMemPrefetchAsync(data_in_dev, N*sizeof(double), cudaCpuDeviceId) );
+                CHECK( cudaMemPrefetchAsync(data_out_dev, N*sizeof(double), cudaCpuDeviceId) );
+                CHECK( cudaDeviceSynchronize() );
             }
+            // MANIPULATE/READ
             for(int i = 0; i < N; i++) {
                 data_in[i] = data_out[i];
             }
-            if(!use_unified) {
-                cudaMemcpy(data_in_dev, data_in, N*sizeof(double), cudaMemcpyHostToDevice);
-                //cudaMemcpy(data_out_dev, data_out, N*sizeof(double), cudaMemcpyHostToDevice);        
-            } else {
-                cudaMemPrefetchAsync(data_in, N*sizeof(double), device, NULL);
-                //cudaMemPrefetchAsync(data_out, N*sizeof(double), device, NULL);
-            }
         }
-        if(i == 0) {
-            continue; // this was the warmup round
-        }
+
         printf("%d nanoseconds\n", duration.count());
     }
-    cudaFree(data_in);
-    cudaFree(data_out);
     if(!use_unified) {
-        cudaFree(data_in_dev);
-        cudaFree(data_out_dev);
+        free(data_in);
+        free(data_out);
     }
+    CHECK( cudaFree(data_in_dev) );
+    CHECK( cudaFree(data_out_dev) );
 }

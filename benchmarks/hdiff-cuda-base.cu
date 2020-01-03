@@ -1,14 +1,15 @@
-#ifndef HDIFF_BASE_H
-#define HDIFF_BASE_H
+#ifndef HDIFF_CUDA_BASE_H
+#define HDIFF_CUDA_BASE_H
 #include <map>
 #include "benchmarks/benchmark.cu"
 #include "benchmarks/hdiff-ref.cu"
 #include "coord3.cu"
+#include "grids/cuda-base.cu"
 #include "grids/grid.cu"
 #include "grids/regular.cu"
 #include "grids/unstructured.cu"
 
-namespace HdiffBase {
+namespace HdiffCudaBase {
     /** Information about this benchmark for use in the kernels. */
     struct Info {
         coord3 halo;
@@ -31,18 +32,18 @@ namespace HdiffBase {
  * against reference benchmark and "halo" functionality, i.e. padding the
  * coordinate space on its sides to prevent out of bounds accesses. */
 template<typename value_t>
-class HdiffBaseBenchmark :  public Benchmark {
+class HdiffCudaBaseBenchmark :  public Benchmark {
 
     public:
 
-    HdiffBaseBenchmark(coord3 size);
+    HdiffCudaBaseBenchmark(coord3 size);
 
-    Grid<value_t, coord3> *input = NULL;
-    Grid<value_t, coord3> *output = NULL;
-    Grid<value_t, coord3> *coeff = NULL;
-    Grid<value_t, coord3> *lap = NULL;
-    Grid<value_t, coord3> *flx = NULL;
-    Grid<value_t, coord3> *fly = NULL;
+    CudaBaseGrid<value_t, coord3> *input = NULL;
+    CudaBaseGrid<value_t, coord3> *output = NULL;
+    CudaBaseGrid<value_t, coord3> *coeff = NULL;
+    CudaBaseGrid<value_t, coord3> *lap = NULL;
+    CudaBaseGrid<value_t, coord3> *flx = NULL;
+    CudaBaseGrid<value_t, coord3> *fly = NULL;
 
     // reference grids used for verification
     // in debug mode, we keep a grid for each intermediate step to aid
@@ -60,6 +61,7 @@ class HdiffBaseBenchmark :  public Benchmark {
     // As in hdiff_stencil_variant.h
     virtual void setup();
     virtual void teardown();
+    virtual void pre();
     virtual void post();
 
     // CPU implementation
@@ -72,32 +74,32 @@ class HdiffBaseBenchmark :  public Benchmark {
     coord3 inner_coord(coord3 inner_coord);
 
     // return information for the use inside the kernels
-    HdiffBase::Info get_info();
+    HdiffCudaBase::Info get_info();
 
 
 };
 
 template<typename value_t>
-std::map<coord3, HdiffReferenceBenchmark<value_t> *> *HdiffBaseBenchmark<value_t>::reference_benchs = NULL;//new std::map<coord3, HdiffReferenceBenchmark<value_t> *>();
+std::map<coord3, HdiffReferenceBenchmark<value_t> *> *HdiffCudaBaseBenchmark<value_t>::reference_benchs = NULL;//new std::map<coord3, HdiffReferenceBenchmark<value_t> *>();
 
 // IMPLEMENTATIONS
 
 template<typename value_t>
-HdiffBaseBenchmark<value_t>::HdiffBaseBenchmark(coord3 size) :
+HdiffCudaBaseBenchmark<value_t>::HdiffCudaBaseBenchmark(coord3 size) :
 Benchmark(size),
 halo(coord3(2,2,0)) {
     this->name = "hdiff";
-    if(!HdiffBaseBenchmark<value_t>::reference_benchs) {
-        HdiffBaseBenchmark<value_t>::reference_benchs = new std::map<coord3, HdiffReferenceBenchmark<value_t> *>();
+    if(!HdiffCudaBaseBenchmark<value_t>::reference_benchs) {
+        HdiffCudaBaseBenchmark<value_t>::reference_benchs = new std::map<coord3, HdiffReferenceBenchmark<value_t> *>();
     }
 }
 
 template<typename value_t>
-void HdiffBaseBenchmark<value_t>::setup(){
+void HdiffCudaBaseBenchmark<value_t>::setup(){
     if(!this->reference_bench) {
-        if(HdiffBaseBenchmark<value_t>::reference_benchs->count(this->size) > 0) {
+        if(HdiffCudaBaseBenchmark<value_t>::reference_benchs->count(this->size) > 0) {
             // already calculated in cache
-            this->reference_bench = (*HdiffBaseBenchmark<value_t>::reference_benchs)[this->size];
+            this->reference_bench = (*HdiffCudaBaseBenchmark<value_t>::reference_benchs)[this->size];
             this->reference_calculated = true;
         } else {
             this->reference_bench = new HdiffReferenceBenchmark<value_t>(this->size);
@@ -112,12 +114,12 @@ void HdiffBaseBenchmark<value_t>::setup(){
 }
 
 template<typename value_t>
-void HdiffBaseBenchmark<value_t>::teardown() {
+void HdiffCudaBaseBenchmark<value_t>::teardown() {
     if(this->reference_bench && !this->do_verify) {
         this->reference_bench->teardown();
         delete this->reference_bench;
         this->reference_bench = NULL;
-        (*HdiffBaseBenchmark<value_t>::reference_benchs).erase(this->size);
+        (*HdiffCudaBaseBenchmark<value_t>::reference_benchs).erase(this->size);
     }
     // Don't free, because this reference benchmark will be reused.
     // This is ugly but not important enough to fix right now. If the memory 
@@ -125,12 +127,12 @@ void HdiffBaseBenchmark<value_t>::teardown() {
 }
 
 template<typename value_t>
-coord3 HdiffBaseBenchmark<value_t>::inner_coord(coord3 coord){
+coord3 HdiffCudaBaseBenchmark<value_t>::inner_coord(coord3 coord){
     return coord + this->halo;
 }
 
 template<typename value_t>
-HdiffBase::Info HdiffBaseBenchmark<value_t>::get_info() {
+HdiffCudaBase::Info HdiffCudaBaseBenchmark<value_t>::get_info() {
     coord3 inner_size = this->inner_size;
     dim3 numthreads = this->numthreads();
     dim3 numblocks = this->numblocks();
@@ -144,27 +146,46 @@ HdiffBase::Info HdiffBaseBenchmark<value_t>::get_info() {
 }
 
 template<typename value_t>
-void HdiffBaseBenchmark<value_t>::calc_ref() {
+void HdiffCudaBaseBenchmark<value_t>::calc_ref() {
     this->reference_bench->run();
     if(this->reference_bench->error) {
         return;
     }
     this->reference_calculated = true;
-    (*HdiffBaseBenchmark<value_t>::reference_benchs)[this->size] = this->reference_bench;
+    (*HdiffCudaBaseBenchmark<value_t>::reference_benchs)[this->size] = this->reference_bench;
 }
 
 template<typename value_t>
-void HdiffBaseBenchmark<value_t>::post() {
+void HdiffCudaBaseBenchmark<value_t>::pre() {
+    this->input->prefetchToDevice();
+    this->coeff->prefetchToDevice();
+    // to prevent page faults, even memory addresses that are only written to need to be prefetched apparently (see tests/unified-test.cu)
+    this->output->prefetchToDevice();
+    #ifdef HDIFF_DEBUG
+    this->lap->prefetchToDevice();
+    this->flx->prefetchToDevice();
+    this->fly->prefetchToDevice();
+    #endif
+}
+
+template<typename value_t>
+void HdiffCudaBaseBenchmark<value_t>::post() {
     if(!this->do_verify) {
         return;
     }
+    // Verify output
+    this->output->prefetchToHost();
     if(!this->reference_calculated) {
         this->calc_ref();
     }
     if(!this->verify(this->reference_bench->output, this->output)) {
         this->error = true;
     }
+    // Verify intermediate results
     #ifdef HDIFF_DEBUG
+    this->lap->prefetchToHost();
+    this->flx->prefetchToHost();
+    this->fly->prefetchToHost();
     if(this->error && !this->quiet) {
         fprintf(stderr, "\n==============\n%s\n", this->name.c_str());
         if(!this->verify(this->reference_bench->lap, this->lap)) {

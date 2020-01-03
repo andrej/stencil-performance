@@ -12,17 +12,17 @@
 #include "coord3.cu"
 #include "benchmarks/benchmark.cu"
 #include "benchmarks/hdiff-ref.cu"
-#include "benchmarks/hdiff-cpu-unstr.cu"
-#include "benchmarks/hdiff-cuda.cu"
-#include "benchmarks/hdiff-cuda-seq.cu"
-#include "benchmarks/hdiff-cuda-unstr-seq.cu"
+//#include "benchmarks/hdiff-cpu-unstr.cu"
+#include "benchmarks/hdiff-cuda-regular.cu"
+#include "benchmarks/hdiff-cuda-regular-seq.cu"
 #include "benchmarks/hdiff-cuda-unstr.cu"
+#include "benchmarks/hdiff-cuda-unstr-seq.cu"
 #include "benchmarks/fast-waves-ref.cu"
 
 /** List of all available benchmarks for mapping args to these values. */
 typedef enum {all_benchs, 
               hdiff_ref,
-              hdiff_ref_unstr,
+              //hdiff_ref_unstr,
               hdiff_cuda_regular,
               hdiff_cuda_regular_kloop,
               hdiff_cuda_regular_idxvar,
@@ -221,55 +221,55 @@ Benchmark *create_benchmark(benchmark_params_t param_bench, coord3 size,
                (Benchmark *) new HdiffReferenceBenchmark<float>(size) :
                (Benchmark *) new HdiffReferenceBenchmark<double>(size) );
         break;
-        case hdiff_ref_unstr:
-        ret = (precision == single_prec ?
-            (Benchmark *) new HdiffCPUUnstrBenchmark<float>(size) :
-            (Benchmark *) new HdiffCPUUnstrBenchmark<double>(size) );
+        //case hdiff_ref_unstr:
+        //ret = (precision == single_prec ?
+        //    (Benchmark *) new HdiffCPUUnstrBenchmark<float>(size) :
+        //    (Benchmark *) new HdiffCPUUnstrBenchmark<double>(size) );
         break;
         case hdiff_cuda_regular:
         ret = (precision == single_prec ?
-            (Benchmark *) new HdiffCudaBenchmark<float>(size) :
-            (Benchmark *) new HdiffCudaBenchmark<double>(size) );
+            (Benchmark *) new HdiffCudaRegularBenchmark<float>(size) :
+            (Benchmark *) new HdiffCudaRegularBenchmark<double>(size) );
         break;
         case hdiff_cuda_regular_kloop:
         ret = (precision == single_prec ?
-            (Benchmark *) new HdiffCudaBenchmark<float>(size, HdiffCudaRegular::kloop) :
-            (Benchmark *) new HdiffCudaBenchmark<double>(size, HdiffCudaRegular::kloop) );
+            (Benchmark *) new HdiffCudaRegularBenchmark<float>(size, HdiffCudaRegular::kloop) :
+            (Benchmark *) new HdiffCudaRegularBenchmark<double>(size, HdiffCudaRegular::kloop) );
         break;
         case hdiff_cuda_regular_idxvar:
         ret = (precision == single_prec ?
-            (Benchmark *) new HdiffCudaBenchmark<float>(size, HdiffCudaRegular::idxvar) :
-            (Benchmark *) new HdiffCudaBenchmark<double>(size, HdiffCudaRegular::idxvar) );
+            (Benchmark *) new HdiffCudaRegularBenchmark<float>(size, HdiffCudaRegular::idxvar) :
+            (Benchmark *) new HdiffCudaRegularBenchmark<double>(size, HdiffCudaRegular::idxvar) );
         break;
         case hdiff_cuda_regular_coop:
         ret = (precision == single_prec ?
-            (Benchmark *) new HdiffCudaBenchmark<float>(size, HdiffCudaRegular::coop) :
-            (Benchmark *) new HdiffCudaBenchmark<double>(size, HdiffCudaRegular::coop) );
+            (Benchmark *) new HdiffCudaRegularBenchmark<float>(size, HdiffCudaRegular::coop) :
+            (Benchmark *) new HdiffCudaRegularBenchmark<double>(size, HdiffCudaRegular::coop) );
         break;
         case hdiff_cuda_regular_shared:
         ret = (precision == single_prec ?
-            (Benchmark *) new HdiffCudaBenchmark<float>(size, HdiffCudaRegular::shared) :
-            (Benchmark *) new HdiffCudaBenchmark<double>(size, HdiffCudaRegular::shared) );
+            (Benchmark *) new HdiffCudaRegularBenchmark<float>(size, HdiffCudaRegular::shared) :
+            (Benchmark *) new HdiffCudaRegularBenchmark<double>(size, HdiffCudaRegular::shared) );
         break;
         case hdiff_cuda_regular_shared_kloop:
         ret = (precision == single_prec ?
-            (Benchmark *) new HdiffCudaBenchmark<float>(size, HdiffCudaRegular::shared_kloop) :
-            (Benchmark *) new HdiffCudaBenchmark<double>(size, HdiffCudaRegular::shared_kloop) );
+            (Benchmark *) new HdiffCudaRegularBenchmark<float>(size, HdiffCudaRegular::shared_kloop) :
+            (Benchmark *) new HdiffCudaRegularBenchmark<double>(size, HdiffCudaRegular::shared_kloop) );
         break;
         case hdiff_cuda_regular_jloop:
         ret = (precision == single_prec ?
-            (Benchmark *) new HdiffCudaBenchmark<float>(size, HdiffCudaRegular::jloop) :
-            (Benchmark *) new HdiffCudaBenchmark<double>(size, HdiffCudaRegular::jloop) );
+            (Benchmark *) new HdiffCudaRegularBenchmark<float>(size, HdiffCudaRegular::jloop) :
+            (Benchmark *) new HdiffCudaRegularBenchmark<double>(size, HdiffCudaRegular::jloop) );
         break;
         case hdiff_cuda_regular_iloop:
         ret = (precision == single_prec ?
-            (Benchmark *) new HdiffCudaBenchmark<float>(size, HdiffCudaRegular::iloop) : 
-            (Benchmark *) new HdiffCudaBenchmark<double>(size, HdiffCudaRegular::iloop) );
+            (Benchmark *) new HdiffCudaRegularBenchmark<float>(size, HdiffCudaRegular::iloop) : 
+            (Benchmark *) new HdiffCudaRegularBenchmark<double>(size, HdiffCudaRegular::iloop) );
         break;
         case hdiff_cuda_sequential:
         ret = (precision == single_prec ?
-            (Benchmark *) new HdiffCudaSequentialBenchmark<float>(size) :
-            (Benchmark *) new HdiffCudaSequentialBenchmark<double>(size) );
+            (Benchmark *) new HdiffCudaRegularSequentialBenchmark<float>(size) :
+            (Benchmark *) new HdiffCudaRegularSequentialBenchmark<double>(size) );
         break;
         case hdiff_cuda_unstr_naive:
         ret = (precision == single_prec ?
@@ -320,7 +320,7 @@ benchmark_list_t *create_benchmarks(args_t args) {
         if(it->type == all_benchs) {
             types.clear();
             for(int it = all_benchs; it < unspecified; it++) {
-                if(it == all_benchs || it == hdiff_ref || it == hdiff_ref_unstr) {
+                if(it == all_benchs || it == hdiff_ref /*|| it == hdiff_ref_unstr*/) {
                     // reference and unstructured cpu are not included in "all" benchmarks
                     continue;
                 }

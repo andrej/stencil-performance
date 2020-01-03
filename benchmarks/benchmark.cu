@@ -14,19 +14,9 @@
 #endif
 #include "coord3.cu"
 #include "grids/coord3-base.cu"
+#include "cuda-util.cu"
 
 using clk = std::chrono::high_resolution_clock;
-
-/** The maxnumthreads limits are only enforced if the total nubmer of threads
- * (product of x, y and z) is exceeded. It is therefore well possible to have
- * more threads in a given dimension, provided that the other dimensions are
- * accordingly smaller. Note that it leads to errors to try and launch a cuda
- * kernel with too many threads. */
-#ifndef CUDA_MAXNUMTHREADS_X
-#define CUDA_MAXNUMTHREADS_X 16
-#define CUDA_MAXNUMTHREADS_Y 16
-#define CUDA_MAXNUMTHREADS_Z 4
-#endif
 
 /** Benchmark result: Average, minimum and maximum runtime in seconds. */
 typedef struct { 
@@ -59,6 +49,7 @@ class Benchmark {
 	bool error = false;
     benchmark_result_t results;
     bool quiet = true;
+
     /** Turn verification off if you are sure the benchmark computes the
      * correct result and you do not want to waste time computing the
      * the reference. */
@@ -86,7 +77,7 @@ class Benchmark {
 	 * reference grid and returns true only if all the cells match (up to the
      * optionally given tolerance). */
     template<typename value_t>
-	/*virtual*/ bool verify(Grid<value_t, coord3> *reference, Grid<value_t, coord3> *other, double tol=1e-5);
+    bool verify(Grid<value_t, coord3> *reference, Grid<value_t, coord3> *other, double tol=1e-5);
 
 	// Setup and teardown are called when the benchmark is initialized, only once
 	virtual void setup() {};
@@ -205,19 +196,7 @@ benchmark_result_t Benchmark::execute() {
 
 template<typename value_t>
 bool Benchmark::verify(Grid<value_t, coord3> *reference, Grid<value_t, coord3> *other, double tol) {
-    if(other->dimensions != reference->dimensions) {
-        return false;
-    }
-    for(int x=0; x<other->dimensions.x; x++) {
-        for(int y=0; y<other->dimensions.y; y++) {
-            for(int z=0; z<other->dimensions.z; z++) {
-                if(abs((*other)[coord3(x, y, z)] - (*reference)[coord3(x, y, z)]) > tol) {
-                    return false;
-                }
-            }
-        }
-    }
-    return true;
+    return reference->compare(other, tol);
 }
 
 void Benchmark::parse_args() {

@@ -1,13 +1,12 @@
-#ifndef HDIFF_CUDA_H
-#define HDIFF_CUDA_H
+#ifndef HDIFF_CUDA_REGULAR_H
+#define HDIFF_CUDA_REGULAR_H
 #include <stdio.h>
 #include <stdexcept>
 #include "benchmarks/benchmark.cu"
-#include "benchmarks/hdiff-base.cu"
+#include "benchmarks/hdiff-cuda-base.cu"
 #include "coord3.cu"
 #include "grids/grid.cu"
 #include "grids/cuda-regular.cu"
-#include "grids/cuda-unstructured.cu"
 
 namespace HdiffCudaRegular {
 
@@ -16,7 +15,7 @@ namespace HdiffCudaRegular {
     /** Naive variant: Every thread computes all of its data dependencies by itself. */
     template<typename value_t>
     __global__
-    void kernel_direct(HdiffBase::Info info,
+    void kernel_direct(HdiffCudaBase::Info info,
                        CudaRegularGrid3DInfo<value_t> grids_info,
                        value_t *in,
                        value_t *out,
@@ -127,7 +126,7 @@ namespace HdiffCudaRegular {
      * thread-level. */
     template<typename value_t>
     __global__
-    void kernel_coop(HdiffBase::Info info,
+    void kernel_coop(HdiffCudaBase::Info info,
                     CudaRegularGrid3DInfo<value_t> grids_info,
                     value_t *in,
                     value_t *out,
@@ -218,7 +217,7 @@ namespace HdiffCudaRegular {
      * of managed memory for the lap, flx, fly results. */
     template<typename value_t>
     __global__
-    void kernel_shared(HdiffBase::Info info,
+    void kernel_shared(HdiffCudaBase::Info info,
                     CudaRegularGrid3DInfo<value_t> grids_info,
                     CudaRegularGrid3DInfo<value_t> local_grids_info,
                     value_t *in,
@@ -316,7 +315,7 @@ namespace HdiffCudaRegular {
      * as only the lap/flx/fly for one k-level is stored in shared memory. */
     template<typename value_t>
     __global__
-    void kernel_shared_kloop(const HdiffBase::Info info,
+    void kernel_shared_kloop(const HdiffCudaBase::Info info,
                     const CudaRegularGrid3DInfo<value_t> input_grids_info,
                     const int blocksize,
                     const value_t *in,
@@ -491,7 +490,7 @@ namespace HdiffCudaRegular {
     
     template<typename value_t>
     __global__
-    void kernel_kloop(HdiffBase::Info info,
+    void kernel_kloop(HdiffCudaBase::Info info,
                       CudaRegularGrid3DInfo<value_t> grids_info,
                       value_t *in,
                       value_t *out,
@@ -541,7 +540,7 @@ namespace HdiffCudaRegular {
 
     template<typename value_t>
     __global__
-    void kernel_idxvar(HdiffBase::Info info,
+    void kernel_idxvar(HdiffCudaBase::Info info,
                        CudaRegularGrid3DInfo<value_t> grids_info,
                        value_t *in,
                        value_t *out,
@@ -629,7 +628,7 @@ namespace HdiffCudaRegular {
 
     template<typename value_t>
     __global__
-    void kernel_jloop(HdiffBase::Info info,
+    void kernel_jloop(HdiffCudaBase::Info info,
                       CudaRegularGrid3DInfo<value_t> grids_info,
                       int j_per_thread,
                       value_t *in,
@@ -704,7 +703,7 @@ namespace HdiffCudaRegular {
 
     template<typename value_t>
     __global__
-    void kernel_iloop(HdiffBase::Info info,
+    void kernel_iloop(HdiffCudaBase::Info info,
                       CudaRegularGrid3DInfo<value_t> grids_info,
                       int i_per_thread,
                       value_t *in,
@@ -782,12 +781,12 @@ namespace HdiffCudaRegular {
 /** This is the reference implementation for the horizontal diffusion kernel, 
  * which is executed on the CPU and used to verify other implementations. */
 template<typename value_t>
-class HdiffCudaBenchmark : public HdiffBaseBenchmark<value_t> {
+class HdiffCudaRegularBenchmark : public HdiffCudaBaseBenchmark<value_t> {
 
     public:
 
     // The padding option currently only applies to regular grids
-    HdiffCudaBenchmark(coord3 size, HdiffCudaRegular::Variant variant = HdiffCudaRegular::direct);
+    HdiffCudaRegularBenchmark(coord3 size, HdiffCudaRegular::Variant variant = HdiffCudaRegular::direct);
 
     HdiffCudaRegular::Variant variant;
 
@@ -811,8 +810,8 @@ class HdiffCudaBenchmark : public HdiffBaseBenchmark<value_t> {
 // IMPLEMENTATIONS
 
 template<typename value_t>
-HdiffCudaBenchmark<value_t>::HdiffCudaBenchmark(coord3 size, HdiffCudaRegular::Variant variant) :
-HdiffBaseBenchmark<value_t>(size) {
+HdiffCudaRegularBenchmark<value_t>::HdiffCudaRegularBenchmark(coord3 size, HdiffCudaRegular::Variant variant) :
+HdiffCudaBaseBenchmark<value_t>(size) {
     this->variant = variant;
     if(variant == HdiffCudaRegular::direct) {
         this->name = "hdiff-regular";
@@ -834,7 +833,7 @@ HdiffBaseBenchmark<value_t>(size) {
 }
 
 template<typename value_t>
-void HdiffCudaBenchmark<value_t>::run() {
+void HdiffCudaRegularBenchmark<value_t>::run() {
     if(this->variant == HdiffCudaRegular::direct) {
         HdiffCudaRegular::kernel_direct<value_t><<<this->numblocks(), this->numthreads()>>>(
             this->get_info(),
@@ -891,7 +890,7 @@ void HdiffCudaBenchmark<value_t>::run() {
             this->output->data,
             this->coeff->data
         );
-        /*HdiffBase::Info info = this->get_info();
+        /*HdiffCudaBase::Info info = this->get_info();
         HdiffCudaRegular::kernel_shared_kloop_simplecode<<<this->numblocks(), numthreads, smem_size>>>(
             info.halo.x, info.halo.y, info.halo.z,
             info.max_coord.x, info.max_coord.y, info.max_coord.z,
@@ -934,28 +933,18 @@ void HdiffCudaBenchmark<value_t>::run() {
 }
 
 template<typename value_t>
-void HdiffCudaBenchmark<value_t>::setup() {
+void HdiffCudaRegularBenchmark<value_t>::setup() {
     this->input = new CudaRegularGrid3D<value_t>(this->size);
     this->output = new CudaRegularGrid3D<value_t>(this->size);
     this->coeff = new CudaRegularGrid3D<value_t>(this->size);
     this->lap = new CudaRegularGrid3D<value_t>(this->size);
     this->flx = new CudaRegularGrid3D<value_t>(this->size);
     this->fly = new CudaRegularGrid3D<value_t>(this->size);
-    this->HdiffBaseBenchmark<value_t>::setup();
-    int s1 = cudaMemPrefetchAsync(this->input->data, this->input->size, 0);
-    int s2 = cudaMemPrefetchAsync(this->output->data, this->output->size, 0);
-    int s3 = cudaMemPrefetchAsync(this->coeff->data, this->coeff->size, 0);
-    int s4 = cudaMemPrefetchAsync(this->lap->data, this->lap->size, 0);
-    int s5 = cudaMemPrefetchAsync(this->flx->data, this->flx->size, 0);
-    int s6 = cudaMemPrefetchAsync(this->fly->data, this->fly->size, 0);
-    if( s1 != cudaSuccess || s2 != cudaSuccess || s3 != cudaSuccess ||
-        s4 != cudaSuccess || s5 != cudaSuccess || s6 != cudaSuccess) {
-        throw std::runtime_error("unable to prefetch memory");
-    }
+    this->HdiffCudaBaseBenchmark<value_t>::setup();
 }
 
 template<typename value_t>
-void HdiffCudaBenchmark<value_t>::teardown() {
+void HdiffCudaRegularBenchmark<value_t>::teardown() {
     this->input->deallocate();
     this->output->deallocate();
     this->coeff->deallocate();
@@ -968,18 +957,18 @@ void HdiffCudaBenchmark<value_t>::teardown() {
     delete this->lap;
     delete this->flx;
     delete this->fly;
-    this->HdiffBaseBenchmark<value_t>::teardown();
+    this->HdiffCudaBaseBenchmark<value_t>::teardown();
 }
 
 template<typename value_t>
-void HdiffCudaBenchmark<value_t>::post() {
+void HdiffCudaRegularBenchmark<value_t>::post() {
     this->Benchmark::post();
-    this->HdiffBaseBenchmark<value_t>::post();
+    this->HdiffCudaBaseBenchmark<value_t>::post();
 }
 
 template<typename value_t>
-dim3 HdiffCudaBenchmark<value_t>::numthreads() {
-    dim3 numthreads = this->HdiffBaseBenchmark<value_t>::numthreads();
+dim3 HdiffCudaRegularBenchmark<value_t>::numthreads() {
+    dim3 numthreads = this->HdiffCudaBaseBenchmark<value_t>::numthreads();
     if(this->variant == HdiffCudaRegular::kloop ||
         this->variant == HdiffCudaRegular::idxvar ||
         this->variant == HdiffCudaRegular::shared_kloop) {
@@ -995,8 +984,8 @@ dim3 HdiffCudaBenchmark<value_t>::numthreads() {
 }
 
 template<typename value_t>
-dim3 HdiffCudaBenchmark<value_t>::numblocks() {
-    dim3 numblocks = this->HdiffBaseBenchmark<value_t>::numblocks();
+dim3 HdiffCudaRegularBenchmark<value_t>::numblocks() {
+    dim3 numblocks = this->HdiffCudaBaseBenchmark<value_t>::numblocks();
     if(this->variant == HdiffCudaRegular::kloop ||
         this->variant == HdiffCudaRegular::idxvar ||
         this->variant == HdiffCudaRegular::shared_kloop) {
@@ -1012,7 +1001,7 @@ dim3 HdiffCudaBenchmark<value_t>::numblocks() {
 }
 
 template<typename value_t>
-void HdiffCudaBenchmark<value_t>::parse_args() {
+void HdiffCudaRegularBenchmark<value_t>::parse_args() {
     if(this->argc > 0) {
         // only variant of this that takes an argument is the jloop variant
         if(this->variant == HdiffCudaRegular::jloop) {

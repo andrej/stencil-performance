@@ -10,16 +10,10 @@
 
 namespace HdiffCudaUnstructuredSequential {
 
-    /** Information about this benchmark for use in the kernels. */
-    struct Info {
-        coord3 halo;
-        coord3 max_coord;
-    };
-
     // Laplace Kernel
     template<typename value_t>
     __global__
-    void kernel_lap(Info info, CudaUnstructuredGrid3DInfo<value_t> grid_info, value_t *in, value_t *lap) {
+    void kernel_lap(HdiffCudaBase::Info info, CudaUnstructuredGrid3DInfo<value_t> grid_info, value_t *in, value_t *lap) {
         const int i = blockIdx.x * blockDim.x + threadIdx.x + info.halo.x - 1;
         const int j = blockIdx.y * blockDim.y + threadIdx.y + info.halo.y - 1;
         const int k = blockIdx.z * blockDim.z + threadIdx.z + info.halo.z;
@@ -39,7 +33,7 @@ namespace HdiffCudaUnstructuredSequential {
     // Flx Kernel
     template<typename value_t>
     __global__
-    void kernel_flx(Info info, CudaUnstructuredGrid3DInfo<value_t> grid_info, value_t *in, value_t *lap, value_t *flx) {
+    void kernel_flx(HdiffCudaBase::Info info, CudaUnstructuredGrid3DInfo<value_t> grid_info, value_t *in, value_t *lap, value_t *flx) {
         const int i = blockIdx.x * blockDim.x + threadIdx.x + info.halo.x - 1;
         const int j = blockIdx.y * blockDim.y + threadIdx.y + info.halo.y;
         const int k = blockIdx.z * blockDim.z + threadIdx.z + info.halo.z;
@@ -57,7 +51,7 @@ namespace HdiffCudaUnstructuredSequential {
     // Fly Kernel
     template<typename value_t>
     __global__
-    void kernel_fly(Info info, CudaUnstructuredGrid3DInfo<value_t> grid_info, value_t *in, value_t *lap, value_t *fly) {
+    void kernel_fly(HdiffCudaBase::Info info, CudaUnstructuredGrid3DInfo<value_t> grid_info, value_t *in, value_t *lap, value_t *fly) {
         const int i = blockIdx.x * blockDim.x + threadIdx.x + info.halo.x;
         const int j = blockIdx.y * blockDim.y + threadIdx.y + info.halo.y - 1;
         const int k = blockIdx.z * blockDim.z + threadIdx.z + info.halo.z;
@@ -75,7 +69,7 @@ namespace HdiffCudaUnstructuredSequential {
     // Output kernel
     template<typename value_t>
     __global__
-    void kernel_out(Info info, CudaUnstructuredGrid3DInfo<value_t> grid_info, value_t *in, value_t *coeff, value_t *flx, value_t *fly, value_t *out) {
+    void kernel_out(HdiffCudaBase::Info info, CudaUnstructuredGrid3DInfo<value_t> grid_info, value_t *in, value_t *coeff, value_t *flx, value_t *fly, value_t *out) {
         const int i = blockIdx.x * blockDim.x + threadIdx.x + info.halo.x;
         const int j = blockIdx.y * blockDim.y + threadIdx.y + info.halo.y;
         const int k = blockIdx.z * blockDim.z + threadIdx.z + info.halo.z;
@@ -95,7 +89,7 @@ namespace HdiffCudaUnstructuredSequential {
 /** This is the reference implementation for the horizontal diffusion kernel, 
  * which is executed on the CPU and used to verify other implementations. */
 template<typename value_t>
-class HdiffCudaUnstructuredSequentialBenchmark : public HdiffBaseBenchmark<value_t> {
+class HdiffCudaUnstructuredSequentialBenchmark : public HdiffCudaBaseBenchmark<value_t> {
 
     public:
 
@@ -111,16 +105,13 @@ class HdiffCudaUnstructuredSequentialBenchmark : public HdiffBaseBenchmark<value
     
     dim3 gridsize(coord3 blocksize, coord3 start, coord3 step, coord3 stop);
 
-    // Return info struct for kernels
-    HdiffCudaUnstructuredSequential::Info get_info();
-
 };
 
 // IMPLEMENTATIONS
 
 template<typename value_t>
 HdiffCudaUnstructuredSequentialBenchmark<value_t>::HdiffCudaUnstructuredSequentialBenchmark(coord3 size) :
-HdiffBaseBenchmark<value_t>(size) {
+HdiffCudaBaseBenchmark<value_t>(size) {
     this->name = "hdiff-unstr-seq";
     this->error = false;
 }
@@ -206,7 +197,7 @@ void HdiffCudaUnstructuredSequentialBenchmark<value_t>::setup() {
     this->lap = new CudaUnstructuredGrid3D<value_t>(this->size, neighbor_data);
     this->flx = new CudaUnstructuredGrid3D<value_t>(this->size, neighbor_data);
     this->fly = new CudaUnstructuredGrid3D<value_t>(this->size, neighbor_data);
-    this->HdiffBaseBenchmark<value_t>::setup();
+    this->HdiffCudaBaseBenchmark<value_t>::setup();
 }
 
 template<typename value_t>
@@ -223,19 +214,13 @@ void HdiffCudaUnstructuredSequentialBenchmark<value_t>::teardown() {
     delete this->lap;
     delete this->flx;
     delete this->fly;
-    this->HdiffBaseBenchmark<value_t>::teardown();
-}
-
-template<typename value_t>
-HdiffCudaUnstructuredSequential::Info HdiffCudaUnstructuredSequentialBenchmark<value_t>::get_info() {
-    return { .halo = this->halo,
-             .max_coord = this->input->dimensions-this->halo};
+    this->HdiffCudaBaseBenchmark<value_t>::teardown();
 }
 
 template<typename value_t>
 void HdiffCudaUnstructuredSequentialBenchmark<value_t>::post() {
     this->Benchmark::post();
-    this->HdiffBaseBenchmark<value_t>::post();
+    this->HdiffCudaBaseBenchmark<value_t>::post();
 }
 
 #endif

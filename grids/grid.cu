@@ -83,6 +83,10 @@ class Grid {
     /** Print the values of this grid. */
     virtual void print() = 0;
 
+    /** Compare the values in this grid with the values of another grid,
+     * check for equality up to some tolerance. */
+    virtual bool compare(Grid<value_t, coord_t> *other, double tol=1e-5) = 0;
+
 };
 
 // IMPLEMENTATIONS
@@ -107,7 +111,7 @@ Grid<value_t, coord_t>::~Grid() {
 }
 
 template<typename value_t, typename coord_t>
-value_t Grid<value_t, coord_t>::get (coord_t coords) {
+value_t Grid<value_t, coord_t>::get(coord_t coords) {
     return this->data[this->index(coords)];
 }
 
@@ -117,24 +121,18 @@ value_t Grid<value_t, coord_t>::operator[] (const coord_t coords) {
 }
 
 template<typename value_t, typename coord_t>
-void Grid<value_t, coord_t>::set (coord_t coords, value_t value) {
+void Grid<value_t, coord_t>::set(coord_t coords, value_t value) {
     this->data[this->index(coords)] = value;
 }
 
-//template<typename value_t, typename coord_t, typename allocator_t>
-//Grid<value_t, coord_t>::allocate(allocator_t *allocator) {
 template<typename value_t, typename coord_t>
 void Grid<value_t, coord_t>::allocate() {
     assert(this->size > 0);
     this->data = (value_t *)calloc(this->size, 1);
-    //this->data = allocator->allocate(this->size * sizeof(value_t));
 }
 
-//template<typename value_t, typename coord_t, typename allocator_t>
-//Grid<value_t, coord_t>::deallocate(allocator_t *allocator) {
 template<typename value_t, typename coord_t>
 void Grid<value_t, coord_t>::deallocate() {
     free(this->data);
-    //allocator->deallocate(this->data, this->size * sizeof(value_t));
 }
 #endif

@@ -1,6 +1,7 @@
 #ifndef HDIFF_CUDA_UNSTR_H
 #define HDIFF_CUDA_UNSTR_H
 #include "benchmarks/benchmark.cu"
+#include "benchmarks/hdiff-cuda-base.cu"
 #include "coord3.cu"
 #include "grids/grid.cu"
 #include "grids/cuda-regular.cu"
@@ -11,18 +12,12 @@ namespace HdiffCudaUnstr {
     /** Variants of this benchmark. */
     enum Variant { RegNaive, RegKloop, UnstrNaive, UnstrKloop, UnstrIdxvars, UnstrSharedIdxvar };
 
-    /** Information about this benchmark for use in the kernels. */
-    struct Info {
-        coord3 halo;
-        coord3 max_coord;
-    };
-
     /** Naive implementation of a unstructured grid horizontal diffusion
      * kernel. Runs index calculations in every k-iteration.
      */
      template<typename value_t>
      __global__
-     void kernel_naive(Info info,
+     void kernel_naive(HdiffCudaBase::Info info,
                          CudaUnstructuredGrid3DInfo<value_t> grid_info,
                          value_t* in,
                          value_t* out,
@@ -113,7 +108,7 @@ namespace HdiffCudaUnstr {
      */
      template<typename value_t>
      __global__
-     void kernel_naive_kloop(Info info,
+     void kernel_naive_kloop(HdiffCudaBase::Info info,
                              CudaUnstructuredGrid3DInfo<value_t> grid_info,
                              value_t* in,
                              value_t* out,
@@ -208,7 +203,7 @@ namespace HdiffCudaUnstr {
      */
     template<typename value_t>
     __global__
-    void kernel_idxvars(Info info,
+    void kernel_idxvars(HdiffCudaBase::Info info,
                         CudaUnstructuredGrid3DInfo<value_t> grid_info,
                         value_t* in,
                         value_t* out,
@@ -328,7 +323,7 @@ namespace HdiffCudaUnstr {
      */
      template<typename value_t>
      __global__
-     void kernel_shared_idxvars(Info info,
+     void kernel_shared_idxvars(HdiffCudaBase::Info info,
                                 CudaUnstructuredGrid3DInfo<value_t> grid_info,
                                 value_t* in,
                                 value_t* out,
@@ -446,7 +441,7 @@ namespace HdiffCudaUnstr {
  *
  * For the available variants, see the HdiffCuda::Variant enum. */
 template<typename value_t>
-class HdiffCudaUnstrBenchmark : public HdiffBaseBenchmark<value_t> {
+class HdiffCudaUnstrBenchmark : public HdiffCudaBaseBenchmark<value_t> {
 
     public:
 
@@ -461,16 +456,13 @@ class HdiffCudaUnstrBenchmark : public HdiffBaseBenchmark<value_t> {
     virtual dim3 numblocks();
     virtual dim3 numthreads();
 
-    // Return info struct for kernels
-    HdiffCudaUnstr::Info get_info();
-
 };
 
 // IMPLEMENTATIONS
 
 template<typename value_t>
 HdiffCudaUnstrBenchmark<value_t>::HdiffCudaUnstrBenchmark(coord3 size, HdiffCudaUnstr::Variant variant) :
-HdiffBaseBenchmark<value_t>(size) {
+HdiffCudaBaseBenchmark<value_t>(size) {
     if(variant == HdiffCudaUnstr::UnstrNaive) {
         this->name = "hdiff-unstr-naive";
     } else if(variant == HdiffCudaUnstr::UnstrKloop) {
@@ -550,7 +542,7 @@ void HdiffCudaUnstrBenchmark<value_t>::setup() {
     this->lap = new CudaUnstructuredGrid3D<value_t>(this->size, neighbor_data);
     this->flx = new CudaUnstructuredGrid3D<value_t>(this->size, neighbor_data);
     this->fly = new CudaUnstructuredGrid3D<value_t>(this->size, neighbor_data);
-    this->HdiffBaseBenchmark<value_t>::setup();
+    this->HdiffCudaBaseBenchmark<value_t>::setup();
     int s1 = cudaMemPrefetchAsync(this->input->data, this->input->size, 0);
     int s2 = cudaMemPrefetchAsync(this->output->data, this->output->size, 0);
     int s3 = cudaMemPrefetchAsync(this->coeff->data, this->coeff->size, 0);
@@ -582,19 +574,13 @@ void HdiffCudaUnstrBenchmark<value_t>::teardown() {
     delete this->lap;
     delete this->flx;
     delete this->fly;
-    this->HdiffBaseBenchmark<value_t>::teardown();
+    this->HdiffCudaBaseBenchmark<value_t>::teardown();
 }
 
 template<typename value_t>
 void HdiffCudaUnstrBenchmark<value_t>::post() {
     this->Benchmark::post();
-    this->HdiffBaseBenchmark<value_t>::post();
-}
-
-template<typename value_t>
-HdiffCudaUnstr::Info HdiffCudaUnstrBenchmark<value_t>::get_info() {
-    return { .halo = this->halo,
-             .max_coord = this->input->dimensions - this->halo};
+    this->HdiffCudaBaseBenchmark<value_t>::post();
 }
 
 #endif
