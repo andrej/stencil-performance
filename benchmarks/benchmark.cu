@@ -39,7 +39,7 @@ class Benchmark {
 
 	public:
 
-	Benchmark();
+	//Benchmark();
 	Benchmark(coord3 size);
 
 	coord3 size;
@@ -54,6 +54,7 @@ class Benchmark {
      * correct result and you do not want to waste time computing the
      * the reference. */
     bool do_verify = true;
+
     int runs = 1;
 
     /** Pointers to command-line arguments specific to this benchmark.
@@ -73,11 +74,10 @@ class Benchmark {
 	 * metrics in this->results. */
 	benchmark_result_t execute();
 	
-	/** Compares the value in each cell of this->output grid with the given
-	 * reference grid and returns true only if all the cells match (up to the
-     * optionally given tolerance). */
-    template<typename value_t>
-    bool verify(Grid<value_t, coord3> *reference, Grid<value_t, coord3> *other, double tol=1e-5);
+	/** Check correctness of output. */
+    virtual bool verify(double tol=1e-5) {
+        return true;
+    };
 
 	// Setup and teardown are called when the benchmark is initialized, only once
 	virtual void setup() {};
@@ -112,19 +112,20 @@ T median<T>(std::vector<T> vec) {
     }
 }
 
-Benchmark::Benchmark() {}
+//Benchmark::Benchmark() { printf("default constructor\n");}
 
 Benchmark::Benchmark(coord3 size) : size(size) {}
 
 void Benchmark::post() {
     if(cudaGetLastError() != cudaSuccess) {
         this->error = true;
-        std::ostringstream msg;
+        /*std::ostringstream msg;
         dim3 nblocks = this->numblocks();
         dim3 nthreads = this->numthreads();
         msg << "Unable to run kernel with (" << nblocks.x << ", " << nblocks.y << ", " << nblocks.z << 
                ") blocks and (" << nthreads.x << ", " << nthreads.y << ", " << nthreads.z << ") threads.";
-        throw std::runtime_error(msg.str());
+        throw std::runtime_error(msg.str());*/
+        CUDA_THROW_LAST();
     }
 }
 
@@ -160,7 +161,7 @@ dim3 Benchmark::numthreads() {
 }
 
 benchmark_result_t Benchmark::execute() {
-	this->setup();
+    this->setup();
     bool error = false;
     std::vector<double> runtimes;
     for(int i=-1; i<this->runs; i++) {
@@ -176,6 +177,10 @@ benchmark_result_t Benchmark::execute() {
         #endif
         this->post();
         error = error || this->error;
+        if(this->do_verify) {
+            error = error || !this->verify();
+        }
+        this->error = error;
         if(i == -1) {
             // First run is untimed, as Cuda recompiles the kernel on first run which would distort our measurements.
             continue;
@@ -192,11 +197,6 @@ benchmark_result_t Benchmark::execute() {
 							   .error = error };
 	this->results = res; // not using temporary variable res gives NVCC compiler segfault ...
 	return this->results;
-}
-
-template<typename value_t>
-bool Benchmark::verify(Grid<value_t, coord3> *reference, Grid<value_t, coord3> *other, double tol) {
-    return reference->compare(other, tol);
 }
 
 void Benchmark::parse_args() {

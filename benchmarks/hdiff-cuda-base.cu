@@ -63,10 +63,7 @@ class HdiffCudaBaseBenchmark :  public Benchmark {
     virtual void teardown();
     virtual void pre();
     virtual void post();
-
-    // CPU implementation
-    // As in hdiff_stencil_variant.h
-    void calc_ref();
+    virtual bool verify(double tol=1e-5);
 
     // halo around the input data, padding that is not touched
     coord3 halo;
@@ -101,6 +98,7 @@ void HdiffCudaBaseBenchmark<value_t>::setup(){
             // already calculated in cache
             this->reference_bench = (*HdiffCudaBaseBenchmark<value_t>::reference_benchs)[this->size];
             this->reference_calculated = true;
+
         } else {
             this->reference_bench = new HdiffReferenceBenchmark<value_t>(this->size);
             this->reference_bench->setup();
@@ -109,6 +107,9 @@ void HdiffCudaBaseBenchmark<value_t>::setup(){
     /* Import values from reference grids to ensure same conditions. */
     this->input->import(this->reference_bench->input);
     this->coeff->import(this->reference_bench->coeff);
+    this->lap->fill(0.0);
+    this->flx->fill(0.0);
+    this->fly->fill(0.0);
     this->output->fill(0.0);
     this->inner_size = this->size - 2*this->halo;
 }
@@ -137,22 +138,7 @@ HdiffCudaBase::Info HdiffCudaBaseBenchmark<value_t>::get_info() {
     dim3 numthreads = this->numthreads();
     dim3 numblocks = this->numblocks();
     return { .halo = this->halo,
-             .max_coord = inner_size + this->halo
-             #ifndef HDIFF_NO_GRIDSTRIDE
-             , .inner_size = inner_size
-             , .gridsize = coord3(numblocks.x*numthreads.x, numblocks.y*numthreads.y, numblocks.z*numthreads.z) 
-             #endif
-            };
-}
-
-template<typename value_t>
-void HdiffCudaBaseBenchmark<value_t>::calc_ref() {
-    this->reference_bench->run();
-    if(this->reference_bench->error) {
-        return;
-    }
-    this->reference_calculated = true;
-    (*HdiffCudaBaseBenchmark<value_t>::reference_benchs)[this->size] = this->reference_bench;
+             .max_coord = inner_size + this->halo };
 }
 
 template<typename value_t>
@@ -161,59 +147,33 @@ void HdiffCudaBaseBenchmark<value_t>::pre() {
     this->coeff->prefetchToDevice();
     // to prevent page faults, even memory addresses that are only written to need to be prefetched apparently (see tests/unified-test.cu)
     this->output->prefetchToDevice();
-    #ifdef HDIFF_DEBUG
-    this->lap->prefetchToDevice();
-    this->flx->prefetchToDevice();
-    this->fly->prefetchToDevice();
-    #endif
 }
 
 template<typename value_t>
 void HdiffCudaBaseBenchmark<value_t>::post() {
-    if(!this->do_verify) {
-        return;
-    }
-    // Verify output
     this->output->prefetchToHost();
+}
+
+template<typename value_t>
+bool HdiffCudaBaseBenchmark<value_t>::verify(double tol) {
     if(!this->reference_calculated) {
-        this->calc_ref();
+        this->reference_bench->run();
+        if(this->reference_bench->error) {
+            return false;
+        }
+        this->reference_calculated = true;
+        (*HdiffCudaBaseBenchmark<value_t>::reference_benchs)[this->size] = this->reference_bench;
     }
-    if(!this->verify(this->reference_bench->output, this->output)) {
-        this->error = true;
-    }
-    // Verify intermediate results
-    #ifdef HDIFF_DEBUG
-    this->lap->prefetchToHost();
-    this->flx->prefetchToHost();
-    this->fly->prefetchToHost();
-    if(this->error && !this->quiet) {
-        fprintf(stderr, "\n==============\n%s\n", this->name.c_str());
-        if(!this->verify(this->reference_bench->lap, this->lap)) {
-            fprintf(stderr, "\n--- lap wrong ---\n");
-            this->lap->print();
-            fprintf(stderr, "\n--- lap reference ---\n");
-            this->reference_bench->lap->print();
-        }
-        if(!this->verify(this->reference_bench->flx, this->flx)) {
-            fprintf(stderr, "\n--- flx wrong ---\n");
-            this->flx->print();
-            fprintf(stderr, "\n--- flx reference ---\n");
-            this->reference_bench->flx->print();
-        }
-        if(!this->verify(this->reference_bench->fly, this->fly)) {
-            fprintf(stderr, "\n--- fly wrong ---\n");
-            this->fly->print();
-            fprintf(stderr, "\n--- fly reference ---\n");
-            this->reference_bench->fly->print();
-        }
-        if(!this->verify(this->reference_bench->output, this->output)) {
-            fprintf(stderr, "\n--- out wrong ---\n");
-            this->output->print();
-            fprintf(stderr, "\n--- out reference ---\n");
+    if(!this->output->compare(this->reference_bench->output, tol)) {
+        if(!this->quiet) {
+            fprintf(stderr, "Reference -----------------------------------\n");
             this->reference_bench->output->print();
+            fprintf(stderr, "Output --------------------------------------\n");
+            this->output->print();
         }
+        return false;
     }
-    #endif
+    return true;
 }
 
 #endif

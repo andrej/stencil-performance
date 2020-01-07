@@ -40,6 +40,7 @@ virtual public Coord3BaseGrid<value_t> {
     int index(coord3 coord);
     size_t num_neighbors(coord3 coord);
     int neighbor(coord3 coord, coord3 offset);
+    int neighbor_of_index(int index, coord3 offset);
     
     /** == data; pointer to the values. Use this instead of accessing data
      * directly so we can be flexible if we want to put neighborship relations
@@ -102,6 +103,7 @@ neighbor_data(neighbor_data) {
     this->init();
 }
 
+/* Initialization. */
 template<typename value_t>
 void UnstructuredGrid3D<value_t>::init(){
     this->Grid<value_t, coord3>::init(); // this allocates this->data
@@ -117,20 +119,26 @@ void UnstructuredGrid3D<value_t>::init(){
     }
 }
 
+/* Space Req. */
 template<typename value_t>
 size_t UnstructuredGrid3D<value_t>::space_req(coord3 dimensions, bool use_external_neighbor_data) {
     return (  sizeof(value_t) * dimensions.x*dimensions.y*dimensions.z /* for the values */
             + (use_external_neighbor_data ? 0 : sizeof(int) * 4 * dimensions.x*dimensions.y) ); /* for the ptrs */
 }
 
+/* Index. */
+#define GRID_UNSTR_INDEX(y_stride, z_stride, x, y, z) \
+        (   (x) \
+          + (y) * y_stride \
+          + (z) * z_stride )
 template<typename value_t>
 int UnstructuredGrid3D<value_t>::index(coord3 coord) {
     coord3 M = this->dimensions;
-    return (int)(     coord.x 
-                    + coord.y*M.x
-                    + coord.z*M.y*M.x );
+    return (int) GRID_UNSTR_INDEX(M.x, M.x*M.y,
+                                  coord.x, coord.y, coord.z);
 }
 
+/* Num Neighbors. */
 template<typename value_t>
 size_t UnstructuredGrid3D<value_t>::num_neighbors(coord3 coord) {
     int ret = 4;
@@ -144,27 +152,66 @@ size_t UnstructuredGrid3D<value_t>::num_neighbors(coord3 coord) {
     return ret;
 }
 
+/** Gives a pointer into the neighborship_data array. */
+// 2D cases for Z=0
+#define GRID_UNSTR_2D_NEIGHBOR_PTR_OF_INDEX(z_stride, index, x, y) \
+        ( (index) + (z_stride) * 1 * ((y) == -1) \
+                  + (z_stride) * 2 * ((x) == +1) \
+                  + (z_stride) * 3 * ((y) == +1) )
+#define GRID_UNSTR_2D_NEIGHBOR_PTR(y_stride, z_stride, x, y, neigh_x, neigh_y) \
+        GRID_UNSTR_2D_NEIGHBOR_PTR_OF_INDEX(z_stride, \
+                                            GRID_UNSTR_INDEX(y_stride, z_stride, x, y, 0), \
+                                            neigh_x, neigh_y)
+// All cases Z>=0
+#define GRID_UNSTR_NEIGHBOR_PTR_OF_INDEX(z_stride, index, x, y) \
+        GRID_UNSTR_2D_NEIGHBOR_PTR_OF_INDEX(z_stride, (index) % (z_stride), x, y)
+#define GRID_UNSTR_NEIGHBOR_PTR(y_stride, z_stride, x, y, neigh_x, neigh_y) \
+        GRID_UNSTR_2D_NEIGHBOR_PTR_OF_INDEX(z_stride, \
+                                            GRID_UNSTR_INDEX(y_stride, z_stride, x, y, 0), \
+                                            neigh_x, neigh_y)
+template<typename value_t>
+int UnstructuredGrid3D<value_t>::neighbor_pointer(coord3 coord, coord3 offs) {
+    assert(offs.x == 0 || offs.y == 0); /* no diagonal neighbors */
+    assert(offs.x >= -1 && offs.x <= 1 && offs.y >= -1 && offs.y <= 1);
+    assert(offs.z == 0);
+    coord3 M = this->dimensions;
+    return GRID_UNSTR_NEIGHBOR_PTR(M.x, M.x*M.y,
+                                   coord.x, coord.y,
+                                   offs.x, offs.y);
+}
+
+/** Gives the index of the neighbor. */
+#define GRID_UNSTR_NEIGHBOR(neighbor_data, y_stride, z_stride, x, y, z, neigh_x, neigh_y, neigh_z) \
+    ( (neigh_x != 0 || neigh_y != 0 ? neighbor_data[GRID_UNSTR_NEIGHBOR_PTR(y_stride, z_stride, x, y, neigh_x, neigh_y)] \
+                        : GRID_UNSTR_INDEX(y_stride, z_stride, x, y, 0))\
+        + (z + neigh_z) * z_stride)
 template<typename value_t>
 int UnstructuredGrid3D<value_t>::neighbor(coord3 coord, coord3 offs) {
     assert(offs.z == 0 || (offs.x == 0 && offs.y == 0)); // only one neighbor at a time, no diagonals
-    if(offs.z == 0) {
-        return this->neighbor_data[this->neighbor_pointer(coord, offs)]
-               + coord.z*this->dimensions.x*this->dimensions.y;
-    }
-    return this->index(coord3(coord.x, coord.y, coord.z + offs.z));
+    coord3 M = this->dimensions;
+    return GRID_UNSTR_NEIGHBOR(this->neighbor_data,
+                               M.x, M.x*M.y,
+                               coord.x, coord.y, coord.z,
+                               offs.x, offs.y, offs.z);
 }
 
+/** Gives the index of the neighbor given an index (not coordinate). */
+#define GRID_UNSTR_2D_NEIGHBOR_OF_INDEX(neighbor_data, z_stride, index, x, y) \
+     ( neighbor_data[GRID_UNSTR_2D_NEIGHBOR_PTR_OF_INDEX(z_stride, index, x, y)] )
+#define GRID_UNSTR_NEIGHBOR_OF_INDEX(neighbor_data, z_stride, index, x, y, z) \
+     ( neighbor_data[GRID_UNSTR_NEIGHBOR_PTR_OF_INDEX(z_stride, index, x, y)]\
+            + ((index) / (z_stride)) * (z_stride) /* round off non-Z component of index */ \
+            + (z) * (z_stride) )
 template<typename value_t>
-int UnstructuredGrid3D<value_t>::neighbor_pointer(coord3 coord, coord3 offs) {
-    const int N = this->dimensions.x*this->dimensions.y;
-    int idx = this->index(coord3(coord.x, coord.y, 0));
-    assert(offs.x == 0 || offs.y == 0); /* no diagonal neighbors */
-    return idx + N * 0 * (offs.x == -1) /* just for clarity */
-               + N * 1 * (offs.y == -1)
-               + N * 2 * (offs.x == +1)
-               + N * 3 * (offs.y == +1);
+int UnstructuredGrid3D<value_t>::neighbor_of_index(int index, coord3 offs) {
+    coord3 M = this->dimensions;
+    return GRID_UNSTR_NEIGHBOR_OF_INDEX(this->neighbor_data,
+                                        M.x*M.y,
+                                        index,
+                                        offs.x, offs.y, offs.z);
 }
 
+/* Add neighbor. */
 template<typename value_t>
 void UnstructuredGrid3D<value_t>::add_neighbor(coord3 A, coord3 B, coord3 offs) {
     assert(offs.z == 0); // Regular in Z-axis; this neighborship cannot be changed
@@ -176,6 +223,7 @@ void UnstructuredGrid3D<value_t>::add_neighbor(coord3 A, coord3 B, coord3 offs) 
     this->neighbor_data[B_neigh_idx] = A_idx;
 }
 
+/* Delete neighbor. */
 template<typename value_t>
 void UnstructuredGrid3D<value_t>::del_neighbor(coord3 A, coord3 offs) {
     assert(offs.z == 0); // Regular in Z-axis; this neighborship cannot be changed
@@ -191,6 +239,7 @@ void UnstructuredGrid3D<value_t>::del_neighbor(coord3 A, coord3 offs) {
     this->neighbor_data[B_neigh_idx] = -1;
 }
 
+/* Add same neighbors as in a regular grid. */
 template<typename value_t>
 void UnstructuredGrid3D<value_t>::add_regular_neighbors() {
     coord3 dims = this->dimensions;
@@ -214,6 +263,7 @@ void UnstructuredGrid3D<value_t>::add_regular_neighbors() {
     }
 }
 
+/* Simulate regular grid with neighbor lookup overhead. */
 template<typename value_t>
 UnstructuredGrid3D<value_t> *UnstructuredGrid3D<value_t>::create_regular(coord3 dims) {
     UnstructuredGrid3D<value_t> *grid = new UnstructuredGrid3D<value_t>(dims);

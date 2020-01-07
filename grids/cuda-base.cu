@@ -4,8 +4,6 @@
 #include <stdexcept>
 #include "cuda-util.cu"
 
-#define CUDA_CHECK()
-
 /** Cuda Base Grid
  *
  * Provides allocation of memory and a struct to pass information about a grid
@@ -31,6 +29,8 @@ virtual public Grid<value_t, coord_t>
     void prefetchToDevice();
     void prefetchToHost();
 
+    void setSmemBankSize(int sz=-1);
+
 };
 
 template<typename value_t, typename coord_t>
@@ -38,24 +38,35 @@ CudaBaseGrid<value_t, coord_t>::CudaBaseGrid() { }
 
 template<typename value_t, typename coord_t>
 CudaBaseGrid<value_t, coord_t>::~CudaBaseGrid() {
-    //this->deallocate();
+    if(this->data) {
+        this->deallocate();
+    }
 }
 
 template<typename value_t, typename coord_t>
 void CudaBaseGrid<value_t, coord_t>::allocate() {
     value_t *ptr;
     CUDA_THROW( cudaMallocManaged(&ptr, this->size) );
-    if (sizeof(value_t) == 4) {
+    this->setSmemBankSize();
+    this->data = ptr;
+}
+
+template<typename value_t, typename coord_t>
+void CudaBaseGrid<value_t, coord_t>::setSmemBankSize(int sz) {
+    if(sz == -1) {
+        sz = sizeof(value_t);
+    }
+    if (sz == 4) {
         CUDA_THROW( cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeFourByte) );
-    } else if (sizeof(value_t) == 8) {
+    } else if(sz == 8) {
         CUDA_THROW( cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeEightByte) );
     }
-    this->data = ptr;
 }
 
 template<typename value_t, typename coord_t>
 void CudaBaseGrid<value_t, coord_t>::deallocate() {
     cudaFree(this->data);
+    this->data = NULL;
 }
 
 template<typename value_t, typename coord_t>

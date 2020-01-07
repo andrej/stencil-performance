@@ -51,10 +51,12 @@ class Grid {
      * unstructured ones this might be variable. */
     virtual size_t num_neighbors(coord_t coords) = 0;
 
-    /** Returns the memory index of the neighbor at a given offset offs. Note
-     * that this may be different than the value of index(coords+offs) for some
-     * memory layouts. */
+    /** Returns the memory index of the neighbor at a given offset offs. */
     virtual int neighbor(coord_t coords, coord_t offs) = 0;
+
+    /** Returns the memory index from the cell that is stored at the given
+     * index with the given offset. */
+    virtual int neighbor_of_index(int index, coord_t offs) = 0;
     
     virtual void allocate();
 
@@ -107,7 +109,9 @@ void Grid<value_t, coord_t>::init() {
 
 template<typename value_t, typename coord_t>
 Grid<value_t, coord_t>::~Grid() {
-    //this->deallocate();
+    if(this->data) {
+        this->deallocate();
+    }
 }
 
 template<typename value_t, typename coord_t>
@@ -134,5 +138,6 @@ void Grid<value_t, coord_t>::allocate() {
 template<typename value_t, typename coord_t>
 void Grid<value_t, coord_t>::deallocate() {
     free(this->data);
+    this->data = NULL;
 }
 #endif

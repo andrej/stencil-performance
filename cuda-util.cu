@@ -18,7 +18,7 @@
 #define CUDA_CHECK(cmd) do { \
         cudaError_t err = cmd; \
         if(err != cudaSuccess) { \
-            fprintf(stderr, "%s, line %d:\n%s\n%s\n", __FILE__, __LINE__, \
+            fprintf(stderr, "%s, line %d: %s. %s.", __FILE__, __LINE__, \
                 cudaGetErrorName(err), cudaGetErrorString(err)); \
             exit(1); \
         } \
@@ -30,7 +30,7 @@
         cudaError_t err = cmd; \
         if(err != cudaSuccess) { \
             char msg[128] = ""; \
-            snprintf(msg, 128, "%s, line %d:\n%s\n%s", \
+            snprintf(msg, 128, "%s, line %d: %s. %s.", \
                      __FILE__, __LINE__, \
                      cudaGetErrorName(err), cudaGetErrorString(err)); \
             throw std::runtime_error(msg); \

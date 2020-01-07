@@ -14,32 +14,46 @@
 #include "benchmarks/hdiff-ref.cu"
 //#include "benchmarks/hdiff-cpu-unstr.cu"
 #include "benchmarks/hdiff-cuda-regular.cu"
-#include "benchmarks/hdiff-cuda-regular-seq.cu"
+#include "benchmarks/hdiff-cuda-regular-unfused.cu"
 #include "benchmarks/hdiff-cuda-unstr.cu"
-#include "benchmarks/hdiff-cuda-unstr-seq.cu"
-#include "benchmarks/fast-waves-ref.cu"
+#include "benchmarks/hdiff-cuda-unstr-unfused.cu"
+#include "benchmarks/fastwaves-ref.cu"
+#include "benchmarks/fastwaves-regular.cu"
+#include "benchmarks/fastwaves-unstr.cu"
+#include "benchmarks/laplap-regular.cu"
+#include "benchmarks/laplap-unstr.cu"
+
 
 /** List of all available benchmarks for mapping args to these values. */
 typedef enum {all_benchs, 
+    // Horizontal Diffusion
               hdiff_ref,
-              //hdiff_ref_unstr,
-              hdiff_cuda_regular,
+              hdiff_cuda_regular_unfused,
+              hdiff_cuda_unstr_unfused,              
+              hdiff_cuda_regular_naive,
+              hdiff_cuda_regular_iloop,
+              hdiff_cuda_regular_jloop,
               hdiff_cuda_regular_kloop,
               hdiff_cuda_regular_idxvar,
+              hdiff_cuda_regular_idxvar_kloop,
+              hdiff_cuda_regular_idxvar_shared,
               hdiff_cuda_regular_coop,
               hdiff_cuda_regular_shared,
               hdiff_cuda_regular_shared_kloop,
-              hdiff_cuda_regular_jloop,
-              hdiff_cuda_regular_iloop,
-              hdiff_cuda_sequential,
-              hdiff_cuda_unstr_naive,
-              hdiff_cuda_unstr_kloop,
-              hdiff_cuda_unstr_idxvars,
-              hdiff_cuda_unstr_shared_idxvar,
-              hdiff_cuda_unstr_seq,
-              unspecified, 
-              // the benchmarks past this comment won't be included in the "all" benchmarks executions
-              fastwaves_ref} 
+              hdiff_cuda_unstr_idxvar,
+              hdiff_cuda_unstr_idxvar_kloop,
+              hdiff_cuda_unstr_idxvar_shared,
+              fastwaves_ref,
+              fastwaves_regular_unfused,
+              fastwaves_unstr_unfused,
+              laplap_regular_unfused,
+              laplap_regular_naive,
+              laplap_regular_idxvar,
+              laplap_regular_idxvar_kloop,
+              laplap_unstr_unfused,
+              laplap_unstr_idxvar,
+              laplap_unstr_idxvar_kloop,
+              unspecified} 
 benchmark_type_t;
 
 /** Benchmarks can be run in single or double precision, this enum is used to differentiate the two. */
@@ -226,10 +240,30 @@ Benchmark *create_benchmark(benchmark_params_t param_bench, coord3 size,
         //    (Benchmark *) new HdiffCPUUnstrBenchmark<float>(size) :
         //    (Benchmark *) new HdiffCPUUnstrBenchmark<double>(size) );
         break;
-        case hdiff_cuda_regular:
+        case hdiff_cuda_regular_unfused:
+        ret = (precision == single_prec ?
+            (Benchmark *) new HdiffCudaRegularUnfusedBenchmark<float>(size) :
+            (Benchmark *) new HdiffCudaRegularUnfusedBenchmark<double>(size) );
+        break;
+        case hdiff_cuda_unstr_unfused:
+        ret = (precision == single_prec ?
+            (Benchmark *) new HdiffCudaUnstructuredUnfusedBenchmark<float>(size) :
+            (Benchmark *) new HdiffCudaUnstructuredUnfusedBenchmark<double>(size) );
+        break;
+        case hdiff_cuda_regular_naive:
         ret = (precision == single_prec ?
             (Benchmark *) new HdiffCudaRegularBenchmark<float>(size) :
             (Benchmark *) new HdiffCudaRegularBenchmark<double>(size) );
+        break;
+        case hdiff_cuda_regular_iloop:
+        ret = (precision == single_prec ?
+            (Benchmark *) new HdiffCudaRegularBenchmark<float>(size, HdiffCudaRegular::iloop) : 
+            (Benchmark *) new HdiffCudaRegularBenchmark<double>(size, HdiffCudaRegular::iloop) );
+        break;
+        case hdiff_cuda_regular_jloop:
+        ret = (precision == single_prec ?
+            (Benchmark *) new HdiffCudaRegularBenchmark<float>(size, HdiffCudaRegular::jloop) :
+            (Benchmark *) new HdiffCudaRegularBenchmark<double>(size, HdiffCudaRegular::jloop) );
         break;
         case hdiff_cuda_regular_kloop:
         ret = (precision == single_prec ?
@@ -240,6 +274,16 @@ Benchmark *create_benchmark(benchmark_params_t param_bench, coord3 size,
         ret = (precision == single_prec ?
             (Benchmark *) new HdiffCudaRegularBenchmark<float>(size, HdiffCudaRegular::idxvar) :
             (Benchmark *) new HdiffCudaRegularBenchmark<double>(size, HdiffCudaRegular::idxvar) );
+        break;
+        case hdiff_cuda_regular_idxvar_kloop:
+        ret = (precision == single_prec ?
+            (Benchmark *) new HdiffCudaRegularBenchmark<float>(size, HdiffCudaRegular::idxvar_kloop) :
+            (Benchmark *) new HdiffCudaRegularBenchmark<double>(size, HdiffCudaRegular::idxvar_kloop) );
+        break;
+        case hdiff_cuda_regular_idxvar_shared:
+        ret = (precision == single_prec ?
+            (Benchmark *) new HdiffCudaRegularBenchmark<float>(size, HdiffCudaRegular::idxvar_shared) :
+            (Benchmark *) new HdiffCudaRegularBenchmark<double>(size, HdiffCudaRegular::idxvar_shared) );
         break;
         case hdiff_cuda_regular_coop:
         ret = (precision == single_prec ?
@@ -256,48 +300,70 @@ Benchmark *create_benchmark(benchmark_params_t param_bench, coord3 size,
             (Benchmark *) new HdiffCudaRegularBenchmark<float>(size, HdiffCudaRegular::shared_kloop) :
             (Benchmark *) new HdiffCudaRegularBenchmark<double>(size, HdiffCudaRegular::shared_kloop) );
         break;
-        case hdiff_cuda_regular_jloop:
-        ret = (precision == single_prec ?
-            (Benchmark *) new HdiffCudaRegularBenchmark<float>(size, HdiffCudaRegular::jloop) :
-            (Benchmark *) new HdiffCudaRegularBenchmark<double>(size, HdiffCudaRegular::jloop) );
-        break;
-        case hdiff_cuda_regular_iloop:
-        ret = (precision == single_prec ?
-            (Benchmark *) new HdiffCudaRegularBenchmark<float>(size, HdiffCudaRegular::iloop) : 
-            (Benchmark *) new HdiffCudaRegularBenchmark<double>(size, HdiffCudaRegular::iloop) );
-        break;
-        case hdiff_cuda_sequential:
-        ret = (precision == single_prec ?
-            (Benchmark *) new HdiffCudaRegularSequentialBenchmark<float>(size) :
-            (Benchmark *) new HdiffCudaRegularSequentialBenchmark<double>(size) );
-        break;
-        case hdiff_cuda_unstr_naive:
+        case hdiff_cuda_unstr_idxvar:
         ret = (precision == single_prec ?
             (Benchmark *) new HdiffCudaUnstrBenchmark<float>(size) :
             (Benchmark *) new HdiffCudaUnstrBenchmark<double>(size) );
         break;
-        case hdiff_cuda_unstr_kloop:
+        case hdiff_cuda_unstr_idxvar_kloop:
         ret = (precision == single_prec ?
-            (Benchmark *) new HdiffCudaUnstrBenchmark<float>(size, HdiffCudaUnstr::UnstrKloop) :
-            (Benchmark *) new HdiffCudaUnstrBenchmark<double>(size, HdiffCudaUnstr::UnstrKloop) );
+            (Benchmark *) new HdiffCudaUnstrBenchmark<float>(size, HdiffCudaUnstr::idxvar_kloop) :
+            (Benchmark *) new HdiffCudaUnstrBenchmark<double>(size, HdiffCudaUnstr::idxvar_kloop) );
         break;
-        case hdiff_cuda_unstr_idxvars:
+        case hdiff_cuda_unstr_idxvar_shared:
         ret = (precision == single_prec ?
-            (Benchmark *) new HdiffCudaUnstrBenchmark<float>(size, HdiffCudaUnstr::UnstrIdxvars) :
-            (Benchmark *) new HdiffCudaUnstrBenchmark<double>(size, HdiffCudaUnstr::UnstrIdxvars) );
-        break;
-        case hdiff_cuda_unstr_shared_idxvar:
-        ret = (precision == single_prec ?
-            (Benchmark *) new HdiffCudaUnstrBenchmark<float>(size, HdiffCudaUnstr::UnstrSharedIdxvar) :
-            (Benchmark *) new HdiffCudaUnstrBenchmark<double>(size, HdiffCudaUnstr::UnstrSharedIdxvar) );
-        break;
-        case hdiff_cuda_unstr_seq:
-        ret = (precision == single_prec ?
-            (Benchmark *) new HdiffCudaUnstructuredSequentialBenchmark<float>(size) :
-            (Benchmark *) new HdiffCudaUnstructuredSequentialBenchmark<double>(size) );
+            (Benchmark *) new HdiffCudaUnstrBenchmark<float>(size, HdiffCudaUnstr::idxvar_shared) :
+            (Benchmark *) new HdiffCudaUnstrBenchmark<double>(size, HdiffCudaUnstr::idxvar_shared) );
         break;
         case fastwaves_ref:
-        ret = new FastWavesRefBenchmark(size);
+        ret = (precision == single_prec ?
+            (Benchmark *) new FastWavesRefBenchmark<float>(size) :
+            (Benchmark *) new FastWavesRefBenchmark<double>(size) );
+        break;
+        case fastwaves_regular_unfused:
+        ret = (precision == single_prec ?
+            (Benchmark *) new FastWavesRegularBenchmark<float>(size, FastWavesRegularBenchmarkNamespace::unfused) :
+            (Benchmark *) new FastWavesRegularBenchmark<double>(size, FastWavesRegularBenchmarkNamespace::unfused) );
+        break;
+        case fastwaves_unstr_unfused:
+        ret = (precision == single_prec ?
+            (Benchmark *) new FastWavesUnstrBenchmark<float>(size, FastWavesUnstrBenchmarkNamespace::unfused) :
+            (Benchmark *) new FastWavesUnstrBenchmark<double>(size, FastWavesUnstrBenchmarkNamespace::unfused) );
+        break;
+        case laplap_regular_unfused:
+        ret = (precision == single_prec ?
+            (Benchmark *) new LapLapRegularBenchmark<float>(size, LapLapRegular::unfused) :
+            (Benchmark *) new LapLapRegularBenchmark<double>(size, LapLapRegular::unfused) );
+        break;
+        case laplap_regular_naive:
+        ret = (precision == single_prec ?
+            (Benchmark *) new LapLapRegularBenchmark<float>(size, LapLapRegular::naive) :
+            (Benchmark *) new LapLapRegularBenchmark<double>(size, LapLapRegular::naive) );
+        break;
+        case laplap_regular_idxvar:
+        ret = (precision == single_prec ?
+            (Benchmark *) new LapLapRegularBenchmark<float>(size, LapLapRegular::idxvar) :
+            (Benchmark *) new LapLapRegularBenchmark<double>(size, LapLapRegular::idxvar) );
+        break;
+        case laplap_regular_idxvar_kloop:
+        ret = (precision == single_prec ?
+            (Benchmark *) new LapLapRegularBenchmark<float>(size, LapLapRegular::idxvar_kloop) :
+            (Benchmark *) new LapLapRegularBenchmark<double>(size, LapLapRegular::idxvar_kloop) );
+        break;
+        case laplap_unstr_unfused:
+        ret = (precision == single_prec ?
+            (Benchmark *) new LapLapUnstrBenchmark<float>(size, LapLapUnstr::unfused) :
+            (Benchmark *) new LapLapUnstrBenchmark<double>(size, LapLapUnstr::unfused) );
+        break;
+        case laplap_unstr_idxvar:
+        ret = (precision == single_prec ?
+            (Benchmark *) new LapLapUnstrBenchmark<float>(size, LapLapUnstr::idxvar) :
+            (Benchmark *) new LapLapUnstrBenchmark<double>(size, LapLapUnstr::idxvar) );
+        break;
+        case laplap_unstr_idxvar_kloop:
+        ret = (precision == single_prec ?
+            (Benchmark *) new LapLapUnstrBenchmark<float>(size, LapLapUnstr::idxvar_kloop) :
+            (Benchmark *) new LapLapUnstrBenchmark<double>(size, LapLapUnstr::idxvar_kloop) );
         break;
         default:
         return NULL;
