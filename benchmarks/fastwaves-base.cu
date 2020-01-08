@@ -27,25 +27,25 @@ class FastWavesBaseBenchmark : public Benchmark {
     const int edadlat;
 
     // Inputs / Constants
-    CudaBaseGrid<value_t, coord3> *u_in;
-    CudaBaseGrid<value_t, coord3> *v_in;
-    CudaBaseGrid<value_t, coord3> *u_tens;
-    CudaBaseGrid<value_t, coord3> *v_tens;
-    CudaBaseGrid<value_t, coord3> *rho;
-    CudaBaseGrid<value_t, coord3> *ppuv;
-    CudaBaseGrid<value_t, coord3> *fx;
-    CudaBaseGrid<value_t, coord3> *wgtfac;
-    CudaBaseGrid<value_t, coord3> *hhl;
+    CudaBaseGrid<value_t, coord3> *u_in = NULL;
+    CudaBaseGrid<value_t, coord3> *v_in = NULL;
+    CudaBaseGrid<value_t, coord3> *u_tens = NULL;
+    CudaBaseGrid<value_t, coord3> *v_tens = NULL;
+    CudaBaseGrid<value_t, coord3> *rho = NULL;
+    CudaBaseGrid<value_t, coord3> *ppuv = NULL;
+    CudaBaseGrid<value_t, coord3> *fx = NULL;
+    CudaBaseGrid<value_t, coord3> *wgtfac = NULL;
+    CudaBaseGrid<value_t, coord3> *hhl = NULL;
 
     // Intermediate Results
-    CudaBaseGrid<value_t, coord3> *ppgk;
-    CudaBaseGrid<value_t, coord3> *ppgc;
-    CudaBaseGrid<value_t, coord3> *ppgu;
-    CudaBaseGrid<value_t, coord3> *ppgv;
+    CudaBaseGrid<value_t, coord3> *ppgk = NULL;
+    CudaBaseGrid<value_t, coord3> *ppgc = NULL;
+    CudaBaseGrid<value_t, coord3> *ppgu = NULL;
+    CudaBaseGrid<value_t, coord3> *ppgv = NULL;
 
     // Outputs
-    CudaBaseGrid<value_t, coord3> *u_out;
-    CudaBaseGrid<value_t, coord3> *v_out;
+    CudaBaseGrid<value_t, coord3> *u_out = NULL;
+    CudaBaseGrid<value_t, coord3> *v_out = NULL;
 
     FastWavesRefBenchmark<value_t> *reference_benchmark = NULL;
     bool reference_calculated = false;
@@ -99,7 +99,7 @@ void FastWavesBaseBenchmark<value_t>::setup() {
 
     // Intermediate Results (not all subclasses may need these)
     if(this->ppgk) {
-    this->ppgk->fill(0.0);
+        this->ppgk->fill(0.0);
     }
     if(this->ppgc) {
         this->ppgc->fill(0.0);
@@ -121,22 +121,21 @@ void FastWavesBaseBenchmark<value_t>::setup() {
 template<typename value_t>
 void FastWavesBaseBenchmark<value_t>::teardown() {
     this->reference_benchmark->teardown();
-    delete u_in;
-    delete v_in;
-    delete u_tens;
-    delete v_tens;
-    delete rho;
-    delete ppuv;
-    delete fx;
-    delete wgtfac;
-    delete hhl;
-    delete ppgk;
-    delete ppgc;
-    delete ppgu;
-    delete ppgv;
-    delete u_out;
-    delete v_out;
-
+    delete this->u_in;
+    delete this->v_in;
+    delete this->u_tens;
+    delete this->v_tens;
+    delete this->rho;
+    delete this->ppuv;
+    delete this->fx;
+    delete this->wgtfac;
+    delete this->hhl;
+    delete this->ppgk;
+    delete this->ppgc;
+    delete this->ppgu;
+    delete this->ppgv;
+    delete this->u_out;
+    delete this->v_out;
     this->Benchmark::teardown();
 }
 
