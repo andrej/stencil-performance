@@ -36,13 +36,12 @@ void fastwaves_ppgc(const FastWavesBenchmark::Info info,
 
     // FIXME race condition!
 
-    if(k >= c_flat_limit + info.halo.z) {
+    if(k == info.max_coord.z - 1) {
+        ppgc[INDEX(i, j, k)] = ppgk[INDEX(i, j, k)];
+    } else {
         ppgc[INDEX(i, j, k)] =
             ppgk[NEIGHBOR(i, j, k, 0, 0, +1)] - ppgk[INDEX(i, j, k)];
-    } else {
-        ppgc[INDEX(i, j, k)] = ppgk[INDEX(i, j, k)];
     }
-
     
 }
 
@@ -65,7 +64,6 @@ void fastwaves_ppgrad_uv(const FastWavesBenchmark::Info info,
                          const int c_flat_limit,
                          value_t *uout,
                          value_t *vout) {
-        
     const int i = blockIdx.x*blockDim.x + threadIdx.x + info.halo.x;
     const int j = blockIdx.y*blockDim.y + threadIdx.y + info.halo.y;
     const int k = blockIdx.z*blockDim.z + threadIdx.z + info.halo.z;

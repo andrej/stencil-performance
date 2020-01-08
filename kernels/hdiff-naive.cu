@@ -31,20 +31,20 @@ void hdiff_naive(HdiffCudaBase::Info info,
         - in[NEIGHBOR(i, j, k, 0, -1, 0)] - in[NEIGHBOR(i, j, k, 0, +1, 0)];
     const value_t lap_imj = 
         4 * in[NEIGHBOR(i, j, k, -1, 0, 0)]
-        - in[NEIGHBOR(i, j, k, -2, 0, 0)] - in[NEIGHBOR(i, j, k, 0, 0, 0)]
-        - in[NEIGHBOR(i, j, k, -1, -1, 0)] - in[NEIGHBOR(i, j, k, -1, +1, 0)];
+        - in[DOUBLE_NEIGHBOR(i, j, k, -1, 0, 0, -1, 0, 0)] - in[NEIGHBOR(i, j, k, 0, 0, 0)]
+        - in[DOUBLE_NEIGHBOR(i, j, k, -1, 0, 0, 0, -1, 0)] - in[DOUBLE_NEIGHBOR(i, j, k, -1, 0, 0, 0, +1, 0)];
     const value_t lap_ipj =
         4 * in[NEIGHBOR(i, j, k, +1, 0, 0)]
-        - in[NEIGHBOR(i, j, k, 0, 0, 0)] - in[NEIGHBOR(i, j, k, +2, 0, 0)]
-        - in[NEIGHBOR(i, j, k, +1, -1, 0)] - in[NEIGHBOR(i, j, k, +1, +1, 0)];
+        - in[NEIGHBOR(i, j, k, 0, 0, 0)] - in[DOUBLE_NEIGHBOR(i, j, k, +1, 0, 0, +1, 0, 0)]
+        - in[DOUBLE_NEIGHBOR(i, j, k, +1, 0, 0, 0, -1, 0)] - in[DOUBLE_NEIGHBOR(i, j, k, +1, 0, 0, 0, +1, 0)];
     const value_t lap_ijm =
         4 * in[NEIGHBOR(i, j, k, 0, -1, 0)]
-        - in[NEIGHBOR(i, j, k, -1, -1, 0)] - in[NEIGHBOR(i, j, k, +1, -1, 0)]
-        - in[NEIGHBOR(i, j, k, 0, -2, 0)] - in[NEIGHBOR(i, j, k, 0, 0, 0)];
+        - in[DOUBLE_NEIGHBOR(i, j, k, -1, 0, 0, 0, -1, 0)] - in[DOUBLE_NEIGHBOR(i, j, k, +1, 0, 0, 0, -1, 0)]
+        - in[DOUBLE_NEIGHBOR(i, j, k, 0, -1, 0, 0, -1, 0)] - in[NEIGHBOR(i, j, k, 0, 0, 0)];
     const value_t lap_ijp =
         4 * in[NEIGHBOR(i, j, k, 0, +1, 0)]
-        - in[NEIGHBOR(i, j, k, -1, +1, 0)] - in[NEIGHBOR(i, j, k, +1, +1, 0)]
-        - in[NEIGHBOR(i, j, k, 0, 0, 0)] - in[NEIGHBOR(i, j, k, 0, +2, 0)];
+        - in[DOUBLE_NEIGHBOR(i, j, k, -1, 0, 0, 0, +1, 0)] - in[DOUBLE_NEIGHBOR(i, j, k, +1, 0, 0, 0, +1, 0)]
+        - in[NEIGHBOR(i, j, k, 0, 0, 0)] - in[DOUBLE_NEIGHBOR(i, j, k, 0, +1, 0, 0, +1, 0)];
 
     value_t flx_ij = lap_ipj - lap_ij;
     flx_ij = flx_ij * (in[NEIGHBOR(i, j, k, +1, 0, 0)] - in[INDEX(i, j, k)]) > 0 ? 0 : flx_ij;

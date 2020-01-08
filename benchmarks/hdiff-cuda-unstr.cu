@@ -10,10 +10,20 @@
 namespace HdiffCudaUnstr {
 
     /** Variants of this benchmark. */
-    enum Variant { idxvar, idxvar_kloop, idxvar_shared };
+    enum Variant { naive, idxvar, idxvar_kloop, idxvar_shared };
 
-    #define GRID_ARGS const int *neighbor_data, const int y_stride, const int z_stride, 
+    #define GRID_ARGS const int * __restrict__ neighbor_data, const int y_stride, const int z_stride, 
     #define INDEX(x, y, z) GRID_UNSTR_INDEX(y_stride, z_stride, x, y, z)
+    #define NEIGHBOR(x, y, z, x_, y_, z_) GRID_UNSTR_NEIGHBOR(neighbor_data, y_stride, z_stride, x, y, z, x_, y_, z_)
+    #define NEIGHBOR_OF_INDEX(idx, x, y, z) GRID_UNSTR_NEIGHBOR_OF_INDEX(neighbor_data, z_stride, idx, x, y, z)
+    #define DOUBLE_NEIGHBOR(x, y, z, x1, y1, z1, x2, y2, z2) NEIGHBOR_OF_INDEX(NEIGHBOR(x, y, z, x1, y1, z1), x2, y2, z2)
+    
+    #include "kernels/hdiff-naive.cu"
+
+    #undef NEIGHBOR
+    #undef DOUBLE_NEIGHBOR
+    #undef NEIGHBOR_OF_INDEX
+
     #define NEIGHBOR_OF_INDEX(idx, x, y, z) GRID_UNSTR_2D_NEIGHBOR_OF_INDEX(neighbor_data, z_stride, idx, x, y)
     #define NEXT_Z_NEIGHBOR_OF_INDEX(idx) (idx+z_stride)
     #define K_STEP k*z_stride
@@ -24,7 +34,6 @@ namespace HdiffCudaUnstr {
 
     #undef GRID_ARGS
     #undef INDEX
-    #undef NEIGHBOR
     #undef NEIGHBOR_OF_INDEX
     #undef NEXT_Z_NEIGHBOR_OF_INDEX
     #undef K_STEP
@@ -58,7 +67,9 @@ class HdiffCudaUnstrBenchmark : public HdiffCudaBaseBenchmark<value_t> {
 template<typename value_t>
 HdiffCudaUnstrBenchmark<value_t>::HdiffCudaUnstrBenchmark(coord3 size, HdiffCudaUnstr::Variant variant) :
 HdiffCudaBaseBenchmark<value_t>(size) {
-    if(variant == HdiffCudaUnstr::idxvar) {
+    if(variant == HdiffCudaUnstr::naive) {
+        this->name = "hdiff-unstr-naive";
+    } else if(variant == HdiffCudaUnstr::idxvar) {
         this->name = "hdiff-unstr-idxvar";
     } else if(variant == HdiffCudaUnstr::idxvar_kloop) {
         this->name = "hdiff-unstr-idxvar-kloop";
@@ -73,7 +84,9 @@ template<typename value_t>
 void HdiffCudaUnstrBenchmark<value_t>::run() {
     auto kernel_fun = &HdiffCudaUnstr::hdiff_idxvar<value_t>;
     int smem = 0;
-    if(this->variant == HdiffCudaUnstr::idxvar_kloop) {
+    if(this->variant == HdiffCudaUnstr::naive) {
+        kernel_fun = &HdiffCudaUnstr::hdiff_naive<value_t>;
+    } else if(this->variant == HdiffCudaUnstr::idxvar_kloop) {
         kernel_fun = &HdiffCudaUnstr::hdiff_idxvar_kloop<value_t>;
     } else if(this->variant == HdiffCudaUnstr::idxvar_shared) {
         kernel_fun = &HdiffCudaUnstr::hdiff_idxvar_shared<value_t>;

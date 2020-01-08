@@ -54,7 +54,7 @@ class FastWavesBaseBenchmark : public Benchmark {
     virtual void teardown();
     virtual void pre();
     virtual void post();
-    bool verify(double tol=1e-5);
+    bool verify(double tol=1e-4);
 
     FastWavesBenchmark::Info get_info();
 
@@ -66,13 +66,16 @@ template<typename value_t>
 FastWavesBaseBenchmark<value_t>::FastWavesBaseBenchmark(coord3 size) :
 Benchmark(size),
 halo(coord3(2, 2, 2)),
-c_flat_limit(0),//c_flat_limit(10),
+c_flat_limit(0), // FIXME 10
 dt_small(10),
 edadlat(1) {}
 
 template<typename value_t>
 void FastWavesBaseBenchmark<value_t>::setup() {
     this->inner_size = this->size - 2*this->halo;
+    if(this->inner_size.x < 0 || this->inner_size.y < 0 || this->inner_size.z < 0) {
+        throw std::runtime_error("Grid too small for this kernel.");
+    }
 
     if(!this->reference_benchmark) {
         this->reference_benchmark = new FastWavesRefBenchmark<value_t>(this->size);
@@ -111,6 +114,8 @@ void FastWavesBaseBenchmark<value_t>::setup() {
     // Outputs
     this->u_out->fill(0.0);
     this->v_out->fill(0.0);
+
+    this->Benchmark::setup();
 }
 
 template<typename value_t>
@@ -131,6 +136,8 @@ void FastWavesBaseBenchmark<value_t>::teardown() {
     delete ppgv;
     delete u_out;
     delete v_out;
+
+    this->Benchmark::teardown();
 }
 
 template<typename value_t>
@@ -167,9 +174,9 @@ void FastWavesBaseBenchmark<value_t>::pre() {
 
 template<typename value_t>
 void FastWavesBaseBenchmark<value_t>::post() {    
-        // Outputs
-        this->u_out->prefetchToHost();
-        this->v_out->prefetchToHost();
+    // Outputs
+    this->u_out->prefetchToHost();
+    this->v_out->prefetchToHost();
 }
 
 template<typename value_t>
@@ -182,9 +189,9 @@ bool FastWavesBaseBenchmark<value_t>::verify(double tol) {
                this->v_out->compare(this->reference_benchmark->v_ref, tol);
     if(!ret && !this->quiet) {
         fprintf(stderr, "Reference -------------------------------------------------\n");
-        this->reference_benchmark->ppgradcor->print();
+        this->reference_benchmark->u_ref->print();
         fprintf(stderr, "Output ----------------------------------------------------\n");
-        this->ppgc->print();
+        this->u_out->print();
     }
     return ret;
 }

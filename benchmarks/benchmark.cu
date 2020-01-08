@@ -80,8 +80,8 @@ class Benchmark {
     };
 
 	// Setup and teardown are called when the benchmark is initialized, only once
-	virtual void setup() {};
-	virtual void teardown() {};
+	virtual void setup();
+	virtual void teardown();
 
 	// Pre and post are called for each iteration of the benchmark, i.e. once per run
 	virtual void pre() {};
@@ -115,6 +115,13 @@ T median<T>(std::vector<T> vec) {
 //Benchmark::Benchmark() { printf("default constructor\n");}
 
 Benchmark::Benchmark(coord3 size) : size(size) {}
+
+void Benchmark::setup() {
+}
+
+void Benchmark::teardown() {
+    cudaDeviceReset();
+}
 
 void Benchmark::post() {
     if(cudaGetLastError() != cudaSuccess) {

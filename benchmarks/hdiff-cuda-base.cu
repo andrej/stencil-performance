@@ -112,6 +112,8 @@ void HdiffCudaBaseBenchmark<value_t>::setup(){
     this->fly->fill(0.0);
     this->output->fill(0.0);
     this->inner_size = this->size - 2*this->halo;
+
+    this->Benchmark::setup();
 }
 
 template<typename value_t>
@@ -125,6 +127,8 @@ void HdiffCudaBaseBenchmark<value_t>::teardown() {
     // Don't free, because this reference benchmark will be reused.
     // This is ugly but not important enough to fix right now. If the memory 
     // leak becomes an issue, simply run gridbenchmark with --no-verify option.
+
+    this->Benchmark::teardown();
 }
 
 template<typename value_t>

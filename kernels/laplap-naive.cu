@@ -1,9 +1,9 @@
 #define LAP_OFFS(in, i, j, k, i_, j_, k_) \
     4 * in[NEIGHBOR(i, j, k, i_, j_, k_)] \
-    - in[NEIGHBOR(i, j, k, -1+(i_), j_, k_)] \
-    - in[NEIGHBOR(i, j, k, +1+(i_), j_, k_)] \
-    - in[NEIGHBOR(i, j, k, i_, -1+(j_), k_)] \
-    - in[NEIGHBOR(i, j, k, i_, +1+(j_), k_)]
+    - in[DOUBLE_NEIGHBOR(i, j, k, -1,  0, 0, (i_), j_, k_)] \
+    - in[DOUBLE_NEIGHBOR(i, j, k, +1,  0, 0, (i_), j_, k_)] \
+    - in[DOUBLE_NEIGHBOR(i, j, k,  0, -1, 0, i_, (j_), k_)] \
+    - in[DOUBLE_NEIGHBOR(i, j, k,  0, +1, 0, i_, (j_), k_)]
 
 template<typename value_t>
 __global__

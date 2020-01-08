@@ -17,8 +17,9 @@ namespace HdiffCudaRegular {
     #define GRID_ARGS const int y_stride, const int z_stride, 
     #define INDEX(x, y, z) GRID_REGULAR_INDEX(y_stride, z_stride, x, y, z)
     #define NEIGHBOR(x, y, z, x_, y_, z_) GRID_REGULAR_NEIGHBOR(y_stride, z_stride, x, y, z, x_, y_, z_)
+    #define DOUBLE_NEIGHBOR(x, y, z, x1, y1, z1, x2, y2, z2) NEIGHBOR(x, y, z, (x1+x2), (y1+y2), (z1+z2))
     #define NEIGHBOR_OF_INDEX(idx, x, y, z) GRID_REGULAR_NEIGHBOR_OF_INDEX(y_stride, z_stride, idx, x, y, z)
-    #define NEXT_Z_NEIGHBOR_OF_INDEX(idx) GRID_REGULAR_NEIGHBOR_OF_INDEX(y_stride, z_stride, idx, 0, 0, 1)
+    #define NEXT_Z_NEIGHBOR_OF_INDEX(idx) (idx+z_stride)
     #define K_STEP k*z_stride
 
     #include "kernels/hdiff-naive.cu"
@@ -40,6 +41,7 @@ namespace HdiffCudaRegular {
     #undef GRID_ARGS
     #undef INDEX
     #undef NEIGHBOR
+    #undef DOUBLE_NEIGHBOR
     #undef NEIGHBOR_OF_INDEX
     #undef NEXT_Z_NEIGHBOR_OF_INDEX
     #undef K_STEP
@@ -211,6 +213,9 @@ void HdiffCudaRegularBenchmark<value_t>::setup() {
     this->lap = new CudaRegularGrid3D<value_t>(this->size);
     this->flx = new CudaRegularGrid3D<value_t>(this->size);
     this->fly = new CudaRegularGrid3D<value_t>(this->size);
+    if(this->variant == HdiffCudaRegular::idxvar_shared) {
+        this->input->setSmemBankSize(sizeof(int));
+    }
     this->HdiffCudaBaseBenchmark<value_t>::setup();
 }
 

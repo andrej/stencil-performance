@@ -24,7 +24,7 @@ void hdiff_idxvar_shared(const HdiffCudaBase::Info info,
     }
     
     extern __shared__ char smem[]; // stores four neighbors of cell i at smem[i*4]
-    int *idxvars = (int *)smem;
+    int * __restrict__ idxvars = (int *)smem;
     const int local_idx = (threadIdx.x + threadIdx.y*blockDim.x) * 12;
     const int global_idx_2d = INDEX(i, j, 0);
 

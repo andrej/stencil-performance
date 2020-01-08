@@ -196,7 +196,7 @@ template<typename value_t>
 void FastWavesRefBenchmark<value_t>::run() {
 
     if(this->inner_size.x < 0 || this->inner_size.y < 0 || this->inner_size.z < 0) {
-        throw new std::runtime_error("Grid too small for this kernel.\n");
+        throw std::runtime_error("Grid too small for this kernel.");
     }
 
     const int dt_small = this->dt_small; //10;

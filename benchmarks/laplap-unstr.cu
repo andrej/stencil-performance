@@ -9,22 +9,27 @@
  * Namespace containing the kernel variants that use the unstructured grid macros. */
 namespace LapLapUnstr {
 
-    enum Variant { unfused, naive, idxvar, idxvar_kloop };
+    enum Variant { unfused, naive, idxvar, idxvar_kloop, idxvar_shared };
 
-    #define GRID_ARGS const int *neighbor_data, const int y_stride, const int z_stride, 
+    #define GRID_ARGS const int * __restrict__ neighbor_data, const int y_stride, const int z_stride, 
     #define INDEX(x, y, z) GRID_UNSTR_INDEX(y_stride, z_stride, x, y, z)
     #define NEIGHBOR(x, y, z, x_, y_, z_) GRID_UNSTR_NEIGHBOR(neighbor_data, y_stride, z_stride, x, y, z, x_, y_, z_)
     #define NEIGHBOR_OF_INDEX(idx, x, y, z) GRID_UNSTR_NEIGHBOR_OF_INDEX(neighbor_data, z_stride, idx, x, y, z)
+    #define DOUBLE_NEIGHBOR(x, y, z, x1, y1, z1, x2, y2, z2) NEIGHBOR_OF_INDEX(NEIGHBOR(x, y, z, x2, y2, z2), x1, y1, z1) // x2 y2 z2 can be zero in navie kernel ...
     #define NEXT_Z_NEIGHBOR_OF_INDEX(idx) (idx+z_stride)
+    #define K_STEP k*z_stride
 
     #include "kernels/laplap-unfused.cu"
+    #include "kernels/laplap-naive.cu"
     #include "kernels/laplap-idxvar.cu"
     #include "kernels/laplap-idxvar-kloop.cu"
+    #include "kernels/laplap-idxvar-shared.cu"
 
     #undef GRID_ARGS
     #undef INDEX
     #undef NEIGHBOR
     #undef NEIGHBOR_OF_INDEX
+    #undef DOUBLE_NEIGHBOR
     #undef NEXT_Z_NEIGHBOR_OF_INDEX
 
 };
@@ -62,6 +67,8 @@ variant(variant) {
         this->name = "laplap-unstr-idxvar";
     } else if(variant == LapLapUnstr::idxvar_kloop) {
         this->name = "laplap-unstr-idxvar-kloop";
+    } else if(variant == LapLapUnstr::idxvar_shared) {
+        this->name = "laplap-unstr-idxvar-shared";
     }
 }
 
@@ -76,7 +83,15 @@ void LapLapUnstrBenchmark<value_t>::run() {
     const coord3 halo2(2, 2, 0);
     const coord3 max_coord1 = this->size - halo1;
     const coord3 max_coord2 = this->size - halo2;
-    if(this->variant == LapLapUnstr::idxvar) {
+    if(this->variant == LapLapUnstr::naive) {
+        LapLapUnstr::laplap_naive<value_t><<<this->numblocks(), this->numthreads()>>>(
+            neighbor_data,
+            strides.y, strides.z,
+            halo2, max_coord2,
+            this->input->data,
+            this->output->data
+        );
+    } else if(this->variant == LapLapUnstr::idxvar) {
         LapLapUnstr::laplap_idxvar<value_t><<<this->numblocks(), this->numthreads()>>>(
             neighbor_data,
             strides.y, strides.z,
@@ -86,6 +101,16 @@ void LapLapUnstrBenchmark<value_t>::run() {
         );
     } else if(this->variant == LapLapUnstr::idxvar_kloop) {
         LapLapUnstr::laplap_idxvar_kloop<value_t><<<this->numblocks(), this->numthreads()>>>(
+            neighbor_data,
+            strides.y, strides.z,
+            halo2, max_coord2,
+            this->input->data,
+            this->output->data
+        );
+    } else if(this->variant == LapLapUnstr::idxvar_shared) {
+        dim3 numthreads = this->numthreads();
+        int smem = numthreads.x*numthreads.y*13*sizeof(int);
+        LapLapUnstr::laplap_idxvar_shared<value_t><<<this->numblocks(), numthreads, smem>>>(
             neighbor_data,
             strides.y, strides.z,
             halo2, max_coord2,
@@ -120,6 +145,9 @@ void LapLapUnstrBenchmark<value_t>::setup() {
     this->output = new CudaUnstructuredGrid3D<value_t>(this->size, input->neighbor_data);
     if(this->variant == LapLapUnstr::unfused) {
         this->intermediate = new CudaUnstructuredGrid3D<value_t>(this->size, input->neighbor_data);
+    }
+    if(this->variant == LapLapUnstr::idxvar_shared) {
+        this->input->setSmemBankSize(sizeof(int));
     }
     this->LapLapBaseBenchmark<value_t>::setup();
 }

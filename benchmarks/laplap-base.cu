@@ -44,12 +44,14 @@ void LapLapBaseBenchmark<value_t>::setup() {
             }
         }
     }
+    this->Benchmark::setup();
 }
 
 template<typename value_t>
 void LapLapBaseBenchmark<value_t>::teardown() {
     delete this->input;
     delete this->output;
+    this->Benchmark::teardown();
 }
 
 template<typename value_t>

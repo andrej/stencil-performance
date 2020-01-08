@@ -9,28 +9,32 @@
  * Namespace containing the kernel variants that use the regular grid macros. */
 namespace LapLapRegular {
 
-    enum Variant { unfused, naive, idxvar, idxvar_kloop };
+    enum Variant { unfused, naive, idxvar, idxvar_kloop, idxvar_shared, shared };
 
     #define GRID_ARGS const int y_stride, const int z_stride, 
     #define INDEX(x, y, z) GRID_REGULAR_INDEX(y_stride, z_stride, x, y, z)
     #define NEIGHBOR(x, y, z, x_, y_, z_) GRID_REGULAR_NEIGHBOR(y_stride, z_stride, x, y, z, x_, y_, z_)
+    #define DOUBLE_NEIGHBOR(x, y, z, x1, y1, z1, x2, y2, z2) NEIGHBOR(x, y, z, (x1+x2), (y1+y2), (z1+z2))
     #define NEIGHBOR_OF_INDEX(idx, x, y, z) GRID_REGULAR_NEIGHBOR_OF_INDEX(y_stride, z_stride, idx, x, y, z)
-    #define NEXT_Z_NEIGHBOR_OF_INDEX(idx) GRID_REGULAR_NEIGHBOR_OF_INDEX(y_stride, z_stride, idx, 0, 0, 1)
+    #define NEXT_Z_NEIGHBOR_OF_INDEX(idx) (idx+z_stride)
+    #define K_STEP k*z_stride
 
     #include "kernels/laplap-unfused.cu"
     #include "kernels/laplap-naive.cu"
     #include "kernels/laplap-idxvar.cu"
     #include "kernels/laplap-idxvar-kloop.cu"
+    #include "kernels/laplap-idxvar-shared.cu"
 
     #define SMEM_GRID_ARGS
-    #define SMEM_INDEX(_x, _y, _z) GRID_REGULAR_INDEX(blockDim.x, blockDim.x*blockDim.y, _x, _y, _z)
-    #define SMEM_NEIGHBOR(_x, _y, _z, x_, y_, z_) GRID_REGULAR_NEIGHBOR(blockDim.x, blockDim.x*blockDim.y, _x, _y, _z, x_, y_, z_)
-
-    // ...
+    #define SMEM_INDEX(_x, _y, _z) GRID_REGULAR_INDEX((int)blockDim.x, (int)blockDim.x*blockDim.y, _x, _y, _z)
+    #define SMEM_NEIGHBOR(_x, _y, _z, x_, y_, z_) GRID_REGULAR_NEIGHBOR((int)blockDim.x, (int)blockDim.x*blockDim.y, _x, _y, _z, x_, y_, z_)
+    #define SMEM_NEIGHBOR_OF_INDEX(idx, x_, y_, z_) GRID_REGULAR_NEIGHBOR_OF_INDEX((int)blockDim.x, (int)blockDim.x*blockDim.y, idx, x_, y_, z_)
+    #include "kernels/laplap-shared.cu"
 
     #undef GRID_ARGS
     #undef INDEX
     #undef NEIGHBOR
+    #undef DOUBLE_NEIGHBOR
     #undef NEIGHBOR_OF_INDEX
     #undef NEXT_Z_NEIGHBOR_OF_INDEX
     #undef K_STEP
@@ -73,6 +77,10 @@ variant(variant) {
         this->name = "laplap-regular-idxvar";
     } else if(variant == LapLapRegular::idxvar_kloop) {
         this->name = "laplap-regular-idxvar-kloop";
+    } else if(variant == LapLapRegular::idxvar_shared) {
+        this->name = "laplap-regular-idxvar-shared";
+    } else if(variant == LapLapRegular::shared) {
+        this->name = "laplap-regular-shared";
     }
 }
 
@@ -106,6 +114,24 @@ void LapLapRegularBenchmark<value_t>::run() {
             this->input->data,
             this->output->data
         );
+    } else if(this->variant == LapLapRegular::idxvar_shared) {
+        dim3 numthreads = this->numthreads();
+        int smem = numthreads.x*numthreads.y*13*sizeof(int);
+        LapLapRegular::laplap_idxvar_shared<value_t><<<this->numblocks(), numthreads, smem>>>(
+            strides.y, strides.z,
+            halo2, max_coord2,
+            this->input->data,
+            this->output->data
+        );
+    } else if(this->variant == LapLapRegular::shared){
+        dim3 numthreads = this->numthreads();
+        int smem = sizeof(value_t) * numthreads.x * numthreads.y * numthreads.z;
+        LapLapRegular::laplap_shared<value_t><<<this->numblocks(), numthreads, smem>>>(
+            strides.y, strides.z,
+            halo2, max_coord2,
+            this->input->data,
+            this->output->data
+        );
     } else if(this->variant == LapLapRegular::unfused) {
         LapLapRegular::lap<value_t><<<this->numblocks(), this->numthreads()>>>(
             strides.y, strides.z,
@@ -131,6 +157,9 @@ void LapLapRegularBenchmark<value_t>::setup() {
     this->output = new CudaRegularGrid3D<value_t>(this->size);
     if(this->variant == LapLapRegular::unfused) {
         this->intermediate = new CudaRegularGrid3D<value_t>(this->size);
+    }
+    if(this->variant == LapLapRegular::idxvar_shared) {
+        this->input->setSmemBankSize(sizeof(int));
     }
     this->LapLapBaseBenchmark<value_t>::setup();
 }
