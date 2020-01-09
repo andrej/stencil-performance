@@ -554,6 +554,7 @@ void prettyprint(benchmark_t *it, bool skip_errors) {
             numthreads.x, numthreads.y, numthreads.z,
             bench->results.runtime.avg, bench->results.runtime.median, bench->results.runtime.min, bench->results.runtime.max,
             (bench->error ? ", (Error)" : ""));
+    fflush(stdout);
 }
 
 /** Print usage notice and exit. */
