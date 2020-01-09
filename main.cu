@@ -105,7 +105,7 @@ args_t parse_args(int argc, char** argv);
 Benchmark *create_benchmark(benchmark_params_t type, coord3 size, coord3 numthreads, coord3 numblocks, int runs, bool quiet, bool no_verify);
 benchmark_list_t *create_benchmarks(args_t args);
 void run_benchmark(Benchmark *bench, bool quiet = false);
-void prettyprint(benchmark_list_t *benchmarks, bool skip_errors=false, bool header=true);
+void prettyprint(benchmark_t *benchmark, bool skip_errors=false);
 void usage(int argc, char** argv);
 int main(int argc, char** argv);
 
@@ -526,46 +526,34 @@ void run_benchmark(Benchmark *bench, bool quiet) {
     if(!quiet) {
         dim3 numblocks = bench->numblocks();
         dim3 numthreads = bench->numthreads();
-        fprintf(stderr, "Running '%s' on grid size (%d, %d, %d), blocks (%d, %d, %d), threads (%d, %d, %d), runs %d.\n",
-                bench->name.c_str(), bench->size.x, bench->size.y, bench->size.z,
-                numblocks.x, numblocks.y, numblocks.z,
-                numthreads.x, numthreads.y, numthreads.z,
-                bench->runs);
     }
     try {
         bench->execute();
     } catch (std::runtime_error e) {
         bench->error = true;
         if(!quiet) {
-            fprintf(stderr, "    Error: %s\n", e.what());
+            fprintf(stderr, "Error: %s\n", e.what());
         }
     }
 }
 
 /** Pretty print the results in a table (format is CSV-compatible, can be exported into Excel). */
-void prettyprint(benchmark_list_t *benchmarks, bool skip_errors, bool header) {
-    if(header) {
-        // TODO: print # runs
-        printf("Benchmark                   , Precision, Domain size,,, Blocks     ,,, Threads    ,,, Kernel-only execution time                \n");
-        printf("                            ,          ,   X,   Y,   Z,   X,   Y,   Z,   X,   Y,   Z,   Average,    Median,   Minimum,   Maximum\n");
+void prettyprint(benchmark_t *it, bool skip_errors) {
+    benchmark_params_t params = it->params;
+    Benchmark *bench = it->obj;
+    if(bench->error && skip_errors) {
+        return;
     }
-    for(auto it=benchmarks->begin(); it != benchmarks->end(); ++it) {
-        benchmark_params_t params = it->params;
-        Benchmark *bench = it->obj;
-        if(bench->error && skip_errors) {
-            continue;
-        }
-        dim3 numblocks = bench->numblocks();
-        dim3 numthreads = bench->numthreads();
-        printf("%-28s,%10s,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%10.0f,%10.0f,%10.0f,%10.0f%s\n",
-               bench->name.c_str(),
-               (params.precision == single_prec ? "single" : "double"),
-               bench->size.x, bench->size.y, bench->size.z,
-               numblocks.x, numblocks.y, numblocks.z,
-               numthreads.x, numthreads.y, numthreads.z,
-               bench->results.runtime.avg, bench->results.runtime.median, bench->results.runtime.min, bench->results.runtime.max,
-               (bench->error ? ", (Error)" : ""));
-    }
+    dim3 numblocks = bench->numblocks();
+    dim3 numthreads = bench->numthreads();
+    printf("%-28s,%10s,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%10.0f,%10.0f,%10.0f,%10.0f%s\n",
+            bench->name.c_str(),
+            (params.precision == single_prec ? "single" : "double"),
+            bench->size.x, bench->size.y, bench->size.z,
+            numblocks.x, numblocks.y, numblocks.z,
+            numthreads.x, numthreads.y, numthreads.z,
+            bench->results.runtime.avg, bench->results.runtime.median, bench->results.runtime.min, bench->results.runtime.max,
+            (bench->error ? ", (Error)" : ""));
 }
 
 /** Print usage notice and exit. */
@@ -584,20 +572,18 @@ int main(int argc, char** argv) {
         return 1;
     }
     benchmark_list_t *benchmarks = create_benchmarks(args);
-    for(auto it=benchmarks->begin(); it != benchmarks->end(); ++it) {
-        run_benchmark(it->obj);
-    }
-    fprintf(stderr, "\n");
     // Print command that was used to generate these benchmarks for reproducibility
     if(!args.no_header) {
         for(int i = 0; i < argc; i++) {
             printf("%s ", argv[i]);
         }
         printf("\n");
+        printf("Benchmark                   , Precision, Domain size,,, Blocks     ,,, Threads    ,,, Kernel-only execution time                \n");
+        printf("                            ,          ,   X,   Y,   Z,   X,   Y,   Z,   X,   Y,   Z,   Average,    Median,   Minimum,   Maximum\n");
     }
-    prettyprint(benchmarks, args.skip_errors, !args.no_header);
-    // destruct
     for(auto it=benchmarks->begin(); it != benchmarks->end(); ++it) {
+        run_benchmark(it->obj);
+        prettyprint(&*it, args.skip_errors);
         delete it->obj;
     }
     delete benchmarks;
