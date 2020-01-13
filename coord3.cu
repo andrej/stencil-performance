@@ -22,24 +22,6 @@ struct _coord3 {
     bool operator!=(const _coord3<T> other) const;
 };
 
-/** Type to describe neighborship relations between two 3D-coordinates.
- * 
- * Left means a negative step in X direction. Right means a positive step in X.
- * Top means a negative step in Y, bottom a positive step in Y.
- * Front means a negative step in Z, back a positive step in Z.
- * 
- * Values of this enum can be combined by ORing them together, e.g. to get a
- * top-left neighborship relation, do top | left.
- */
-typedef enum {
-    left     = 0b000001,
-    right    = 0b000010,
-    top      = 0b000100,
-    bottom   = 0b001000,
-    front    = 0b010000,
-    back     = 0b100000
-} coord3_rel;
-
 // IMPLEMENTATIONS
 
 /**
@@ -146,10 +128,14 @@ _coord3<T> operator*(int b, _coord3<T> A) {
 
 /** Make coord3 available as shorthand for one templated version of the
  * coordinate type. */
-#ifndef COORD3_USE_SHORT
+#ifdef COORD3_64
 typedef _coord3<int64_t> coord3;
-#else
+#else 
+#ifdef  COORD3_32
 typedef _coord3<int32_t> coord3;
+#else
+typedef _coord3<int16_t> coord3;
+#endif
 #endif
 
 #endif

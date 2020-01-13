@@ -6,7 +6,7 @@
  * Required macros:
  * - GRID_ARGS
  * - INDEX
- * - NEIGHBOR_OF_INDEX
+ * - NEIGHBOR
  * - K_STEP
  */
 template<typename value_t>
@@ -16,9 +16,9 @@ void hdiff_idxvar_shared(const HdiffCudaBase::Info info,
                          const value_t *in,
                          value_t *out,
                          const value_t *coeff) {
-    const int i = threadIdx.x + blockIdx.x*blockDim.x + info.halo.x;
-    const int j = threadIdx.y + blockIdx.y*blockDim.y + info.halo.y;
-    const int k = threadIdx.z + blockIdx.z*blockDim.z + info.halo.z;
+    const int i = threadIdx.x + blockIdx.x*blockDim.x;
+    const int j = threadIdx.y + blockIdx.y*blockDim.y;
+    const int k = threadIdx.z + blockIdx.z*blockDim.z;
     if(i >= info.max_coord.x || j >= info.max_coord.y || k >= info.max_coord.z) {
         return;
     }
@@ -30,18 +30,18 @@ void hdiff_idxvar_shared(const HdiffCudaBase::Info info,
 
     if(k % blockDim.z == 0) {
         // We are the thread responsible for looking up neighbor info
-        /*  0 -1 */ idxvars[local_idx+0] = NEIGHBOR_OF_INDEX(global_idx_2d, 0, -1, 0);
-        /*  0 -2 */ idxvars[local_idx+1] = NEIGHBOR_OF_INDEX(idxvars[local_idx+0], 0, -1, 0);
-        /* -1  0 */ idxvars[local_idx+2] = NEIGHBOR_OF_INDEX(global_idx_2d, -1, 0, 0);
-        /* -1 -1 */ idxvars[local_idx+3] = NEIGHBOR_OF_INDEX(idxvars[local_idx+2], 0, -1, 0);
-        /* -2  0 */ idxvars[local_idx+4] = NEIGHBOR_OF_INDEX(idxvars[local_idx+2], -1, 0, 0);
-        /*  0 +1 */ idxvars[local_idx+5] = NEIGHBOR_OF_INDEX(global_idx_2d, 0, +1, 0);
-        /*  0 +2 */ idxvars[local_idx+6] = NEIGHBOR_OF_INDEX(idxvars[local_idx+5], 0, +1, 0);
-        /* +1  0 */ idxvars[local_idx+7] = NEIGHBOR_OF_INDEX(global_idx_2d, +1, 0, 0);
-        /* +1 +1 */ idxvars[local_idx+8] = NEIGHBOR_OF_INDEX(idxvars[local_idx+7], 0, +1, 0);
-        /* +2  0 */ idxvars[local_idx+9] = NEIGHBOR_OF_INDEX(idxvars[local_idx+7], +1, 0, 0);
-        /* -1 +1 */ idxvars[local_idx+10]= NEIGHBOR_OF_INDEX(idxvars[local_idx+2], 0, +1, 0);
-        /* +1 -1 */ idxvars[local_idx+11]= NEIGHBOR_OF_INDEX(idxvars[local_idx+7], 0, -1, 0);
+        /*  0 -1 */ idxvars[local_idx+0] = NEIGHBOR(global_idx_2d, 0, -1, 0);
+        /*  0 -2 */ idxvars[local_idx+1] = NEIGHBOR(idxvars[local_idx+0], 0, -1, 0);
+        /* -1  0 */ idxvars[local_idx+2] = NEIGHBOR(global_idx_2d, -1, 0, 0);
+        /* -1 -1 */ idxvars[local_idx+3] = NEIGHBOR(idxvars[local_idx+2], 0, -1, 0);
+        /* -2  0 */ idxvars[local_idx+4] = NEIGHBOR(idxvars[local_idx+2], -1, 0, 0);
+        /*  0 +1 */ idxvars[local_idx+5] = NEIGHBOR(global_idx_2d, 0, +1, 0);
+        /*  0 +2 */ idxvars[local_idx+6] = NEIGHBOR(idxvars[local_idx+5], 0, +1, 0);
+        /* +1  0 */ idxvars[local_idx+7] = NEIGHBOR(global_idx_2d, +1, 0, 0);
+        /* +1 +1 */ idxvars[local_idx+8] = NEIGHBOR(idxvars[local_idx+7], 0, +1, 0);
+        /* +2  0 */ idxvars[local_idx+9] = NEIGHBOR(idxvars[local_idx+7], +1, 0, 0);
+        /* -1 +1 */ idxvars[local_idx+10]= NEIGHBOR(idxvars[local_idx+2], 0, +1, 0);
+        /* +1 -1 */ idxvars[local_idx+11]= NEIGHBOR(idxvars[local_idx+7], 0, -1, 0);
     }
     
     __syncthreads();

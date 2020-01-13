@@ -16,26 +16,28 @@ void fastwaves_idxvar(const FastWavesBenchmark::Info info,
                       const int c_flat_limit,
                       value_t *uout,
                       value_t *vout) {
-    const int i = blockIdx.x*blockDim.x + threadIdx.x + info.halo.x;
-    const int j = blockIdx.y*blockDim.y + threadIdx.y + info.halo.y;
-    const int k = blockIdx.z*blockDim.z + threadIdx.z + info.halo.z;
+    const int i = blockIdx.x*blockDim.x + threadIdx.x;
+    const int j = blockIdx.y*blockDim.y + threadIdx.y;
+    const int k = blockIdx.z*blockDim.z + threadIdx.z;
     if(i >= info.max_coord.x || j >= info.max_coord.y || k >= info.max_coord.z - 1) {
         return;
     }
 
-    const int idx_0_0_n1  = NEIGHBOR(i, j, k, 0, 0, -1);
-    const int idx_0_0_0   = NEXT_Z_NEIGHBOR_OF_INDEX(idx_0_0_n1);
-    const int idx_0_0_p1  = NEXT_Z_NEIGHBOR_OF_INDEX(idx_0_0_0);
-    const int idx_p1_0_n1 = NEIGHBOR_OF_INDEX(idx_0_0_n1, +1, 0, 0);
-    const int idx_p1_0_0  = NEXT_Z_NEIGHBOR_OF_INDEX(idx_p1_0_n1);
-    const int idx_p1_0_p1 = NEXT_Z_NEIGHBOR_OF_INDEX(idx_p1_0_0);
-    const int idx_0_p1_n1 = NEIGHBOR_OF_INDEX(idx_0_0_n1, 0, +1, 0);
-    const int idx_0_p1_0  = NEXT_Z_NEIGHBOR_OF_INDEX(idx_0_p1_n1);
-    const int idx_0_p1_p1 = NEXT_Z_NEIGHBOR_OF_INDEX(idx_0_p1_0);
+    const int idx = INDEX(i, j, k);
+
+    const int idx_0_0_n1  = NEIGHBOR(idx, 0, 0, -1);
+    const int idx_0_0_0   = NEXT_Z_NEIGHBOR(idx_0_0_n1);
+    const int idx_0_0_p1  = NEXT_Z_NEIGHBOR(idx_0_0_0);
+    const int idx_p1_0_n1 = NEIGHBOR(idx_0_0_n1, +1, 0, 0);
+    const int idx_p1_0_0  = NEXT_Z_NEIGHBOR(idx_p1_0_n1);
+    const int idx_p1_0_p1 = NEXT_Z_NEIGHBOR(idx_p1_0_0);
+    const int idx_0_p1_n1 = NEIGHBOR(idx_0_0_n1, 0, +1, 0);
+    const int idx_0_p1_0  = NEXT_Z_NEIGHBOR(idx_0_p1_n1);
+    const int idx_0_p1_p1 = NEXT_Z_NEIGHBOR(idx_0_p1_0);
 
     // ppgu, ppgv
     value_t ppgu, ppgv;
-    if(k < c_flat_limit + info.halo.z) {
+    if(k < c_flat_limit) {
         ppgu = ppuv[idx_p1_0_0] - ppuv[idx_0_0_0];
         ppgv = ppuv[idx_0_p1_0] - ppuv[idx_0_0_0];
     } else {

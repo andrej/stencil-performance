@@ -13,7 +13,7 @@ namespace HdiffCudaRegularUnfused {
 
     #define GRID_ARGS const int y_stride, const int z_stride, 
     #define INDEX(x, y, z) GRID_REGULAR_INDEX(y_stride, z_stride, x, y, z)
-    #define NEIGHBOR(x, y, z, x_, y_, z_) GRID_REGULAR_NEIGHBOR(y_stride, z_stride, x, y, z, x_, y_, z_)
+    #define NEIGHBOR(idx, x_, y_, z_) GRID_REGULAR_NEIGHBOR(y_stride, z_stride, idx, x_, y_, z_)
     #include "kernels/hdiff-unfused.cu"
     #undef GRID_ARGS
     #undef INDEX
@@ -66,36 +66,36 @@ void HdiffCudaRegularUnfusedBenchmark<value_t>::run() {
                 nblocks_lap, nthreads, \
                 this->get_info(),
                 strides.y, strides.z,
-                this->input->data,
-                this->lap->data);
+                this->input->pointer(coord(0, 0, 0)),
+                this->lap->pointer(coord(0, 0, 0)));
     dim3 nblocks_flx = this->gridsize(_nthreads, coord3(-1, 0, 0), coord3(1, 1, 1), this->inner_size);
     CALL_KERNEL(HdiffCudaRegularUnfused::hdiff_unfused_flx, \
                 nblocks_flx, nthreads, \
                 this->get_info(),
                 strides.y, strides.z,
-                this->input->data,
-                this->lap->data,
-                this->flx->data);
+                this->input->pointer(coord(0, 0, 0)),
+                this->lap->pointer(coord(0, 0, 0)),
+                this->flx->pointer(coord(0, 0, 0)));
     // Fly does not depend on Flx, so no need to synchronize here.
     dim3 nblocks_fly = this->gridsize(_nthreads, coord3(0, -1, 0), coord3(1, 1, 1), this->inner_size);
     CALL_KERNEL(HdiffCudaRegularUnfused::hdiff_unfused_fly, \
                 nblocks_fly, nthreads, \
                 this->get_info(),
                 strides.y, strides.z,
-                this->input->data,
-                this->lap->data,
-                this->fly->data);
+                this->input->pointer(coord(0, 0, 0)),
+                this->lap->pointer(coord(0, 0, 0)),
+                this->fly->pointer(coord(0, 0, 0)));
 
     dim3 nblocks_out = this->gridsize(_nthreads, coord3(0, 0, 0), coord3(1, 1, 1), this->inner_size);
     CALL_KERNEL(HdiffCudaRegularUnfused::hdiff_unfused_out, \
                 nblocks_out, nthreads, \
                 this->get_info(),
                 strides.y, strides.z,
-                this->input->data,
-                this->coeff->data,
-                this->flx->data,
-                this->fly->data,
-                this->output->data);
+                this->input->pointer(coord(0, 0, 0)),
+                this->coeff->pointer(coord(0, 0, 0)),
+                this->flx->pointer(coord(0, 0, 0)),
+                this->fly->pointer(coord(0, 0, 0)),
+                this->output->pointer(coord(0, 0, 0)));
     if (cudaDeviceSynchronize() != cudaSuccess) {
         this->error = true;
     }
@@ -120,12 +120,12 @@ dim3 HdiffCudaRegularUnfusedBenchmark<value_t>::gridsize(coord3 blocksize, coord
 
 template<typename value_t>
 void HdiffCudaRegularUnfusedBenchmark<value_t>::setup() {
-    this->input = new CudaRegularGrid3D<value_t>(this->size);
-    this->output = new CudaRegularGrid3D<value_t>(this->size);
-    this->coeff = new CudaRegularGrid3D<value_t>(this->size);
-    this->lap = new CudaRegularGrid3D<value_t>(this->size);
-    this->flx = new CudaRegularGrid3D<value_t>(this->size);
-    this->fly = new CudaRegularGrid3D<value_t>(this->size);
+    this->input = new CudaRegularGrid3D<value_t>(this->inner_size, this->halo);
+    this->output = new CudaRegularGrid3D<value_t>(this->inner_size, this->halo);
+    this->coeff = new CudaRegularGrid3D<value_t>(this->inner_size, this->halo);
+    this->lap = new CudaRegularGrid3D<value_t>(this->inner_size, this->halo);
+    this->flx = new CudaRegularGrid3D<value_t>(this->inner_size, this->halo);
+    this->fly = new CudaRegularGrid3D<value_t>(this->inner_size, this->halo);
     this->HdiffCudaBaseBenchmark<value_t>::setup();
 }
 

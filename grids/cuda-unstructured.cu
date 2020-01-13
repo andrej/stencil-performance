@@ -18,7 +18,7 @@
     CudaUnstructuredGrid3D(coord3 dimensions);
     CudaUnstructuredGrid3D(coord3 dimensions, int *neighbor_data);
 
-    static CudaUnstructuredGrid3D<value_t> *create_regular(coord3 dimensions);
+    static CudaUnstructuredGrid3D<value_t> *create_regular(coord3 dimensions, coord3 halo=coord3(0, 0, 0), UnstructuredGrid3D::layout_t layout=UnstructuredGrid3D::rowmajor);
 
 };
 
@@ -39,8 +39,9 @@ Grid<value_t, coord3>(dimensions,
 }
 
 template<typename value_t>
-CudaUnstructuredGrid3D<value_t> *CudaUnstructuredGrid3D<value_t>::create_regular(coord3 dimensions) {
+CudaUnstructuredGrid3D<value_t> *CudaUnstructuredGrid3D<value_t>::create_regular(coord3 dimensions, coord3 halo, UnstructuredGrid3D::layout_t layout) {
     CudaUnstructuredGrid3D<value_t> *grid = new CudaUnstructuredGrid3D<value_t>(dimensions);
+    grid->add_regular_nodes(dimensions, halo, layout);
     grid->add_regular_neighbors();
     return grid;
 }

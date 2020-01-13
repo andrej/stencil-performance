@@ -57,12 +57,14 @@ typedef enum {all_benchs,
               laplap_regular_naive,
               laplap_regular_idxvar,
               laplap_regular_idxvar_kloop,
+              laplap_regular_idxvar_kloop_sliced,
               laplap_regular_idxvar_shared,
               laplap_regular_shared,
               laplap_unstr_unfused,
               laplap_unstr_naive,
               laplap_unstr_idxvar,
               laplap_unstr_idxvar_kloop,
+              laplap_unstr_idxvar_kloop_sliced,
               laplap_unstr_idxvar_shared,
               unspecified} 
 benchmark_type_t;
@@ -396,6 +398,11 @@ Benchmark *create_benchmark(benchmark_params_t param_bench, coord3 size,
             (Benchmark *) new LapLapRegularBenchmark<float>(size, LapLapRegular::idxvar_kloop) :
             (Benchmark *) new LapLapRegularBenchmark<double>(size, LapLapRegular::idxvar_kloop) );
         break;
+        case laplap_regular_idxvar_kloop_sliced:
+        ret = (precision == single_prec ?
+            (Benchmark *) new LapLapRegularBenchmark<float>(size, LapLapRegular::idxvar_kloop_sliced) :
+            (Benchmark *) new LapLapRegularBenchmark<double>(size, LapLapRegular::idxvar_kloop_sliced) );
+        break;
         case laplap_regular_idxvar_shared:
         ret = (precision == single_prec ?
             (Benchmark *) new LapLapRegularBenchmark<float>(size, LapLapRegular::idxvar_shared) :
@@ -425,6 +432,11 @@ Benchmark *create_benchmark(benchmark_params_t param_bench, coord3 size,
         ret = (precision == single_prec ?
             (Benchmark *) new LapLapUnstrBenchmark<float>(size, LapLapUnstr::idxvar_kloop) :
             (Benchmark *) new LapLapUnstrBenchmark<double>(size, LapLapUnstr::idxvar_kloop) );
+        break;
+        case laplap_unstr_idxvar_kloop_sliced:
+        ret = (precision == single_prec ?
+            (Benchmark *) new LapLapUnstrBenchmark<float>(size, LapLapUnstr::idxvar_kloop_sliced) :
+            (Benchmark *) new LapLapUnstrBenchmark<double>(size, LapLapUnstr::idxvar_kloop_sliced) );
         break;
         case laplap_unstr_idxvar_shared:
         ret = (precision == single_prec ?

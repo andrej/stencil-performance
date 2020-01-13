@@ -1,29 +1,27 @@
 template<typename value_t>
 __global__
-void laplap_idxvar_kloop(GRID_ARGS const coord3 halo, const coord3 max_coord, const value_t *in, value_t *out) {
-    const int i = blockIdx.x*blockDim.x + threadIdx.x + halo.x;
-    const int j = blockIdx.y*blockDim.y + threadIdx.y + halo.y;
+void laplap_idxvar_kloop(GRID_ARGS, const coord3 max_coord, const value_t *in, value_t *out) {
+    const int i = blockIdx.x*blockDim.x + threadIdx.x;
+    const int j = blockIdx.y*blockDim.y + threadIdx.y;
     if(i >= max_coord.x || j >= max_coord.y) {
         return;
     }
 
     int center        = INDEX(i, j, 0);
-    int left          = NEIGHBOR_OF_INDEX(center, -1,  0, 0);
-    int leftleft      = NEIGHBOR_OF_INDEX(  left, -1,  0, 0);
-    int topleft       = NEIGHBOR_OF_INDEX(  left,  0, -1, 0);
-    int bottomleft    = NEIGHBOR_OF_INDEX(  left,  0, +1, 0);
+    int left          = NEIGHBOR(center, -1,  0, 0);
+    int leftleft      = NEIGHBOR(  left, -1,  0, 0);
+    int topleft       = NEIGHBOR(  left,  0, -1, 0);
+    int bottomleft    = NEIGHBOR(  left,  0, +1, 0);
+    int right         = NEIGHBOR(center, +1,  0, 0);
+    int topright      = NEIGHBOR( right,  0, -1, 0);
+    int rightright    = NEIGHBOR( right, +1,  0, 0);
+    int bottomright   = NEIGHBOR( right,  0, +1, 0);
+    int top           = NEIGHBOR(center,  0, -1, 0);
+    int toptop        = NEIGHBOR(   top,  0, -1, 0);
+    int bottom        = NEIGHBOR(center,  0, +1, 0);
+    int bottombottom  = NEIGHBOR(bottom,  0, +1, 0);
 
-    int right         = NEIGHBOR_OF_INDEX(center, +1,  0, 0);
-    int topright      = NEIGHBOR_OF_INDEX( right,  0, -1, 0);
-    int rightright    = NEIGHBOR_OF_INDEX( right, +1,  0, 0);
-    int bottomright   = NEIGHBOR_OF_INDEX( right,  0, +1, 0);
-
-    int top           = NEIGHBOR_OF_INDEX(center,  0, -1, 0);
-    int toptop        = NEIGHBOR_OF_INDEX(   top,  0, -1, 0);
-
-    int bottom        = NEIGHBOR_OF_INDEX(center,  0, +1, 0);
-    int bottombottom  = NEIGHBOR_OF_INDEX(bottom,  0, +1, 0);
-
+    #pragma unroll 4
     for(int k = halo.z; k < max_coord.z; k++) {
         const value_t lap_center= 4 * in[center]
                                     - in[left]
@@ -57,21 +55,21 @@ void laplap_idxvar_kloop(GRID_ARGS const coord3 halo, const coord3 max_coord, co
                                     - lap_bottom;
 
         // index updates
-        center        = NEXT_Z_NEIGHBOR_OF_INDEX(center);
-        left          = NEXT_Z_NEIGHBOR_OF_INDEX(left);
-        leftleft      = NEXT_Z_NEIGHBOR_OF_INDEX(leftleft);
-        topleft       = NEXT_Z_NEIGHBOR_OF_INDEX(topleft);
-        bottomleft    = NEXT_Z_NEIGHBOR_OF_INDEX(bottomleft);
+        center        = Z_NEIGHBOR(center, +1);
+        left          = Z_NEIGHBOR(left, +1);
+        leftleft      = Z_NEIGHBOR(leftleft, +1);
+        topleft       = Z_NEIGHBOR(topleft, +1);
+        bottomleft    = Z_NEIGHBOR(bottomleft, +1);
     
-        right         = NEXT_Z_NEIGHBOR_OF_INDEX(right);
-        topright      = NEXT_Z_NEIGHBOR_OF_INDEX(topright);
-        rightright    = NEXT_Z_NEIGHBOR_OF_INDEX(rightright);
-        bottomright   = NEXT_Z_NEIGHBOR_OF_INDEX(bottomright);
+        right         = Z_NEIGHBOR(right, +1);
+        topright      = Z_NEIGHBOR(topright, +1);
+        rightright    = Z_NEIGHBOR(rightright, +1);
+        bottomright   = Z_NEIGHBOR(bottomright, +1);
     
-        top           = NEXT_Z_NEIGHBOR_OF_INDEX(top);
-        toptop        = NEXT_Z_NEIGHBOR_OF_INDEX(toptop);
+        top           = Z_NEIGHBOR(top, +1);
+        toptop        = Z_NEIGHBOR(toptop, +1);
     
-        bottom        = NEXT_Z_NEIGHBOR_OF_INDEX(bottom);
-        bottombottom  = NEXT_Z_NEIGHBOR_OF_INDEX(bottombottom);
+        bottom        = Z_NEIGHBOR(bottom, +1);
+        bottombottom  = Z_NEIGHBOR(bottombottom, +1);
     }
 }

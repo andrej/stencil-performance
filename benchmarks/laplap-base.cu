@@ -79,11 +79,12 @@ bool LapLapBaseBenchmark<value_t>::verify(double tol) {
     };
     
     // First iteration
+    coord3 halo1(1, 1, 0);
     Coord3BaseGrid<value_t> *in = dynamic_cast<Coord3BaseGrid<value_t> *>(this->input);
-    CudaRegularGrid3D<value_t> *lap1 = new CudaRegularGrid3D<value_t>(this->size);
-    for(int i = 1; i < this->size.x - 1; i++) {
-        for(int j = 1; j < this->size.y - 1; j++) {
-            for(int k = 0; k < this->size.z; k++) {
+    CudaRegularGrid3D<value_t> *lap1 = new CudaRegularGrid3D<value_t>(this->size-halo1, halo1);
+    for(int i = 0; i < lap1->size.x; i++) {
+        for(int j = 0; j < lap1->size.y; j++) {
+            for(int k = 0; k < lap1->size.z; k++) {
                 coord3 p(i, j, k);
                 lap1->set(p, lap(in, p));
             }
@@ -91,10 +92,11 @@ bool LapLapBaseBenchmark<value_t>::verify(double tol) {
     }
 
     // Second iteration
-    CudaRegularGrid3D<value_t> *lap2 = new CudaRegularGrid3D<value_t>(this->size);
-    for(int i = 2; i < this->size.x - 2; i++) {
-        for(int j = 2; j < this->size.y - 2; j++) {
-            for(int k = 0; k < this->size.z; k++) {
+    coord3 halo2(2, 2, 0);
+    CudaRegularGrid3D<value_t> *lap2 = new CudaRegularGrid3D<value_t>(this->size-halo2, halo2);
+    for(int i = 0; i < lap2->size.x; i++) {
+        for(int j = 0; j < lap2->size.y; j++) {
+            for(int k = 0; k < lap2->size.z; k++) {
                 coord3 p(i, j, k);
                 lap2->set(p, lap(lap1, p));
             }

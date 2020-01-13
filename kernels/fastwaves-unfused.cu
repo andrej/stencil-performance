@@ -7,16 +7,18 @@ void fastwaves_ppgk(const FastWavesBenchmark::Info info,
                     const value_t *ppuv,
                     const value_t *wgtfac,
                     value_t *out) {
-    const int i = blockIdx.x*blockDim.x + threadIdx.x + info.halo.x;
-    const int j = blockIdx.y*blockDim.y + threadIdx.y + info.halo.y;
-    const int k = blockIdx.z*blockDim.z + threadIdx.z + c_flat_limit + info.halo.z;
+    const int i = blockIdx.x*blockDim.x + threadIdx.x;
+    const int j = blockIdx.y*blockDim.y + threadIdx.y;
+    const int k = blockIdx.z*blockDim.z + threadIdx.z + c_flat_limit;
     if(i >= info.max_coord.x + 1 || j >= info.max_coord.y + 1 || k >= info.max_coord.z) {
         return;
     }
 
-    out[INDEX(i, j, k)] =
-        wgtfac[INDEX(i, j, k)] * ppuv[INDEX(i, j, k)] +
-        (1.0 - wgtfac[INDEX(i, j, k)]) * ppuv[NEIGHBOR(i, j, k, 0, 0, -1)];
+    const int idx = INDEX(i, j, k);
+
+    out[idx] =
+        wgtfac[idx] * ppuv[idx] +
+        (1.0 - wgtfac[idx]) * ppuv[NEIGHBOR(idx, 0, 0, -1)];
 }
 
 // ppgc: PPGradCorStage taking difference of previous results
@@ -27,20 +29,22 @@ void fastwaves_ppgc(const FastWavesBenchmark::Info info,
                     int c_flat_limit,
                     const value_t *ppgk,
                     value_t *ppgc) {
-    const int i = blockIdx.x*blockDim.x + threadIdx.x + info.halo.x;
-    const int j = blockIdx.y*blockDim.y + threadIdx.y + info.halo.y;
-    int k = blockIdx.z*blockDim.z + threadIdx.z + c_flat_limit + info.halo.z;
+    const int i = blockIdx.x*blockDim.x + threadIdx.x;
+    const int j = blockIdx.y*blockDim.y + threadIdx.y;
+    int k = blockIdx.z*blockDim.z + threadIdx.z + c_flat_limit;
     if(i >= info.max_coord.x + 1 || j >= info.max_coord.y + 1 || k >= info.max_coord.z) {
         return;
     }
 
+    const int idx = INDEX(i, j, k);
+
     // FIXME race condition!
 
     if(k == info.max_coord.z - 1) {
-        ppgc[INDEX(i, j, k)] = ppgk[INDEX(i, j, k)];
+        ppgc[idx] = ppgk[idx];
     } else {
-        ppgc[INDEX(i, j, k)] =
-            ppgk[NEIGHBOR(i, j, k, 0, 0, +1)] - ppgk[INDEX(i, j, k)];
+        ppgc[idx] =
+            ppgk[NEIGHBOR(idx, 0, 0, +1)] - ppgk[idx];
     }
     
 }
@@ -64,9 +68,9 @@ void fastwaves_ppgrad_uv(const FastWavesBenchmark::Info info,
                          const int c_flat_limit,
                          value_t *uout,
                          value_t *vout) {
-    const int i = blockIdx.x*blockDim.x + threadIdx.x + info.halo.x;
-    const int j = blockIdx.y*blockDim.y + threadIdx.y + info.halo.y;
-    const int k = blockIdx.z*blockDim.z + threadIdx.z + info.halo.z;
+    const int i = blockIdx.x*blockDim.x + threadIdx.x;
+    const int j = blockIdx.y*blockDim.y + threadIdx.y;
+    const int k = blockIdx.z*blockDim.z + threadIdx.z;
     if(i >= info.max_coord.x || j >= info.max_coord.y || k >= info.max_coord.z - 1) {
         return;
     }
@@ -89,25 +93,25 @@ void fastwaves_ppgrad_uv(const FastWavesBenchmark::Info info,
         "(2.0 / (rho(i,j+1,k) + rho(i,j,k))));" */
 
     value_t ppgu, ppgv;
-    if(k < c_flat_limit + info.halo.z) {
-        ppgu = ppuv[NEIGHBOR(i, j, k, +1, 0, 0)] - ppuv[INDEX(i, j, k)];
-        ppgv = ppuv[NEIGHBOR(i, j, k, 0, +1, 0)] - ppuv[INDEX(i, j, k)];
+    if(k < c_flat_limit) {
+        ppgu = ppuv[NEIGHBOR(idx, +1, 0, 0)] - ppuv[idx];
+        ppgv = ppuv[NEIGHBOR(idx, 0, +1, 0)] - ppuv[idx];
     } else {
         ppgu =
-            (ppuv[NEIGHBOR(i, j, k, +1, 0, 0)] - ppuv[INDEX(i, j, k)]) + (ppgc[NEIGHBOR(i, j, k, +1, 0, 0)] + ppgc[INDEX(i, j, k)]) * 0.5 * 
-            ((hhl[NEIGHBOR(i, j, k, 0, 0, +1)] + hhl[INDEX(i, j, k)]) - (hhl[NEIGHBOR(i, j, k, +1, 0, +1)] + hhl[NEIGHBOR(i, j, k, +1, 0, 0)])) / 
-            ((hhl[NEIGHBOR(i, j, k, 0, 0, +1)] - hhl[INDEX(i, j, k)]) + (hhl[NEIGHBOR(i, j, k, +1, 0, +1)] - hhl[NEIGHBOR(i, j, k, +1, 0, 0)]));
+            (ppuv[NEIGHBOR(idx, +1, 0, 0)] - ppuv[idx]) + (ppgc[NEIGHBOR(idx, +1, 0, 0)] + ppgc[idx]) * 0.5 * 
+            ((hhl[NEIGHBOR(idx, 0, 0, +1)] + hhl[idx]) - (hhl[NEIGHBOR(idx, +1, 0, +1)] + hhl[NEIGHBOR(idx, +1, 0, 0)])) / 
+            ((hhl[NEIGHBOR(idx, 0, 0, +1)] - hhl[idx]) + (hhl[NEIGHBOR(idx, +1, 0, +1)] - hhl[NEIGHBOR(idx, +1, 0, 0)]));
         ppgv =
-            (ppuv[NEIGHBOR(i, j, k, 0, +1, 0)] - ppuv[INDEX(i, j, k)]) + (ppgc[NEIGHBOR(i, j, k, 0, +1, 0)] + ppgc[INDEX(i, j, k)]) * 0.5 *
-            ((hhl[NEIGHBOR(i, j, k, 0, 0, +1)] + hhl[INDEX(i, j, k)]) - (hhl[NEIGHBOR(i, j, k, 0, +1, +1)] + hhl[NEIGHBOR(i, j, k, 0, +1, 0)])) /
-            ((hhl[NEIGHBOR(i, j, k, 0, 0, +1)] - hhl[INDEX(i, j, k)]) + (hhl[NEIGHBOR(i, j, k, 0, +1, +1)] - hhl[NEIGHBOR(i, j, k, 0, +1, 0)]));
+            (ppuv[NEIGHBOR(idx, 0, +1, 0)] - ppuv[idx]) + (ppgc[NEIGHBOR(idx, 0, +1, 0)] + ppgc[idx]) * 0.5 *
+            ((hhl[NEIGHBOR(idx, 0, 0, +1)] + hhl[idx]) - (hhl[NEIGHBOR(idx, 0, +1, +1)] + hhl[NEIGHBOR(idx, 0, +1, 0)])) /
+            ((hhl[NEIGHBOR(idx, 0, 0, +1)] - hhl[idx]) + (hhl[NEIGHBOR(idx, 0, +1, +1)] - hhl[NEIGHBOR(idx, 0, +1, 0)]));
     }
 
-    uout[INDEX(i, j, k)] =
-        uin[INDEX(i, j, k)] + dt_small * (utens[INDEX(i, j, k)] - ppgu * 
-        (fx[INDEX(i, j, k)] / (0.5 * (rho[NEIGHBOR(i, j, k, +1, 0, 0)] + rho[INDEX(i, j, k)]))));
-    vout[INDEX(i, j, k)] =
-        vin[INDEX(i, j, k)] + dt_small * (vtens[INDEX(i, j, k)] - ppgv * 
-        (edadlat / (0.5 * ((rho[NEIGHBOR(i, j, k, 0, +1, 0)] + rho[INDEX(i, j, k)])))));
+    uout[idx] =
+        uin[idx] + dt_small * (utens[idx] - ppgu * 
+        (fx[idx] / (0.5 * (rho[NEIGHBOR(idx, +1, 0, 0)] + rho[idx]))));
+    vout[idx] =
+        vin[idx] + dt_small * (vtens[idx] - ppgv * 
+        (edadlat / (0.5 * ((rho[NEIGHBOR(idx, 0, +1, 0)] + rho[idx])))));
 
 }

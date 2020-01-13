@@ -34,7 +34,6 @@
                      __FILE__, __LINE__, \
                      cudaGetErrorName(err), cudaGetErrorString(err)); \
             throw std::runtime_error(msg); \
-            exit(1); \
         } \
     } while(0)
 

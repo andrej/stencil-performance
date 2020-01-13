@@ -6,7 +6,7 @@
  * Required macros:
  *  - GRID_ARGS
  *  - INDEX
- *  - NEIGHBOR_OF_INDEX
+ *  - NEIGHBOR
  *  - K_STEP
  */
 template<typename value_t>
@@ -16,26 +16,26 @@ void hdiff_idxvar(const HdiffCudaBase::Info info,
                   const value_t *in,
                   value_t *out,
                   const value_t *coeff) {
-    const int i = threadIdx.x + blockIdx.x*blockDim.x + info.halo.x;
-    const int j = threadIdx.y + blockIdx.y*blockDim.y + info.halo.y;
-    const int k = threadIdx.z + blockIdx.z*blockDim.z + info.halo.z;
+    const int i = threadIdx.x + blockIdx.x*blockDim.x;
+    const int j = threadIdx.y + blockIdx.y*blockDim.y;
+    const int k = threadIdx.z + blockIdx.z*blockDim.z;
     if(i >= info.max_coord.x || j >= info.max_coord.y || k >= info.max_coord.z) {
         return;
     }
     
     int n_0_0_0       = INDEX(i, j, 0);
-    int n_0_n1_0      = NEIGHBOR_OF_INDEX(n_0_0_0, 0, -1, 0); /* left */
-    int n_0_n2_0      = NEIGHBOR_OF_INDEX(n_0_n1_0, 0, -1, 0); /* 2 left */
-    int n_n1_0_0      = NEIGHBOR_OF_INDEX(n_0_0_0, -1, 0, 0); /* top */
-    int n_n1_n1_0     = NEIGHBOR_OF_INDEX(n_n1_0_0, 0, -1, 0); /* top left */
-    int n_n2_0_0      = NEIGHBOR_OF_INDEX(n_n1_0_0, -1, 0, 0); /* 2 top */
-    int n_0_p1_0      = NEIGHBOR_OF_INDEX(n_0_0_0, 0, +1, 0); /* right */
-    int n_0_p2_0      = NEIGHBOR_OF_INDEX(n_0_p1_0, 0, +1, 0); /* 2 right */
-    int n_p1_0_0      = NEIGHBOR_OF_INDEX(n_0_0_0, +1, 0, 0); /* bottom */
-    int n_p1_p1_0     = NEIGHBOR_OF_INDEX(n_p1_0_0, 0, +1, 0); /* bottom right */
-    int n_p2_0_0      = NEIGHBOR_OF_INDEX(n_p1_0_0, +1, 0, 0); /* 2 bottom */
-    int n_n1_p1_0     = NEIGHBOR_OF_INDEX(n_n1_0_0, 0, +1, 0); /* top right */
-    int n_p1_n1_0     = NEIGHBOR_OF_INDEX(n_p1_0_0, 0, -1, 0); /* bottom left */
+    int n_0_n1_0      = NEIGHBOR(n_0_0_0, 0, -1, 0); /* left */
+    int n_0_n2_0      = NEIGHBOR(n_0_n1_0, 0, -1, 0); /* 2 left */
+    int n_n1_0_0      = NEIGHBOR(n_0_0_0, -1, 0, 0); /* top */
+    int n_n1_n1_0     = NEIGHBOR(n_n1_0_0, 0, -1, 0); /* top left */
+    int n_n2_0_0      = NEIGHBOR(n_n1_0_0, -1, 0, 0); /* 2 top */
+    int n_0_p1_0      = NEIGHBOR(n_0_0_0, 0, +1, 0); /* right */
+    int n_0_p2_0      = NEIGHBOR(n_0_p1_0, 0, +1, 0); /* 2 right */
+    int n_p1_0_0      = NEIGHBOR(n_0_0_0, +1, 0, 0); /* bottom */
+    int n_p1_p1_0     = NEIGHBOR(n_p1_0_0, 0, +1, 0); /* bottom right */
+    int n_p2_0_0      = NEIGHBOR(n_p1_0_0, +1, 0, 0); /* 2 bottom */
+    int n_n1_p1_0     = NEIGHBOR(n_n1_0_0, 0, +1, 0); /* top right */
+    int n_p1_n1_0     = NEIGHBOR(n_p1_0_0, 0, -1, 0); /* bottom left */
     const int k_step  = K_STEP;
     n_0_0_0           += k_step;
     n_0_n1_0          += k_step; /* left */

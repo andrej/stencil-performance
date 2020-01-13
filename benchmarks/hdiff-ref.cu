@@ -14,7 +14,7 @@ class HdiffReferenceBenchmark : public Benchmark {
     public:
 
     // The padding option currently only applies to regular grids
-    HdiffReferenceBenchmark(coord3 size, size_t padding=0);
+    HdiffReferenceBenchmark(coord3 size);
  
     RegularGrid3D<value_t> *input = NULL;
     RegularGrid3D<value_t> *output = NULL;
@@ -37,7 +37,6 @@ class HdiffReferenceBenchmark : public Benchmark {
     size_t padding;
     coord3 halo;
     coord3 inner_size; // size w.o. 2* halo
-    coord3 inner_coord(coord3 inner_coord);
 
     // Print (1, 1, 1) for numblocks/numthreads as this is on CPU
     dim3 numblocks();
@@ -48,28 +47,25 @@ class HdiffReferenceBenchmark : public Benchmark {
 // IMPLEMENTATIONS
 
 template<typename value_t>
-HdiffReferenceBenchmark<value_t>::HdiffReferenceBenchmark(coord3 size, size_t padding) :
+HdiffReferenceBenchmark<value_t>::HdiffReferenceBenchmark(coord3 size) :
 Benchmark(size),
 padding(padding),
 halo(coord3(2,2,0)){
-    if(this->padding > 0) {
-        this->name = "hdiff-ref-pad";
-    } else {
-        this->name = "hdiff-ref";
-    }
+    this->name = "hdiff-ref";
 }
 
 template<typename value_t>
 void HdiffReferenceBenchmark<value_t>::setup(){
-    // Set up grids
-    this->input = new RegularGrid3D<value_t>(this->size, this->padding);
-    this->output = new RegularGrid3D<value_t>(this->size, this->padding);
-    this->coeff = new RegularGrid3D<value_t>(this->size, this->padding);
-    this->lap = new RegularGrid3D<value_t>(this->size, this->padding);
-    this->flx = new RegularGrid3D<value_t>(this->size, this->padding);
-    this->fly = new RegularGrid3D<value_t>(this->size, this->padding);
     // Algorithm requires a halo: padding that is not touched
     this->inner_size = this->size - 2*this->halo;
+    // Set up grids
+    this->input = new RegularGrid3D<value_t>(this->inner_size, this->halo);
+    this->output = new RegularGrid3D<value_t>(this->inner_size, this->halo);
+    this->coeff = new RegularGrid3D<value_t>(this->inner_size, this->halo);
+    this->lap = new RegularGrid3D<value_t>(this->inner_size, this->halo);
+    this->flx = new RegularGrid3D<value_t>(this->inner_size, this->halo);
+    this->fly = new RegularGrid3D<value_t>(this->inner_size, this->halo);
+
     // Populate with data
     this->populate_grids();
     // do NOT call base setup here, this would lead to infinite recursion as
@@ -79,15 +75,15 @@ void HdiffReferenceBenchmark<value_t>::setup(){
 template<typename value_t>
 void HdiffReferenceBenchmark<value_t>::populate_grids() {
     // Populate memory with values as in reference implementation (copied 1:1)
-    value_t *m_in = this->input->data;
-    value_t *m_out = this->output->data;
-    value_t *m_coeff = this->coeff->data;
-    value_t *m_lap = this->lap->data;
-    value_t *m_flx = this->flx->data;
-    value_t *m_fly = this->fly->data;
-    const int isize = this->inner_size.x;
-    const int jsize = this->inner_size.y;
-    const int ksize = this->inner_size.z;
+    value_t *m_in = &this->input->data[this->input->index(coord(0, 0, 0))];
+    value_t *m_out = &this->input->data[this->output->index(coord(0, 0, 0));
+    value_t *m_coeff = &this->input->data[this->coeff->index(coord(0, 0, 0));
+    value_t *m_lap = &this->input->data[this->lap->index(coord(0, 0, 0));
+    value_t *m_flx = &this->input->data[this->flx->index(coord(0, 0, 0));
+    value_t *m_fly = &this->input->data[this->fly->index(coord(0, 0, 0));
+    const int isize = &this->input->data[this->inner_size.x;
+    const int jsize = &this->input->data[this->inner_size.y;
+    const int ksize = &this->input->data[this->inner_size.z;
     // original code starts here
     value_t dx = 1. / (value_t)(isize);
     value_t dy = 1. / (value_t)(jsize);
@@ -97,7 +93,7 @@ void HdiffReferenceBenchmark<value_t>::populate_grids() {
             value_t x = dx * (value_t)(i);
             value_t y = dy * (value_t)(j);
             for (int k = 0; k < ksize; k++) {
-                int cnt = this->input->index(this->inner_coord(coord3(j, i, k))); // MODIFIED
+                int cnt = this->input->index(coord3(j, i, k)); // MODIFIED
                 value_t z = dz * (value_t)(k);
                 // u values between 5 and 9
                 m_in[cnt] = 3.0 +
@@ -120,17 +116,17 @@ void HdiffReferenceBenchmark<value_t>::populate_grids() {
 template<typename value_t>
 void HdiffReferenceBenchmark<value_t>::run() {
     // Grids
-    value_t *in = this->input->data;
-    value_t *coeff = this->coeff->data;
-    value_t *out_ref = this->output->data;
-    value_t *lap_ref = this->lap->data;
-    value_t *flx_ref = this->flx->data;
-    value_t *fly_ref = this->fly->data;
+    value_t *in = &this->input->data[this->input->index(coord(0, 0, 0))];
+    value_t *coeff = &this->input->data[this->coeff->index(coord(0, 0, 0))];
+    value_t *out_ref = &this->input->data[this->output->index(coord(0, 0, 0))];
+    value_t *lap_ref = &this->input->data[this->lap->index(coord(0, 0, 0))];
+    value_t *flx_ref = &this->input->data[this->flx->index(coord(0, 0, 0))];
+    value_t *fly_ref = &this->input->data[this->fly->index(coord(0, 0, 0))];
     // convenience variables
     const int isize = this->inner_size.x;
     const int jsize = this->inner_size.y;
     const int ksize = this->inner_size.z;
-    auto index = [this](int x, int y, int z) { return this->input->index(this->inner_coord(coord3(x, y, z))); };
+    auto index = [this](int x, int y, int z) { return this->input->index(coord3(x, y, z)); };
     // begin copied code
     for (int k = 0; k < ksize; ++k) {
         for (int j = -1; j < jsize + 1; ++j) {
@@ -179,11 +175,6 @@ void HdiffReferenceBenchmark<value_t>::teardown() {
     delete this->lap;
     delete this->flx;
     delete this->fly;
-}
-
-template<typename value_t>
-coord3 HdiffReferenceBenchmark<value_t>::inner_coord(coord3 coord){
-    return coord + this->halo;
 }
 
 template<typename value_t>

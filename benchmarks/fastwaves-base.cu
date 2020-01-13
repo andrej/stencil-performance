@@ -6,7 +6,6 @@
 
 namespace FastWavesBenchmark {
     struct Info {
-        coord3 halo;
         coord3 max_coord;
     };
 }
@@ -197,8 +196,7 @@ bool FastWavesBaseBenchmark<value_t>::verify(double tol) {
 
 template<typename value_t>
 FastWavesBenchmark::Info FastWavesBaseBenchmark<value_t>::get_info() {
-    return { .halo = this->halo,
-             .max_coord = this->inner_size + this->halo };
+    return { .max_coord = this->inner_size + this->halo };
 }
 
 #endif

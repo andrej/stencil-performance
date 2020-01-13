@@ -12,20 +12,19 @@ namespace HdiffCudaUnstr {
     /** Variants of this benchmark. */
     enum Variant { naive, idxvar, idxvar_kloop, idxvar_shared };
 
-    #define GRID_ARGS const int * __restrict__ neighbor_data, const int y_stride, const int z_stride, 
-    #define INDEX(x, y, z) GRID_UNSTR_INDEX(y_stride, z_stride, x, y, z)
-    #define NEIGHBOR(x, y, z, x_, y_, z_) GRID_UNSTR_NEIGHBOR(neighbor_data, y_stride, z_stride, x, y, z, x_, y_, z_)
-    #define NEIGHBOR_OF_INDEX(idx, x, y, z) GRID_UNSTR_NEIGHBOR_OF_INDEX(neighbor_data, z_stride, idx, x, y, z)
-    #define DOUBLE_NEIGHBOR(x, y, z, x1, y1, z1, x2, y2, z2) NEIGHBOR_OF_INDEX(NEIGHBOR(x, y, z, x1, y1, z1), x2, y2, z2)
+    #define GRID_ARGS const int * __restrict__ neighborships, const int z_stride, 
+    #define INDEX(x_, y_, z_) (x_) + (y_)*blockDim.x*gridDim.x + (z_)*blockDim.x*gridDim.x*blockDim.y*gridDim.y
+    #define NEIGHBOR(idx, x_, y_, z_) GRID_UNSTR_NEIGHBOR(neighborships, z_stride, idx, x_, y_, z_)
+    #define DOUBLE_NEIGHBOR(idx, x1, y1, z1, x2, y2, z2) NEIGHBOR(NEIGHBOR(idx, x1, y1, z1), x2, y2, z2)
     
     #include "kernels/hdiff-naive.cu"
 
     #undef NEIGHBOR
     #undef DOUBLE_NEIGHBOR
-    #undef NEIGHBOR_OF_INDEX
+    #undef NEIGHBOR
 
-    #define NEIGHBOR_OF_INDEX(idx, x, y, z) GRID_UNSTR_2D_NEIGHBOR_OF_INDEX(neighbor_data, z_stride, idx, x, y)
-    #define NEXT_Z_NEIGHBOR_OF_INDEX(idx) (idx+z_stride)
+    #define NEIGHBOR(idx, x, y, z) GRID_UNSTR_2D_NEIGHBOR(neighborships, z_stride, idx, x, y)
+    #define NEXT_Z_NEIGHBOR(idx) (idx+z_stride)
     #define K_STEP k*z_stride
 
     #include "kernels/hdiff-idxvar.cu"
@@ -34,8 +33,8 @@ namespace HdiffCudaUnstr {
 
     #undef GRID_ARGS
     #undef INDEX
-    #undef NEIGHBOR_OF_INDEX
-    #undef NEXT_Z_NEIGHBOR_OF_INDEX
+    #undef NEIGHBOR
+    #undef NEXT_Z_NEIGHBOR
     #undef K_STEP
 
 };
@@ -96,12 +95,11 @@ void HdiffCudaUnstrBenchmark<value_t>::run() {
     CudaUnstructuredGrid3D<value_t> *unstr_input = dynamic_cast<CudaUnstructuredGrid3D<value_t>*>(this->input);
     (*kernel_fun)<<<this->numblocks(), this->numthreads(), smem>>>(
         this->get_info(),
-        unstr_input->neighbor_data,
-        unstr_input->dimensions.x,
+        unstr_input->neighborships,
         unstr_input->dimensions.x*unstr_input->dimensions.y,
-        this->input->data,
-        this->output->data,
-        this->coeff->data
+        this->input->pointer(coord3(0, 0, 0)),
+        this->output->pointer(coord3(0, 0, 0)),
+        this->coeff->pointer(coord3(0, 0, 0))
     );
     CUDA_THROW_LAST();
     CUDA_THROW( cudaDeviceSynchronize() );
@@ -129,13 +127,13 @@ dim3 HdiffCudaUnstrBenchmark<value_t>::numthreads() {
 
 template<typename value_t>
 void HdiffCudaUnstrBenchmark<value_t>::setup() {
-    this->input = CudaUnstructuredGrid3D<value_t>::create_regular(this->size);
-    int *neighbor_data = dynamic_cast<CudaUnstructuredGrid3D<value_t> *>(this->input)->neighbor_data;
-    this->output = new CudaUnstructuredGrid3D<value_t>(this->size, neighbor_data);
-    this->coeff = new CudaUnstructuredGrid3D<value_t>(this->size, neighbor_data);
-    this->lap = new CudaUnstructuredGrid3D<value_t>(this->size, neighbor_data);
-    this->flx = new CudaUnstructuredGrid3D<value_t>(this->size, neighbor_data);
-    this->fly = new CudaUnstructuredGrid3D<value_t>(this->size, neighbor_data);
+    this->input = CudaUnstructuredGrid3D<value_t>::create_regular(this->inner_size, this->halo);
+    int *neighborships = dynamic_cast<CudaUnstructuredGrid3D<value_t> *>(this->input)->neighborships;
+    this->output = new CudaUnstructuredGrid3D<value_t>(this->inner_size, this->halo);
+    this->coeff = new CudaUnstructuredGrid3D<value_t>(this->inner_size, this->halo);
+    this->lap = new CudaUnstructuredGrid3D<value_t>(this->inner_size, this->halo);
+    this->flx = new CudaUnstructuredGrid3D<value_t>(this->inner_size, this->halo);
+    this->fly = new CudaUnstructuredGrid3D<value_t>(this->inner_size, this->halo);
     if(this->variant == HdiffCudaUnstr::idxvar_shared) {
         this->input->setSmemBankSize(sizeof(int));
     }

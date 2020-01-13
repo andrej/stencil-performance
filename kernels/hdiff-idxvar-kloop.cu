@@ -7,8 +7,8 @@
  * Required macros:
  * - GRID_ARGS
  * - INDEX
- * - NEIGHBOR_OF_INDEX
- * - NEXT_Z_NEIGHBOR_OF_INDEX
+ * - NEIGHBOR
+ * - NEXT_Z_NEIGHBOR
  */
 template<typename value_t>
 __global__
@@ -18,8 +18,8 @@ void hdiff_idxvar_kloop(const HdiffCudaBase::Info info,
                         value_t *out,
                         const value_t *coeff) {
 
-    const int i = threadIdx.x + blockIdx.x*blockDim.x + info.halo.x;
-    const int j = threadIdx.y + blockIdx.y*blockDim.y + info.halo.y;
+    const int i = threadIdx.x + blockIdx.x*blockDim.x;
+    const int j = threadIdx.y + blockIdx.y*blockDim.y;
     if(i >= info.max_coord.x || j >= info.max_coord.y) {
         return;
     }
@@ -31,19 +31,20 @@ void hdiff_idxvar_kloop(const HdiffCudaBase::Info info,
     * idx of neighbor X Y Z = n_X_Y_Z with p for positive offset and 
     * n for negative offset. */
     int n_0_0_0       = INDEX(i, j, 0);
-    int n_0_n1_0      = NEIGHBOR_OF_INDEX(n_0_0_0, 0, -1, 0);
-    int n_0_n2_0      = NEIGHBOR_OF_INDEX(n_0_n1_0, 0, -1, 0);
-    int n_n1_0_0      = NEIGHBOR_OF_INDEX(n_0_0_0, -1, 0, 0);
-    int n_n1_n1_0     = NEIGHBOR_OF_INDEX(n_n1_0_0, 0, -1, 0);
-    int n_n2_0_0      = NEIGHBOR_OF_INDEX(n_n1_0_0, -1, 0, 0);
-    int n_0_p1_0      = NEIGHBOR_OF_INDEX(n_0_0_0, 0, +1, 0);
-    int n_0_p2_0      = NEIGHBOR_OF_INDEX(n_0_p1_0, 0, +1, 0);
-    int n_p1_0_0      = NEIGHBOR_OF_INDEX(n_0_0_0, +1, 0, 0);
-    int n_p1_p1_0     = NEIGHBOR_OF_INDEX(n_p1_0_0, 0, +1, 0);
-    int n_p2_0_0      = NEIGHBOR_OF_INDEX(n_p1_0_0, +1, 0, 0);
-    int n_n1_p1_0     = NEIGHBOR_OF_INDEX(n_n1_0_0, 0, +1, 0);
-    int n_p1_n1_0     = NEIGHBOR_OF_INDEX(n_p1_0_0, 0, -1, 0);
+    int n_0_n1_0      = NEIGHBOR(n_0_0_0, 0, -1, 0);
+    int n_0_n2_0      = NEIGHBOR(n_0_n1_0, 0, -1, 0);
+    int n_n1_0_0      = NEIGHBOR(n_0_0_0, -1, 0, 0);
+    int n_n1_n1_0     = NEIGHBOR(n_n1_0_0, 0, -1, 0);
+    int n_n2_0_0      = NEIGHBOR(n_n1_0_0, -1, 0, 0);
+    int n_0_p1_0      = NEIGHBOR(n_0_0_0, 0, +1, 0);
+    int n_0_p2_0      = NEIGHBOR(n_0_p1_0, 0, +1, 0);
+    int n_p1_0_0      = NEIGHBOR(n_0_0_0, +1, 0, 0);
+    int n_p1_p1_0     = NEIGHBOR(n_p1_0_0, 0, +1, 0);
+    int n_p2_0_0      = NEIGHBOR(n_p1_0_0, +1, 0, 0);
+    int n_n1_p1_0     = NEIGHBOR(n_n1_0_0, 0, +1, 0);
+    int n_p1_n1_0     = NEIGHBOR(n_p1_0_0, 0, -1, 0);
 
+    #pragma unroll 4
     for (int k = info.halo.z; k < info.max_coord.z; k++) {
 
         value_t lap_ij = 
@@ -86,19 +87,19 @@ void hdiff_idxvar_kloop(const HdiffCudaBase::Info info,
 
         // Make use of regularity in Z-direciton: neighbors are exactly the
         // same, just one Z-stride apart.
-        n_0_0_0       = NEXT_Z_NEIGHBOR_OF_INDEX(n_0_0_0);
-        n_0_n1_0      = NEXT_Z_NEIGHBOR_OF_INDEX(n_0_n1_0);
-        n_0_n2_0      = NEXT_Z_NEIGHBOR_OF_INDEX(n_0_n2_0);
-        n_n1_0_0      = NEXT_Z_NEIGHBOR_OF_INDEX(n_n1_0_0);
-        n_n1_n1_0     = NEXT_Z_NEIGHBOR_OF_INDEX(n_n1_n1_0);
-        n_n2_0_0      = NEXT_Z_NEIGHBOR_OF_INDEX(n_n2_0_0);
-        n_0_p1_0      = NEXT_Z_NEIGHBOR_OF_INDEX(n_0_p1_0);
-        n_0_p2_0      = NEXT_Z_NEIGHBOR_OF_INDEX(n_0_p2_0);
-        n_p1_0_0      = NEXT_Z_NEIGHBOR_OF_INDEX(n_p1_0_0);
-        n_p1_p1_0     = NEXT_Z_NEIGHBOR_OF_INDEX(n_p1_p1_0);
-        n_p2_0_0      = NEXT_Z_NEIGHBOR_OF_INDEX(n_p2_0_0);
-        n_n1_p1_0     = NEXT_Z_NEIGHBOR_OF_INDEX(n_n1_p1_0);
-        n_p1_n1_0     = NEXT_Z_NEIGHBOR_OF_INDEX(n_p1_n1_0);
+        n_0_0_0       = NEXT_Z_NEIGHBOR(n_0_0_0);
+        n_0_n1_0      = NEXT_Z_NEIGHBOR(n_0_n1_0);
+        n_0_n2_0      = NEXT_Z_NEIGHBOR(n_0_n2_0);
+        n_n1_0_0      = NEXT_Z_NEIGHBOR(n_n1_0_0);
+        n_n1_n1_0     = NEXT_Z_NEIGHBOR(n_n1_n1_0);
+        n_n2_0_0      = NEXT_Z_NEIGHBOR(n_n2_0_0);
+        n_0_p1_0      = NEXT_Z_NEIGHBOR(n_0_p1_0);
+        n_0_p2_0      = NEXT_Z_NEIGHBOR(n_0_p2_0);
+        n_p1_0_0      = NEXT_Z_NEIGHBOR(n_p1_0_0);
+        n_p1_p1_0     = NEXT_Z_NEIGHBOR(n_p1_p1_0);
+        n_p2_0_0      = NEXT_Z_NEIGHBOR(n_p2_0_0);
+        n_n1_p1_0     = NEXT_Z_NEIGHBOR(n_n1_p1_0);
+        n_p1_n1_0     = NEXT_Z_NEIGHBOR(n_p1_n1_0);
 
     }
 

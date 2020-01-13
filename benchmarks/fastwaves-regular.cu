@@ -9,9 +9,8 @@ namespace FastWavesRegularBenchmarkNamespace {
 
     #define GRID_ARGS const int y_stride, const int z_stride, 
     #define INDEX(x, y, z) GRID_REGULAR_INDEX(y_stride, z_stride, x, y, z)
-    #define NEIGHBOR(x, y, z, x_, y_, z_) GRID_REGULAR_NEIGHBOR(y_stride, z_stride, x, y, z, x_, y_, z_)
-    #define NEIGHBOR_OF_INDEX(idx, x, y, z) GRID_REGULAR_NEIGHBOR_OF_INDEX(y_stride, z_stride, idx, x, y, z)
-    #define NEXT_Z_NEIGHBOR_OF_INDEX(idx) (idx+z_stride)
+    #define NEIGHBOR(idx, x, y, z) GRID_REGULAR_NEIGHBOR(y_stride, z_stride, idx, x, y, z)
+    #define NEXT_Z_NEIGHBOR(idx) (idx+z_stride)
     #define K_STEP k*z_stride
 
     #include "kernels/fastwaves-unfused.cu"
@@ -22,8 +21,7 @@ namespace FastWavesRegularBenchmarkNamespace {
     #undef GRID_ARGS
     #undef INDEX
     #undef NEIGHBOR
-    #undef NEIGHBOR_OF_INDEX
-    #undef NEXT_Z_NEIGHBOR_OF_INDEX
+    #undef NEXT_Z_NEIGHBOR
     #undef K_STEP
 
 }
@@ -61,20 +59,20 @@ variant(variant) {
 
 template<typename value_t>
 void FastWavesRegularBenchmark<value_t>::setup() {
-    this->u_in = new CudaRegularGrid3D<value_t>(this->size);
-    this->v_in = new CudaRegularGrid3D<value_t>(this->size);
-    this->u_tens = new CudaRegularGrid3D<value_t>(this->size);
-    this->v_tens = new CudaRegularGrid3D<value_t>(this->size);
-    this->rho = new CudaRegularGrid3D<value_t>(this->size);
-    this->ppuv = new CudaRegularGrid3D<value_t>(this->size);
-    this->fx = new CudaRegularGrid3D<value_t>(this->size);
-    this->wgtfac = new CudaRegularGrid3D<value_t>(this->size);
-    this->hhl = new CudaRegularGrid3D<value_t>(this->size);
-    this->u_out = new CudaRegularGrid3D<value_t>(this->size);
-    this->v_out = new CudaRegularGrid3D<value_t>(this->size);
+    this->u_in = new CudaRegularGrid3D<value_t>(this->inner_size, this->halo);
+    this->v_in = new CudaRegularGrid3D<value_t>(this->inner_size, this->halo);
+    this->u_tens = new CudaRegularGrid3D<value_t>(this->inner_size, this->halo);
+    this->v_tens = new CudaRegularGrid3D<value_t>(this->inner_size, this->halo);
+    this->rho = new CudaRegularGrid3D<value_t>(this->inner_size, this->halo);
+    this->ppuv = new CudaRegularGrid3D<value_t>(this->inner_size, this->halo);
+    this->fx = new CudaRegularGrid3D<value_t>(this->inner_size, this->halo);
+    this->wgtfac = new CudaRegularGrid3D<value_t>(this->inner_size, this->halo);
+    this->hhl = new CudaRegularGrid3D<value_t>(this->inner_size, this->halo);
+    this->u_out = new CudaRegularGrid3D<value_t>(this->inner_size, this->halo);
+    this->v_out = new CudaRegularGrid3D<value_t>(this->inner_size, this->halo);
     if(this->variant == FastWavesRegularBenchmarkNamespace::unfused) {
-        this->ppgk = new CudaRegularGrid3D<value_t>(this->size);
-        this->ppgc = new CudaRegularGrid3D<value_t>(this->size);
+        this->ppgk = new CudaRegularGrid3D<value_t>(this->inner_size, this->halo);
+        this->ppgc = new CudaRegularGrid3D<value_t>(this->inner_size, this->halo);
     }
     this->FastWavesBaseBenchmark<value_t>::setup(); // set initial values
 }

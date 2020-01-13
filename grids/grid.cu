@@ -10,17 +10,23 @@
  * of some data type (e.g. floats). All subclasses must support indexing into
  * this grid in one contiguous memory block, but it is left to implementations
  * to decide how to lay out the memory and where to allocate it.
- * 
- * @author André Rösti
- * @date 2019-10-27
+ *
+ * Coordinates provide a means of identifying cells in the grid. It is up to
+ * subclasses to determine the exact meaning and relations of coordinates.
+ * Subclasses must use coordinates that are within the given dimensions or at
+ * most outside of the dimensions by an anmount given by the halo property.
+ *
+ * At the very least, subclasses must provide
+ *  - Coordinate to data index translation in index()
+ *  - Index to coordinate translation in coordinate()
+ *  - Neighborship lookup using one neighbor() function
  */
 template<typename value_t, typename coord_t>
 class Grid {
 
     public:
-
-    Grid();
-    Grid(coord_t dimensions, size_t size);
+    
+    Grid(coord_t dimensions, size_t size, coord_t halo=coord_t());
     
     /** Initialization stuff that cannot be done in the constructor because
      * access to subclass virtual funcitons is required. */
@@ -30,6 +36,11 @@ class Grid {
 
     /** Size as number of items in each dimension. */
     coord_t dimensions;
+
+    /** Halo denotes how many coordinates beyond the dimensions should be
+     * accessible, i.e. how many negative coordinates and how many beyond the
+     * max size. This is useful to avoid bounds checks. */
+    coord_t halo;
 
     /** Space required by this grid in memory in *bytes*. */
     size_t size;
@@ -41,22 +52,16 @@ class Grid {
     value_t* __restrict__ data;
 
     /** Return the offset (as number of sizeof(value_t)-sized steps from the 
-     * beginning of the memory block of a particular cell of the grid, i.e. the 
+     * beginning of the data block of a particular cell of the grid, i.e. the 
      * value of (x, y, z) in grid foo  is located at the pointer 
-     * data() + index(dim3(x, y, z)). */
+     * data + index(dim3(x, y, z)). */
     virtual int index(coord_t coords) = 0;
-
-    /** Give the number of neighbors of cell (x, y, z). For structured grids,
-     * this will be the same value independent of (x, y, z), but for
-     * unstructured ones this might be variable. */
-    virtual size_t num_neighbors(coord_t coords) = 0;
+    value_t *pointer(coord_t coords); // return a pointer to the given coords
+    virtual coord_t coordinate(int index) = 0;
 
     /** Returns the memory index of the neighbor at a given offset offs. */
-    virtual int neighbor(coord_t coords, coord_t offs) = 0;
-
-    /** Returns the memory index from the cell that is stored at the given
-     * index with the given offset. */
-    virtual int neighbor_of_index(int index, coord_t offs) = 0;
+    virtual int neighbor(int index, coord_t offs);
+    virtual int neighbor(coord_t coords, coord_t offs);
     
     virtual void allocate();
 
@@ -64,7 +69,7 @@ class Grid {
 
     /** Copy all the values from the given grid B into this grid. This operation
      * is not supported between arbitrary types of grids, as conversion between
-     * some coordinate systems or data types would not make sense. Rather, the
+     * some coordinate systems or data types may not make sense. Rather, the
      * subclasses decide which type of import operations are allowed.
      */
     virtual void import(Grid<value_t, coord_t> *B) = 0;
@@ -72,11 +77,14 @@ class Grid {
     /** Get the value stored in the grid at (x, y, z). This is  convenience for 
      * *(data() + index(x, y, z)). The [] operator can also be used to access
      * elements. Implementations may provide optimized versions of get. */
+    value_t get(int index);
     value_t get(coord_t coords);
+    value_t operator[](int index);
     value_t operator[](coord_t coords);
 
     /** Store the value v  in the grid at (x, y, z). This is convenience for 
      * *(data() + index(x, y, z)) = v. The [] operator can also be used. */
+    void set(int index, value_t v);
     void set(coord_t coords, value_t v);
 
     /** Fill all cells in the grid with the given value. */
@@ -94,11 +102,9 @@ class Grid {
 // IMPLEMENTATIONS
 
 template<typename value_t, typename coord_t>
-Grid<value_t, coord_t>::Grid() {}
-
-template<typename value_t, typename coord_t>
-Grid<value_t, coord_t>::Grid(coord_t dimensions, size_t size) :
+Grid<value_t, coord_t>::Grid(coord_t outer_dimensions, size_t size, coord_t halo) :
 dimensions(dimensions),
+halo(halo),
 size(size) {
 }
 
@@ -115,8 +121,13 @@ Grid<value_t, coord_t>::~Grid() {
 }
 
 template<typename value_t, typename coord_t>
+value_t Grid<value_t, coord_t>::get(int index) {
+    return this->data[index];
+}
+
+template<typename value_t, typename coord_t>
 value_t Grid<value_t, coord_t>::get(coord_t coords) {
-    return this->data[this->index(coords)];
+    return this->get(this->index(coords));
 }
 
 template<typename value_t, typename coord_t>
@@ -125,8 +136,18 @@ value_t Grid<value_t, coord_t>::operator[] (const coord_t coords) {
 }
 
 template<typename value_t, typename coord_t>
+void Grid<value_t, coord_t>::set(int index, value_t value) {
+    this->data[index] = value;
+}
+
+template<typename value_t, typename coord_t>
 void Grid<value_t, coord_t>::set(coord_t coords, value_t value) {
-    this->data[this->index(coords)] = value;
+    this->set(this->index(coords), value);
+}
+
+template<typename value_t, typename coord_t>
+value_t *Grid<value_t, coord_t>::pointer(coord_t coords) {
+    return &this->data[this->index(coords)];
 }
 
 template<typename value_t, typename coord_t>
@@ -140,4 +161,15 @@ void Grid<value_t, coord_t>::deallocate() {
     free(this->data);
     this->data = NULL;
 }
+
+template<typename value_t, typename coord_t>
+int Grid<value_t, coord_t>::neighbor(coord_t coords, coord_t offs) {
+    return this->neighbor(this->index(coords), offs);
+}
+
+template<typename value_t, typename coord_t>
+int Grid<value_t, coord_t>::neighbor(int index, coord_t offs) {
+    return this->neighbor(this->coordinates(index), offs);
+}
+
 #endif

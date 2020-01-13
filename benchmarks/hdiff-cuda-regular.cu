@@ -16,10 +16,9 @@ namespace HdiffCudaRegular {
 
     #define GRID_ARGS const int y_stride, const int z_stride, 
     #define INDEX(x, y, z) GRID_REGULAR_INDEX(y_stride, z_stride, x, y, z)
-    #define NEIGHBOR(x, y, z, x_, y_, z_) GRID_REGULAR_NEIGHBOR(y_stride, z_stride, x, y, z, x_, y_, z_)
-    #define DOUBLE_NEIGHBOR(x, y, z, x1, y1, z1, x2, y2, z2) NEIGHBOR(x, y, z, (x1+x2), (y1+y2), (z1+z2))
-    #define NEIGHBOR_OF_INDEX(idx, x, y, z) GRID_REGULAR_NEIGHBOR_OF_INDEX(y_stride, z_stride, idx, x, y, z)
-    #define NEXT_Z_NEIGHBOR_OF_INDEX(idx) (idx+z_stride)
+    #define NEIGHBOR(idx, x_, y_, z_) GRID_REGULAR_NEIGHBOR(y_stride, z_stride, idx, x_, y_, z_)
+    #define DOUBLE_NEIGHBOR(idx, x1, y1, z1, x2, y2, z2) NEIGHBOR(idx, (x1+x2), (y1+y2), (z1+z2))
+    #define NEXT_Z_NEIGHBOR(idx) (idx+z_stride)
     #define K_STEP k*z_stride
 
     #include "kernels/hdiff-naive.cu"
@@ -33,7 +32,7 @@ namespace HdiffCudaRegular {
 
     #define SMEM_GRID_ARGS
     #define SMEM_INDEX(_x, _y, _z) GRID_REGULAR_INDEX(blockDim.x, blockDim.x*blockDim.y, _x, _y, _z)
-    #define SMEM_NEIGHBOR(_x, _y, _z, x_, y_, z_) GRID_REGULAR_NEIGHBOR(blockDim.x, blockDim.x*blockDim.y, _x, _y, _z, x_, y_, z_)
+    #define SMEM_NEIGHBOR(idx, x_, y_, z_) GRID_REGULAR_NEIGHBOR(blockDim.x, blockDim.x*blockDim.y, idx, x_, y_, z_)
 
     #include "kernels/hdiff-shared.cu"
     #include "kernels/hdiff-shared-kloop.cu"
@@ -42,8 +41,7 @@ namespace HdiffCudaRegular {
     #undef INDEX
     #undef NEIGHBOR
     #undef DOUBLE_NEIGHBOR
-    #undef NEIGHBOR_OF_INDEX
-    #undef NEXT_Z_NEIGHBOR_OF_INDEX
+    #undef NEXT_Z_NEIGHBOR
     #undef K_STEP
     #undef SMEM_GRID_ARGS
     #undef SMEM_INDEX
@@ -115,89 +113,89 @@ void HdiffCudaRegularBenchmark<value_t>::run() {
         HdiffCudaRegular::hdiff_naive<value_t><<<this->numblocks(), this->numthreads()>>>(
             this->get_info(),
             strides.y, strides.z,
-            this->input->data,
-            this->output->data,
-            this->coeff->data
+            this->input->pointer(coord3(0, 0, 0)),
+            this->output->pointer(coord3(0, 0, 0)),
+            this->coeff->pointer(coord3(0, 0, 0))
         );
     } else if(this->variant == HdiffCudaRegular::kloop) {
         HdiffCudaRegular::hdiff_kloop<value_t><<<this->numblocks(), this->numthreads()>>>(
             this->get_info(),
             strides.y, strides.z,
-            this->input->data,
-            this->output->data,
-            this->coeff->data
+            this->input->pointer(coord3(0, 0, 0)),
+            this->output->pointer(coord3(0, 0, 0)),
+            this->coeff->pointer(coord3(0, 0, 0))
         );
     } else if(this->variant == HdiffCudaRegular::coop) {
         HdiffCudaRegular::hdiff_coop<value_t><<<this->numblocks(), this->numthreads()>>>(
             this->get_info(),
             strides.y, strides.z,
-            this->input->data,
-            this->output->data,
-            this->coeff->data,
-            this->lap->data,
-            this->flx->data,
-            this->fly->data
+            this->input->pointer(coord3(0, 0, 0)),
+            this->output->pointer(coord3(0, 0, 0)),
+            this->coeff->pointer(coord3(0, 0, 0)),
+            this->lap->pointer(coord3(0, 0, 0)),
+            this->flx->pointer(coord3(0, 0, 0)),
+            this->fly->pointer(coord3(0, 0, 0))
         );
     } else if(this->variant == HdiffCudaRegular::shared) {
         int smem_size = 3*numthreads.x*numthreads.y*numthreads.z*sizeof(value_t);
         HdiffCudaRegular::hdiff_shared<value_t><<<this->numblocks(), numthreads, smem_size>>>(
             this->get_info(),
             strides.y, strides.z,
-            this->input->data,
-            this->output->data,
-            this->coeff->data
+            this->input->pointer(coord3(0, 0, 0)),
+            this->output->pointer(coord3(0, 0, 0)),
+            this->coeff->pointer(coord3(0, 0, 0))
         );
     } else if(this->variant == HdiffCudaRegular::shared_kloop) {
         int smem_size = 3*numthreads.x*numthreads.y*sizeof(value_t);
         HdiffCudaRegular::hdiff_shared_kloop<value_t><<<numblocks, numthreads, smem_size>>>(
             this->get_info(),
             strides.y, strides.z,
-            this->input->data,
-            this->output->data,
-            this->coeff->data
+            this->input->pointer(coord3(0, 0, 0)),
+            this->output->pointer(coord3(0, 0, 0)),
+            this->coeff->pointer(coord3(0, 0, 0))
         );
     } else if(this->variant == HdiffCudaRegular::jloop) {
         HdiffCudaRegular::hdiff_jloop<value_t><<<this->numblocks(), this->numthreads()>>>(
             this->get_info(),
             strides.y, strides.z,
             this->jloop_j_per_thread,
-            this->input->data,
-            this->output->data,
-            this->coeff->data
+            this->input->pointer(coord3(0, 0, 0)),
+            this->output->pointer(coord3(0, 0, 0)),
+            this->coeff->pointer(coord3(0, 0, 0))
         );
     } else if(this->variant == HdiffCudaRegular::iloop) {
         HdiffCudaRegular::hdiff_iloop<value_t><<<this->numblocks(), this->numthreads()>>>(
             this->get_info(),
             strides.y, strides.z,
             this->iloop_i_per_thread,
-            this->input->data,
-            this->output->data,
-            this->coeff->data
+            this->input->pointer(coord3(0, 0, 0)),
+            this->output->pointer(coord3(0, 0, 0)),
+            this->coeff->pointer(coord3(0, 0, 0))
         );
     } else if(this->variant == HdiffCudaRegular::idxvar) {
         HdiffCudaRegular::hdiff_idxvar<value_t><<<this->numblocks(), this->numthreads()>>>(
             this->get_info(),
             strides.y, strides.z,
-            this->input->data,
-            this->output->data,
-            this->coeff->data
+            this->input->pointer(coord3(0, 0, 0)),
+            this->output->pointer(coord3(0, 0, 0)),
+            this->coeff->pointer(coord3(0, 0, 0))
         );
     } else if(this->variant == HdiffCudaRegular::idxvar_shared) {
         int smem_size = numthreads.x*numthreads.y*12*sizeof(int);
         HdiffCudaRegular::hdiff_idxvar_shared<value_t><<<this->numblocks(), this->numthreads(), smem_size>>>(
             this->get_info(),
             strides.y, strides.z,
-            this->input->data,
-            this->output->data,
-            this->coeff->data
+            this->input->pointer(coord3(0, 0, 0)),
+            this->output->pointer(coord3(0, 0, 0)),
+            this->coeff->pointer(coord3(0, 0, 0))
         );
     } else {
         HdiffCudaRegular::hdiff_idxvar_kloop<value_t><<<this->numblocks(), this->numthreads()>>>(
             this->get_info(),
             strides.y, strides.z,
-            this->input->data,
-            this->output->data,
-            this->coeff->data
+            this->input->pointer(coord3(0, 0, 0)),
+            this->output->pointer(coord3(0, 0, 0)),
+            this->coeff->pointer(coord3(0, 0, 0))
         );
     }
     if(cudaDeviceSynchronize() != cudaSuccess) {
@@ -207,12 +205,12 @@ void HdiffCudaRegularBenchmark<value_t>::run() {
 
 template<typename value_t>
 void HdiffCudaRegularBenchmark<value_t>::setup() {
-    this->input = new CudaRegularGrid3D<value_t>(this->size);
-    this->output = new CudaRegularGrid3D<value_t>(this->size);
-    this->coeff = new CudaRegularGrid3D<value_t>(this->size);
-    this->lap = new CudaRegularGrid3D<value_t>(this->size);
-    this->flx = new CudaRegularGrid3D<value_t>(this->size);
-    this->fly = new CudaRegularGrid3D<value_t>(this->size);
+    this->input = new CudaRegularGrid3D<value_t>(this->inner_size, this->halo);
+    this->output = new CudaRegularGrid3D<value_t>(this->inner_size, this->halo);
+    this->coeff = new CudaRegularGrid3D<value_t>(this->inner_size, this->halo);
+    this->lap = new CudaRegularGrid3D<value_t>(this->inner_size, this->halo);
+    this->flx = new CudaRegularGrid3D<value_t>(this->inner_size, this->halo);
+    this->fly = new CudaRegularGrid3D<value_t>(this->inner_size, this->halo);
     if(this->variant == HdiffCudaRegular::idxvar_shared) {
         this->input->setSmemBankSize(sizeof(int));
     }

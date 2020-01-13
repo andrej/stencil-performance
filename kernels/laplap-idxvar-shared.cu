@@ -1,9 +1,9 @@
 template<typename value_t>
 __global__
 void laplap_idxvar_shared(GRID_ARGS const coord3 halo, const coord3 max_coord, const value_t *in, value_t *out) {
-    const int i = blockIdx.x*blockDim.x + threadIdx.x + halo.x;
-    const int j = blockIdx.y*blockDim.y + threadIdx.y + halo.y;
-    const int k = blockIdx.z*blockDim.z + threadIdx.z + halo.z;
+    const int i = blockIdx.x*blockDim.x + threadIdx.x;
+    const int j = blockIdx.y*blockDim.y + threadIdx.y;
+    const int k = blockIdx.z*blockDim.z + threadIdx.z;
     if(i >= max_coord.x || j >= max_coord.y || k >= max_coord.z) {
         return;
     }
@@ -17,18 +17,18 @@ void laplap_idxvar_shared(GRID_ARGS const coord3 halo, const coord3 max_coord, c
     int center, left, leftleft, topleft, bottomleft, right, topright, rightright, bottomright, top, toptop, bottom, bottombottom;
     if(is_first) {
         center        = idxvars[0] = INDEX(i, j, 0);
-        left          = idxvars[1] = NEIGHBOR_OF_INDEX(center, -1,  0, 0);
-        leftleft      = idxvars[2] = NEIGHBOR_OF_INDEX(  left, -1,  0, 0);
-        topleft       = idxvars[3] = NEIGHBOR_OF_INDEX(  left,  0, -1, 0);
-        bottomleft    = idxvars[4] = NEIGHBOR_OF_INDEX(  left,  0, +1, 0);
-        right         = idxvars[5] = NEIGHBOR_OF_INDEX(center, +1,  0, 0);
-        topright      = idxvars[6] = NEIGHBOR_OF_INDEX( right,  0, -1, 0);
-        rightright    = idxvars[7] = NEIGHBOR_OF_INDEX( right, +1,  0, 0);
-        bottomright   = idxvars[8] = NEIGHBOR_OF_INDEX( right,  0, +1, 0);
-        top           = idxvars[9] = NEIGHBOR_OF_INDEX(center,  0, -1, 0);
-        toptop        = idxvars[10] = NEIGHBOR_OF_INDEX(   top,  0, -1, 0);
-        bottom        = idxvars[11] = NEIGHBOR_OF_INDEX(center,  0, +1, 0);
-        bottombottom  = idxvars[12] = NEIGHBOR_OF_INDEX(bottom,  0, +1, 0);
+        left          = idxvars[1] = NEIGHBOR(center, -1,  0, 0);
+        leftleft      = idxvars[2] = NEIGHBOR(  left, -1,  0, 0);
+        topleft       = idxvars[3] = NEIGHBOR(  left,  0, -1, 0);
+        bottomleft    = idxvars[4] = NEIGHBOR(  left,  0, +1, 0);
+        right         = idxvars[5] = NEIGHBOR(center, +1,  0, 0);
+        topright      = idxvars[6] = NEIGHBOR( right,  0, -1, 0);
+        rightright    = idxvars[7] = NEIGHBOR( right, +1,  0, 0);
+        bottomright   = idxvars[8] = NEIGHBOR( right,  0, +1, 0);
+        top           = idxvars[9] = NEIGHBOR(center,  0, -1, 0);
+        toptop        = idxvars[10] = NEIGHBOR(   top,  0, -1, 0);
+        bottom        = idxvars[11] = NEIGHBOR(center,  0, +1, 0);
+        bottombottom  = idxvars[12] = NEIGHBOR(bottom,  0, +1, 0);
     } 
     __syncthreads();
     if(!is_first) {

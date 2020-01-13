@@ -16,36 +16,39 @@ void fastwaves_kloop(const FastWavesBenchmark::Info info,
                      const int c_flat_limit,
                      value_t *uout,
                      value_t *vout) {
-    const int i = blockIdx.x*blockDim.x + threadIdx.x + info.halo.x;
-    const int j = blockIdx.y*blockDim.y + threadIdx.y + info.halo.y;
+    const int i = blockIdx.x*blockDim.x + threadIdx.x;
+    const int j = blockIdx.y*blockDim.y + threadIdx.y;
     const int k_start = info.halo.z;
     if(i >= info.max_coord.x || j >= info.max_coord.y || k_start >= info.max_coord.z - 1) {
         return;
     }
 
+    const int idx = INDEX(i, j, k);
+
     // first iteration indices will be passed into -> 0
     int idx_0_0_0, idx_0_0_n1, idx_0_0_p1, idx_p1_0_n1, idx_p1_0_0, idx_p1_0_p1, idx_0_p1_n1, idx_0_p1_0, idx_0_p1_p1;
-    idx_0_0_n1    = NEIGHBOR(i, j, k_start, 0, 0, -1);
-    idx_0_0_0     = NEXT_Z_NEIGHBOR_OF_INDEX(idx_0_0_n1);
-    idx_0_0_p1    = NEXT_Z_NEIGHBOR_OF_INDEX(idx_0_0_0);
-    idx_p1_0_n1   = NEIGHBOR_OF_INDEX(idx_0_0_n1, +1, 0, 0);
-    idx_p1_0_0    = NEXT_Z_NEIGHBOR_OF_INDEX(idx_p1_0_n1);
-    idx_p1_0_p1   = NEXT_Z_NEIGHBOR_OF_INDEX(idx_p1_0_0);
-    idx_0_p1_n1   = NEIGHBOR_OF_INDEX(idx_0_0_n1, 0, +1, 0);
-    idx_0_p1_0    = NEXT_Z_NEIGHBOR_OF_INDEX(idx_0_p1_n1);
-    idx_0_p1_p1   = NEXT_Z_NEIGHBOR_OF_INDEX(idx_0_p1_0);
+    idx_0_0_n1    = NEIGHBOR(idx_start, 0, 0, -1);
+    idx_0_0_0     = NEXT_Z_NEIGHBOR(idx_0_0_n1);
+    idx_0_0_p1    = NEXT_Z_NEIGHBOR(idx_0_0_0);
+    idx_p1_0_n1   = NEIGHBOR(idx_0_0_n1, +1, 0, 0);
+    idx_p1_0_0    = NEXT_Z_NEIGHBOR(idx_p1_0_n1);
+    idx_p1_0_p1   = NEXT_Z_NEIGHBOR(idx_p1_0_0);
+    idx_0_p1_n1   = NEIGHBOR(idx_0_0_n1, 0, +1, 0);
+    idx_0_p1_0    = NEXT_Z_NEIGHBOR(idx_0_p1_n1);
+    idx_0_p1_p1   = NEXT_Z_NEIGHBOR(idx_0_p1_0);
 
     value_t ppgk_0_0_0, ppgk_p1_0_0, ppgk_0_p1_0, ppgk_0_0_p1, ppgk_p1_0_p1, ppgk_0_p1_p1;
     value_t ppgc_0_0_0, ppgc_p1_0_0, ppgc_0_p1_0;
 
+    #pragma unroll 4
     for(int k = k_start; k < info.max_coord.z - 1; k++) {
         // ppgu, ppgv
         value_t ppgu, ppgv;
-        if(k < c_flat_limit + info.halo.z) {
+        if(k < c_flat_limit) {
             ppgu = ppuv[idx_p1_0_0] - ppuv[idx_0_0_0];
             ppgv = ppuv[idx_0_p1_0] - ppuv[idx_0_0_0];
         } else {
-            if(k == c_flat_limit + info.halo.z) {
+            if(k == c_flat_limit) {
                 // first iteration, need to compute all dependencies
                 ppgk_0_0_0   = wgtfac[idx_0_0_0] * ppuv[idx_0_0_0] +
                                (1.0 - wgtfac[idx_0_0_0]) * ppuv[idx_0_0_n1];
@@ -93,8 +96,8 @@ void fastwaves_kloop(const FastWavesBenchmark::Info info,
         idx_p1_0_0  = idx_p1_0_p1;
         idx_0_p1_n1 = idx_0_p1_0;
         idx_0_p1_0  = idx_0_p1_p1;
-        idx_0_0_p1  = NEXT_Z_NEIGHBOR_OF_INDEX(idx_0_0_0);
-        idx_p1_0_p1 = NEXT_Z_NEIGHBOR_OF_INDEX(idx_p1_0_0);
-        idx_0_p1_p1 = NEXT_Z_NEIGHBOR_OF_INDEX(idx_0_p1_0);
+        idx_0_0_p1  = NEXT_Z_NEIGHBOR(idx_0_0_0);
+        idx_p1_0_p1 = NEXT_Z_NEIGHBOR(idx_p1_0_0);
+        idx_0_p1_p1 = NEXT_Z_NEIGHBOR(idx_0_p1_0);
     }
 }

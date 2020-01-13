@@ -207,6 +207,11 @@ benchmark_result_t Benchmark::execute() {
 }
 
 void Benchmark::parse_args() {
+    if(this->argc > 0) {
+        char msg[100];
+        snprintf(msg, 100, "Benchmark %s supports no arguments.", this->name.c_str());
+        throw std::runtime_error(msg);
+    }
 }
 
 #endif

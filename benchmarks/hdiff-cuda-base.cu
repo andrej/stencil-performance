@@ -12,19 +12,8 @@
 namespace HdiffCudaBase {
     /** Information about this benchmark for use in the kernels. */
     struct Info {
-        coord3 halo;
         /** Maximum coordinates, i.e. inner_size.x+halo.x, etc. */
         coord3 max_coord;
-
-        #ifndef HDIFF_NO_GRIDSTRIDE
-        /** Size without the halo. */
-        coord3 inner_size;
-        /** Size of the entire grid in each dimension, i.e. number of blocks
-            * times number of threads. If the thread-grid is smaller than the
-            * data-grid, each kernel execution needs to handle multiple cells to
-            * cover the entire data set! */
-        coord3 gridsize;
-        #endif
     };
 }
 
@@ -68,7 +57,6 @@ class HdiffCudaBaseBenchmark :  public Benchmark {
     // halo around the input data, padding that is not touched
     coord3 halo;
     coord3 inner_size; // size w.o. 2* halo
-    coord3 inner_coord(coord3 inner_coord);
 
     // return information for the use inside the kernels
     HdiffCudaBase::Info get_info();
@@ -132,17 +120,11 @@ void HdiffCudaBaseBenchmark<value_t>::teardown() {
 }
 
 template<typename value_t>
-coord3 HdiffCudaBaseBenchmark<value_t>::inner_coord(coord3 coord){
-    return coord + this->halo;
-}
-
-template<typename value_t>
 HdiffCudaBase::Info HdiffCudaBaseBenchmark<value_t>::get_info() {
     coord3 inner_size = this->inner_size;
     dim3 numthreads = this->numthreads();
     dim3 numblocks = this->numblocks();
-    return { .halo = this->halo,
-             .max_coord = inner_size + this->halo };
+    return { .max_coord = inner_size + this->halo };
 }
 
 template<typename value_t>
