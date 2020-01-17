@@ -14,11 +14,11 @@ void hdiff_jloop(const HdiffCudaBase::Info info,
     const int i = threadIdx.x + blockIdx.x*blockDim.x;
     const int k = threadIdx.z + blockIdx.z*blockDim.z;
     int j_start = threadIdx.y*j_per_thread + blockIdx.y*blockDim.y*j_per_thread;
-    if(i >= info.max_coord.x || j_start >= info.max_coord.y || k >= info.max_coord.z) {
+    if(!(IS_IN_BOUNDS(i, j_start, k))) {
         return;
     }
 
-    const int idx = INDEX(i, j, k);
+    int idx = INDEX(i, j_start, k);
 
     int j_stop = j_start + j_per_thread;
     if(j_stop > info.max_coord.y) {
@@ -26,21 +26,23 @@ void hdiff_jloop(const HdiffCudaBase::Info info,
     }
     
     // first calculation outside of loop will be shifted into lap_ijm / fly_ijm on first iteration
-    value_t lap_ij = 4 * in[NEIGHBOR(i, j_start, k, 0, -1, 0)]
-                        - in[NEIGHBOR(i, j_start, k, -1, -1, 0)] - in[NEIGHBOR(i, j_start, k, +1, -1, 0)]
-                        - in[NEIGHBOR(i, j_start, k, 0, -2, 0)] - in[NEIGHBOR(i, j_start, k, 0, 0, 0)];
+    value_t lap_ij = 4 * in[NEIGHBOR(idx, 0, -1, 0)]
+                        - in[NEIGHBOR(idx, -1, -1, 0)] - in[NEIGHBOR(idx, +1, -1, 0)]
+                        - in[NEIGHBOR(idx, 0, -2, 0)] - in[NEIGHBOR(idx, 0, 0, 0)];
     
-    value_t lap_ijp = 4 * in[NEIGHBOR(i, j_start, k, 0, 0, 0)] 
-                        - in[NEIGHBOR(i, j_start, k, -1, 0, 0)] - in[NEIGHBOR(i, j_start, k, +1, 0, 0)]
-                        - in[NEIGHBOR(i, j_start, k, 0, -1, 0)] - in[NEIGHBOR(i, j_start, k, 0, +1, 0)];
+    value_t lap_ijp = 4 * in[NEIGHBOR(idx, 0, 0, 0)] 
+                        - in[NEIGHBOR(idx, -1, 0, 0)] - in[NEIGHBOR(idx, +1, 0, 0)]
+                        - in[NEIGHBOR(idx, 0, -1, 0)] - in[NEIGHBOR(idx, 0, +1, 0)];
     
     value_t fly_ij = lap_ijp - lap_ij;
-    fly_ij = fly_ij * (in[INDEX(i, j_start, k)] - in[NEIGHBOR(i, j_start, k, 0, -1, 0)]) > 0 ? 0 : fly_ij;
+    fly_ij = fly_ij * (in[INDEX(i, j_start, k)] - in[NEIGHBOR(idx, 0, -1, 0)]) > 0 ? 0 : fly_ij;
 
 
     // j-loop, shifts results from previous round for reuse
     #pragma unroll 2
     for(int j = j_start; j < j_stop; j++) {
+
+        idx = INDEX(i, j, k);
 
         // shift results from previous iteration
         //value_t lap_ijm = lap_ij;

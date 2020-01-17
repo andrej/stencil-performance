@@ -1,5 +1,5 @@
 CXX=nvcc
-CPPFLAGS=-I./ -arch sm_60 -O3 -DHDIFF_NO_GRIDSTRIDE -DCUDA_PROFILER -DNDEBUG #-lineinfo #--ptxas-options=-v
+CPPFLAGS=-I./ -arch sm_60 -DCUDA_PROFILER -DNDEBUG #-lineinfo #--ptxas-options=-v
 CPPDEBUGFLAGS=-g -G -DHDIFF_DEBUG
 SRCS=$(wildcard *.cu)
 SRCS_BENCHMARKS=$(wildcard benchmarks/*.cu)
@@ -10,7 +10,7 @@ gridbenchmark: $(SRCS) $(SRCS_BENCHMARKS) $(SRCS_GRIDS) $(SRCS_KERNELS)
 	$(CXX) $(CPPFLAGS) $(CPPDEBUGFLAGS) -o gridbenchmark main.cu
 
 nodebug: $(SRCS) $(SRCS_BENCHMARKS) $(SRCS_GRIDS) $(SRCS_KERNELS)
-	$(CXX) $(CPPFLAGS) -o gridbenchmark main.cu
+	$(CXX) $(CPPFLAGS) -O3 -o gridbenchmark main.cu
 
 clean:
 	rm ./gridbenchmark

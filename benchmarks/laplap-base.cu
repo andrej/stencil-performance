@@ -1,6 +1,7 @@
 #ifndef LAPLAP_BASE_BENCHMARK_H
 #define LAPLAP_BASE_BENCHMARK_H
 #include <random>
+#include <stdlib.h>
 #include "benchmarks/benchmark.cu"
 #include "grids/regular.cu"
 
@@ -18,6 +19,9 @@ class LapLapBaseBenchmark : public Benchmark {
 
     // Intermediate result (used only by non-fused kernel)
     CudaBaseGrid<value_t, coord3> *intermediate = NULL;
+    
+    // size w.o. halo
+    coord3 inner_size;
 
     void setup();
     void teardown();
@@ -29,21 +33,25 @@ class LapLapBaseBenchmark : public Benchmark {
 
 template<typename value_t>
 LapLapBaseBenchmark<value_t>::LapLapBaseBenchmark(coord3 size) :
-Benchmark(size) {}
+Benchmark(size) {
+    this->inner_size = this->size - 2*coord3(2, 2, 0);
+}
 
 template<typename value_t>
 void LapLapBaseBenchmark<value_t>::setup() {
     std::default_random_engine gen;
     std::uniform_real_distribution<value_t> dist(-1.0, +1.0);
     Coord3BaseGrid<value_t> *in = dynamic_cast<Coord3BaseGrid<value_t> *>(this->input);
-    for(int i = 0; i < this->size.x; i++) {
-        for(int j = 0; j < this->size.y; j++) {
-            for(int k = 0; k < this->size.z; k++) {
+    for(int i = -in->halo.x; i < in->dimensions.x+in->halo.x; i++) {
+        for(int j = -in->halo.y; j < in->dimensions.y+in->halo.y; j++) {
+            for(int k = -in->halo.z; k < in->dimensions.z+in->halo.z; k++) {
                 coord3 p(i, j, k);
                 in->set(p, dist(gen));
+                in->set(p, 100*abs(i) + 10*abs(j) + 1*abs(k));
             }
         }
     }
+    this->output->fill(0.0);
     this->Benchmark::setup();
 }
 
@@ -80,11 +88,12 @@ bool LapLapBaseBenchmark<value_t>::verify(double tol) {
     
     // First iteration
     coord3 halo1(1, 1, 0);
+    coord3 halo2(2, 2, 0);
     Coord3BaseGrid<value_t> *in = dynamic_cast<Coord3BaseGrid<value_t> *>(this->input);
-    CudaRegularGrid3D<value_t> *lap1 = new CudaRegularGrid3D<value_t>(this->size-halo1, halo1);
-    for(int i = 0; i < lap1->size.x; i++) {
-        for(int j = 0; j < lap1->size.y; j++) {
-            for(int k = 0; k < lap1->size.z; k++) {
+    CudaRegularGrid3D<value_t> *lap1 = CudaRegularGrid3D<value_t>::create(this->inner_size, halo2);
+    for(int i = -halo1.x; i < lap1->dimensions.x + halo1.x; i++) {
+        for(int j = -halo1.y; j < lap1->dimensions.y + halo1.y; j++) {
+            for(int k = -halo1.z; k < lap1->dimensions.z + halo1.z; k++) {
                 coord3 p(i, j, k);
                 lap1->set(p, lap(in, p));
             }
@@ -92,11 +101,10 @@ bool LapLapBaseBenchmark<value_t>::verify(double tol) {
     }
 
     // Second iteration
-    coord3 halo2(2, 2, 0);
-    CudaRegularGrid3D<value_t> *lap2 = new CudaRegularGrid3D<value_t>(this->size-halo2, halo2);
-    for(int i = 0; i < lap2->size.x; i++) {
-        for(int j = 0; j < lap2->size.y; j++) {
-            for(int k = 0; k < lap2->size.z; k++) {
+    CudaRegularGrid3D<value_t> *lap2 = CudaRegularGrid3D<value_t>::create(this->inner_size, halo2);
+    for(int i = 0; i < lap2->dimensions.x; i++) {
+        for(int j = 0; j < lap2->dimensions.y; j++) {
+            for(int k = 0; k < lap2->dimensions.z; k++) {
                 coord3 p(i, j, k);
                 lap2->set(p, lap(lap1, p));
             }
@@ -105,6 +113,10 @@ bool LapLapBaseBenchmark<value_t>::verify(double tol) {
     // Compare
     bool ret = this->output->compare(lap2, tol);
     if(!ret && !this->quiet) {
+        fprintf(stderr, "Input -------------------------------------------\n");
+        this->input->print();
+        fprintf(stderr, "Reference Lap1 ----------------------------------\n");
+        lap1->print();
         fprintf(stderr, "Reference ---------------------------------------\n");
         lap2->print();
         fprintf(stderr, "Output ------------------------------------------\n");

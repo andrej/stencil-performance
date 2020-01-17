@@ -65,8 +65,10 @@ void CudaBaseGrid<value_t, coord_t>::setSmemBankSize(int sz) {
 
 template<typename value_t, typename coord_t>
 void CudaBaseGrid<value_t, coord_t>::deallocate() {
-    cudaFree(this->data);
-    this->data = NULL;
+    if(this->data) {
+        CUDA_THROW( cudaFree(this->data) );
+        this->data = NULL;
+    }
 }
 
 template<typename value_t, typename coord_t>

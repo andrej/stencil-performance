@@ -1,11 +1,14 @@
 template<typename value_t>
 __global__
-void laplap_idxvar_kloop(GRID_ARGS const coord3 max_coord, const value_t *in, value_t *out) {
+void laplap_idxvar_kloop_sliced(GRID_ARGS const int k_per_thread, const coord3 max_coord, const value_t *in, value_t *out) {
     const int i = blockIdx.x*blockDim.x + threadIdx.x;
     const int j = blockIdx.y*blockDim.y + threadIdx.y;
-    if(!(IS_IN_BOUNDS(i, j, 0))) {
+    const int k_start = (blockIdx.z*blockDim.z + threadIdx.z) * k_per_thread;
+    if(!(IS_IN_BOUNDS(i, j, k_start))) {
         return;
     }
+
+    const int k_stop = (k_start + k_per_thread < max_coord.z ? k_start + k_per_thread : max_coord.z); 
 
     int center        = INDEX(i, j, 0);
     int left          = NEIGHBOR(center, -1,  0, 0);
@@ -21,8 +24,22 @@ void laplap_idxvar_kloop(GRID_ARGS const coord3 max_coord, const value_t *in, va
     int bottom        = NEIGHBOR(center,  0, +1, 0);
     int bottombottom  = DOUBLE_NEIGHBOR(center,  0, +1, 0,  0, +1,  0);
 
+    center        = Z_NEIGHBOR(center, k_start);
+    left          = Z_NEIGHBOR(left, k_start);
+    leftleft      = Z_NEIGHBOR(leftleft, k_start);
+    topleft       = Z_NEIGHBOR(topleft, k_start);
+    bottomleft    = Z_NEIGHBOR(bottomleft, k_start);
+    right         = Z_NEIGHBOR(right, k_start);
+    topright      = Z_NEIGHBOR(topright, k_start);
+    rightright    = Z_NEIGHBOR(rightright, k_start);
+    bottomright   = Z_NEIGHBOR(bottomright, k_start);
+    top           = Z_NEIGHBOR(top, k_start);
+    toptop        = Z_NEIGHBOR(toptop, k_start);
+    bottom        = Z_NEIGHBOR(bottom, k_start);
+    bottombottom  = Z_NEIGHBOR(bottombottom, k_start);
+
     #pragma unroll 4
-    for(int k = 0; k < max_coord.z; k++) {
+    for(int k = k_start; k < k_stop; k++) {
         const value_t lap_center= 4 * in[center]
                                     - in[left]
                                     - in[right]

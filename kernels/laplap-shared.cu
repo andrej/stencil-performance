@@ -1,10 +1,10 @@
 template<typename value_t>
 __global__
-void laplap_shared(GRID_ARGS const coord3 halo, const coord3 max_coord, const value_t *in, value_t *out) {
+void laplap_shared(GRID_ARGS const coord3 max_coord, const value_t *in, value_t *out) {
     const int i = blockIdx.x*blockDim.x + threadIdx.x;
     const int j = blockIdx.y*blockDim.y + threadIdx.y;
     const int k = blockIdx.z*blockDim.z + threadIdx.z;
-    if(i >= max_coord.x || j >= max_coord.y || k >= max_coord.z) {
+    if(!(IS_IN_BOUNDS(i, j, k))) {
         return;
     }
     

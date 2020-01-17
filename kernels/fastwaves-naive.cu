@@ -19,12 +19,11 @@ void fastwaves_naive(const FastWavesBenchmark::Info info,
     const int i = blockIdx.x*blockDim.x + threadIdx.x;
     const int j = blockIdx.y*blockDim.y + threadIdx.y;
     const int k = blockIdx.z*blockDim.z + threadIdx.z;
-    if(i >= info.max_coord.x || j >= info.max_coord.y || k >= info.max_coord.z - 1) {
+    if(!(IS_IN_BOUNDS(i, j, k))) {
         return;
     }
 
     const int idx = INDEX(i, j, k);
-
     value_t ppgu, ppgv;
     if(k < c_flat_limit) {
         ppgu = ppuv[NEIGHBOR(idx, +1, 0, 0)] - ppuv[idx];

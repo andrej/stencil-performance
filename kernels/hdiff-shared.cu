@@ -22,12 +22,12 @@ void hdiff_shared(const HdiffCudaBase::Info info,
     const int j = threadIdx.y + blockIdx.y*blockDim.y;
     const int k = threadIdx.z + blockIdx.z*blockDim.z;
 
-    if(i >= info.max_coord.x || j >= info.max_coord.y || k >= info.max_coord.z) {
+    if(!(IS_IN_BOUNDS(i, j, k))) {
         return;
     }
 
     const int idx = INDEX(i, j, k);
-    const int smem_idx = SMEM_INDEX((int)threadIdx.x, (int)threadIdx.y, (int)threadIdx.z)
+    const int smem_idx = SMEM_INDEX((int)threadIdx.x, (int)threadIdx.y, (int)threadIdx.z);
 
     // Shared memory
     extern __shared__ char smem[];
@@ -54,7 +54,7 @@ void hdiff_shared(const HdiffCudaBase::Info info,
             - in[NEIGHBOR(idx, 0, 0, 0)] - in[NEIGHBOR(idx, +2, 0, 0)]
             - in[NEIGHBOR(idx, +1, -1, 0)] - in[NEIGHBOR(idx, +1, +1, 0)];
     } else {
-        lap_ipj = local_lap[SMEM_NEIGHBOR((int)threadIdx.x, (int)threadIdx.y, (int)threadIdx.z, +1, 0, 0)];
+        lap_ipj = local_lap[SMEM_NEIGHBOR(smem_idx, +1, 0, 0)];
     }
 
     value_t lap_ijp;
@@ -63,7 +63,7 @@ void hdiff_shared(const HdiffCudaBase::Info info,
             - in[NEIGHBOR(idx, -1, +1, 0)] - in[NEIGHBOR(idx, +1, +1, 0)]
             - in[NEIGHBOR(idx, 0, 0, 0)] - in[NEIGHBOR(idx, 0, +2, 0)];
     } else {
-        lap_ijp = local_lap[SMEM_NEIGHBOR((int)threadIdx.x, (int)threadIdx.y, (int)threadIdx.z, 0, +1, 0)];
+        lap_ijp = local_lap[SMEM_NEIGHBOR(smem_idx, 0, +1, 0)];
     }
 
     // Own flx/fly calculation
@@ -87,7 +87,7 @@ void hdiff_shared(const HdiffCudaBase::Info info,
         flx_imj = lap_ij - lap_imj;
         flx_imj = flx_imj * (in[idx] - in[NEIGHBOR(idx, -1, 0, 0)]) > 0 ? 0 : flx_imj;
     } else {
-        flx_imj = local_flx[SMEM_NEIGHBOR((int)threadIdx.x, (int)threadIdx.y, (int)threadIdx.z, -1, 0, 0)];
+        flx_imj = local_flx[SMEM_NEIGHBOR(smem_idx, -1, 0, 0)];
     }
 
     value_t fly_ijm;
@@ -99,7 +99,7 @@ void hdiff_shared(const HdiffCudaBase::Info info,
         fly_ijm = lap_ij - lap_ijm;
         fly_ijm = fly_ijm * (in[idx] - in[NEIGHBOR(idx, 0, -1, 0)]) > 0 ? 0 : fly_ijm;
     } else {
-        fly_ijm = local_fly[SMEM_NEIGHBOR((int)threadIdx.x, (int)threadIdx.y, (int)threadIdx.z, 0, -1, 0)];
+        fly_ijm = local_fly[SMEM_NEIGHBOR(smem_idx, 0, -1, 0)];
     }
 
     out[idx] = in[idx]

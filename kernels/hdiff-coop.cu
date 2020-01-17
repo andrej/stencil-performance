@@ -33,9 +33,9 @@
          const int j = threadIdx.y + blockIdx.y*blockDim.y;
          const int k = threadIdx.z + blockIdx.z*blockDim.z;
          
-         if(i >= info.max_coord.x || j >= info.max_coord.y || k >= info.max_coord.z) {
-             return;
-         }
+         if(!(IS_IN_BOUNDS(i, j, k))) {
+            return;
+        }
  
          const int idx = INDEX(i, j, k);
 

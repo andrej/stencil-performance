@@ -12,11 +12,11 @@ void hdiff_iloop(const HdiffCudaBase::Info info,
     const int j = threadIdx.y + blockIdx.y*blockDim.y;
     const int k = threadIdx.z + blockIdx.z*blockDim.z;
     int i_start = threadIdx.x*i_per_thread + blockIdx.x*blockDim.x*i_per_thread;
-    if(j >= info.max_coord.y || i_start >= info.max_coord.x || k >= info.max_coord.z) {
+    if(!(IS_IN_BOUNDS(i_start, j, k))) {
         return;
     }
 
-    const int idx = INDEX(i, j, k);
+    const int idx = INDEX(i_start, j, k);
 
     int i_stop = i_start + i_per_thread;
     if(i_stop > info.max_coord.x) {
@@ -25,16 +25,16 @@ void hdiff_iloop(const HdiffCudaBase::Info info,
     
     // first calculation outside of loop will be shifted into lap_imj / flx_imj on first iteration
     // therefore lap_ij => lap_imj und lap_ipj => lap_ij
-    value_t lap_ij = 4 * in[NEIGHBOR(i_start, j, k, -1, 0, 0)] /* center */
-                        - in[NEIGHBOR(i_start, j, k, -2, 0, 0)] /* left */ - in[NEIGHBOR(i_start, j, k, 0, 0, 0)] /* right */
-                        - in[NEIGHBOR(i_start, j, k, -1, -1, 0)] /* top */ - in[NEIGHBOR(i_start, j, k, -1, +1, 0)] /* bottom */;
+    value_t lap_ij = 4 * in[NEIGHBOR(idx, -1, 0, 0)] /* center */
+                        - in[NEIGHBOR(idx, -2, 0, 0)] /* left */ - in[NEIGHBOR(idx, 0, 0, 0)] /* right */
+                        - in[NEIGHBOR(idx, -1, -1, 0)] /* top */ - in[NEIGHBOR(idx, -1, +1, 0)] /* bottom */;
     
-    value_t lap_ipj = 4 * in[NEIGHBOR(i_start, j, k, 0, 0, 0)]  /* center */
-                        - in[NEIGHBOR(i_start, j, k, -1, 0, 0)] /* left */ - in[NEIGHBOR(i_start, j, k, +1, 0, 0)] /* right */ 
-                        - in[NEIGHBOR(i_start, j, k, 0, -1, 0)] /* top */ - in[NEIGHBOR(i_start, j, k, 0, +1, 0)]; /* bottom */
+    value_t lap_ipj = 4 * in[NEIGHBOR(idx, 0, 0, 0)]  /* center */
+                        - in[NEIGHBOR(idx, -1, 0, 0)] /* left */ - in[NEIGHBOR(idx, +1, 0, 0)] /* right */ 
+                        - in[NEIGHBOR(idx, 0, -1, 0)] /* top */ - in[NEIGHBOR(idx, 0, +1, 0)]; /* bottom */
     
     value_t flx_ij = lap_ipj - lap_ij;
-    flx_ij = flx_ij * (in[INDEX(i_start, j, k)] - in[NEIGHBOR(i_start, j, k, -1, 0, 0)]) > 0 ? 0 : flx_ij;
+    flx_ij = flx_ij * (in[INDEX(i_start, j, k)] - in[NEIGHBOR(idx, -1, 0, 0)]) > 0 ? 0 : flx_ij;
 
     // i-loop, shifts results from previous round for reuse
     for(int i = i_start; i < i_stop; i++) {

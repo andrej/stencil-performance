@@ -18,7 +18,7 @@
 #define CUDA_CHECK(cmd) do { \
         cudaError_t err = cmd; \
         if(err != cudaSuccess) { \
-            fprintf(stderr, "%s, line %d: %s. %s.", __FILE__, __LINE__, \
+            fprintf(stderr, "%s, line %d: %s. %s.\n", __FILE__, __LINE__, \
                 cudaGetErrorName(err), cudaGetErrorString(err)); \
             exit(1); \
         } \

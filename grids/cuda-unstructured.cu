@@ -13,37 +13,41 @@
  virtual public CudaBaseGrid<value_t, coord3>
  {
 
-    public:
+    protected:
+    using UnstructuredGrid3D<value_t>::UnstructuredGrid3D;
 
-    CudaUnstructuredGrid3D(coord3 dimensions);
-    CudaUnstructuredGrid3D(coord3 dimensions, int *neighbor_data);
-
-    static CudaUnstructuredGrid3D<value_t> *create_regular(coord3 dimensions, coord3 halo=coord3(0, 0, 0), UnstructuredGrid3D::layout_t layout=UnstructuredGrid3D::rowmajor);
+    public:    
+    static CudaUnstructuredGrid3D<value_t> *create(coord3 dimensions, coord3 halo=coord3(0, 0, 0), int neighbor_store_depth=1, int *neighborships=coord3(0, 0, 0));
+    static CudaUnstructuredGrid3D<value_t> *create_regular(coord3 dimensions, coord3 halo=coord3(0, 0, 0), typename UnstructuredGrid3D<value_t>::layout_t layout=UnstructuredGrid3D<value_t>::rowmajor, int neighbor_store_depth=1);
+    static CudaUnstructuredGrid3D<value_t> *clone(const CudaUnstructuredGrid3D<value_t> &other);
 
 };
 
+
 template<typename value_t>
-CudaUnstructuredGrid3D<value_t>::CudaUnstructuredGrid3D(coord3 dimensions) :
-Grid<value_t, coord3>(dimensions,
-                UnstructuredGrid3D<value_t>::space_req(dimensions)) {
-    this->neighbor_data = NULL;
-    this->init();
+CudaUnstructuredGrid3D<value_t> *CudaUnstructuredGrid3D<value_t>::create(coord3 dimensions, coord3 halo, int neighbor_store_depth, int *neighborships) {
+    CudaUnstructuredGrid3D<value_t> *obj = new CudaUnstructuredGrid3D<value_t>(dimensions, halo, neighbor_store_depth, neighborships);
+    obj->init();
+    return obj;
 }
 
 template<typename value_t>
-CudaUnstructuredGrid3D<value_t>::CudaUnstructuredGrid3D(coord3 dimensions, int *neighbor_data) :
-Grid<value_t, coord3>(dimensions,
-                UnstructuredGrid3D<value_t>::space_req(dimensions, true)) {
-    this->neighbor_data = neighbor_data;
-    this->init();
+CudaUnstructuredGrid3D<value_t> *CudaUnstructuredGrid3D<value_t>::create_regular(coord3 dimensions, coord3 halo, typename UnstructuredGrid3D<value_t>::layout_t layout, int neighbor_store_depth) {
+    CudaUnstructuredGrid3D<value_t> *obj = new CudaUnstructuredGrid3D<value_t>(dimensions, halo, neighbor_store_depth);
+    obj->init();
+    obj->add_regular_nodes(layout);
+    obj->add_regular_neighbors();
+    return obj;
 }
 
 template<typename value_t>
-CudaUnstructuredGrid3D<value_t> *CudaUnstructuredGrid3D<value_t>::create_regular(coord3 dimensions, coord3 halo, UnstructuredGrid3D::layout_t layout) {
-    CudaUnstructuredGrid3D<value_t> *grid = new CudaUnstructuredGrid3D<value_t>(dimensions);
-    grid->add_regular_nodes(dimensions, halo, layout);
-    grid->add_regular_neighbors();
-    return grid;
+CudaUnstructuredGrid3D<value_t> *CudaUnstructuredGrid3D<value_t>::clone(const CudaUnstructuredGrid3D<value_t> &other) {
+    //CudaUnstructuredGrid3D<value_t> *obj = new CudaUnstructuredGrid3D<value_t>(other);
+    CudaUnstructuredGrid3D<value_t> *obj = new CudaUnstructuredGrid3D<value_t>(other.dimensions, other.halo, other.neighbor_store_depth, other.neighborships);
+    obj->init();
+    obj->indices = other.indices;
+    obj->coordinates = other.coordinates;
+    return obj;
 }
 
 #endif

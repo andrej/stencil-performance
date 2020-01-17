@@ -12,11 +12,13 @@ namespace HdiffCudaUnstr {
     /** Variants of this benchmark. */
     enum Variant { naive, idxvar, idxvar_kloop, idxvar_shared };
 
-    #define GRID_ARGS const int * __restrict__ neighborships, const int z_stride, 
-    #define INDEX(x_, y_, z_) (x_) + (y_)*blockDim.x*gridDim.x + (z_)*blockDim.x*gridDim.x*blockDim.y*gridDim.y
+    #define GRID_ARGS const int * __restrict__ neighborships, const int z_stride, const int offs,
+    #define INDEX(x_, y_, z_) (x_) + (y_)*blockDim.x*gridDim.x + offs + (z_)*z_stride
+    #define IS_IN_BOUNDS(i, j, k) (i + j*blockDim.x*gridDim.x < z_stride && k < info.max_coord.z)
     #define NEIGHBOR(idx, x_, y_, z_) GRID_UNSTR_NEIGHBOR(neighborships, z_stride, idx, x_, y_, z_)
-    #define DOUBLE_NEIGHBOR(idx, x1, y1, z1, x2, y2, z2) NEIGHBOR(NEIGHBOR(idx, x1, y1, z1), x2, y2, z2)
-    
+    //#define DOUBLE_NEIGHBOR(idx, x1, y1, z1, x2, y2, z2) NEIGHBOR(NEIGHBOR(idx, x1, y1, z1), x2, y2, z2)
+    #define DOUBLE_NEIGHBOR(idx, x1, y1, z1, x2, y2, z2) NEIGHBOR(idx, (x1+x2), (y1+y2), (z1+z2))
+
     #include "kernels/hdiff-naive.cu"
 
     #undef NEIGHBOR
@@ -33,6 +35,7 @@ namespace HdiffCudaUnstr {
 
     #undef GRID_ARGS
     #undef INDEX
+    #undef IS_IN_BOUNDS
     #undef NEIGHBOR
     #undef NEXT_Z_NEIGHBOR
     #undef K_STEP
@@ -56,8 +59,8 @@ class HdiffCudaUnstrBenchmark : public HdiffCudaBaseBenchmark<value_t> {
     virtual void setup();
     virtual void teardown();
     virtual void post();
-    virtual dim3 numblocks();
-    virtual dim3 numthreads();
+    virtual dim3 numblocks(coord3 domain=coord3());
+    virtual dim3 numthreads(coord3 domain=coord3());
 
 };
 
@@ -96,44 +99,47 @@ void HdiffCudaUnstrBenchmark<value_t>::run() {
     (*kernel_fun)<<<this->numblocks(), this->numthreads(), smem>>>(
         this->get_info(),
         unstr_input->neighborships,
-        unstr_input->dimensions.x*unstr_input->dimensions.y,
-        this->input->pointer(coord3(0, 0, 0)),
-        this->output->pointer(coord3(0, 0, 0)),
-        this->coeff->pointer(coord3(0, 0, 0))
+        unstr_input->z_stride(),
+        unstr_input->index(coord3(0, 0, 0)),
+        this->input->data,
+        this->output->data,
+        this->coeff->data
     );
     CUDA_THROW_LAST();
     CUDA_THROW( cudaDeviceSynchronize() );
 }
 
 template<typename value_t>
-dim3 HdiffCudaUnstrBenchmark<value_t>::numblocks() {
-    dim3 numblocks = this->Benchmark::numblocks();
+dim3 HdiffCudaUnstrBenchmark<value_t>::numblocks(coord3 domain) {
+    domain = this->inner_size;
     // For the vriants that use a k-loop inside the kernel, we only need one block in the k-direction
     if(this->variant == HdiffCudaUnstr::idxvar_kloop) {
-        numblocks = dim3(numblocks.x, numblocks.y, 1);
+        domain.z = 1;
     }
+    dim3 numblocks = this->Benchmark::numblocks(domain);
     return numblocks;
 }
 
 template<typename value_t>
-dim3 HdiffCudaUnstrBenchmark<value_t>::numthreads() {
-    dim3 numthreads = this->Benchmark::numthreads();
+dim3 HdiffCudaUnstrBenchmark<value_t>::numthreads(coord3 domain) {
+    domain = this->inner_size;
     // Variants with a k-loop: only one thread in the k-direction
     if(this->variant == HdiffCudaUnstr::idxvar_kloop) {
-        numthreads = dim3(numthreads.x, numthreads.y, 1);
+        domain.z = 1;
     }
+    dim3 numthreads = this->Benchmark::numthreads(domain);
     return numthreads;
 }
 
 template<typename value_t>
 void HdiffCudaUnstrBenchmark<value_t>::setup() {
-    this->input = CudaUnstructuredGrid3D<value_t>::create_regular(this->inner_size, this->halo);
-    int *neighborships = dynamic_cast<CudaUnstructuredGrid3D<value_t> *>(this->input)->neighborships;
-    this->output = new CudaUnstructuredGrid3D<value_t>(this->inner_size, this->halo);
-    this->coeff = new CudaUnstructuredGrid3D<value_t>(this->inner_size, this->halo);
-    this->lap = new CudaUnstructuredGrid3D<value_t>(this->inner_size, this->halo);
-    this->flx = new CudaUnstructuredGrid3D<value_t>(this->inner_size, this->halo);
-    this->fly = new CudaUnstructuredGrid3D<value_t>(this->inner_size, this->halo);
+    CudaUnstructuredGrid3D<value_t> *input = CudaUnstructuredGrid3D<value_t>::create_regular(this->inner_size, this->halo, UnstructuredGrid3D<value_t>::rowmajor, 2);
+    this->input = input;
+    this->output = CudaUnstructuredGrid3D<value_t>::clone(*input);
+    this->coeff = CudaUnstructuredGrid3D<value_t>::clone(*input);
+    this->lap = CudaUnstructuredGrid3D<value_t>::clone(*input);
+    this->flx = CudaUnstructuredGrid3D<value_t>::clone(*input);
+    this->fly = CudaUnstructuredGrid3D<value_t>::clone(*input);
     if(this->variant == HdiffCudaUnstr::idxvar_shared) {
         this->input->setSmemBankSize(sizeof(int));
     }

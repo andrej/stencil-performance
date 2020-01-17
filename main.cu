@@ -28,45 +28,48 @@
 typedef enum {all_benchs, 
     // Horizontal Diffusion
               hdiff_ref,
-              hdiff_cuda_regular_unfused,
-              hdiff_cuda_unstr_unfused,              
               hdiff_cuda_regular_naive,
-              hdiff_cuda_regular_iloop,
               hdiff_cuda_regular_jloop,
               hdiff_cuda_regular_kloop,
               hdiff_cuda_regular_idxvar,
               hdiff_cuda_regular_idxvar_kloop,
               hdiff_cuda_regular_idxvar_shared,
-              hdiff_cuda_regular_coop,
               hdiff_cuda_regular_shared,
-              hdiff_cuda_regular_shared_kloop,
               hdiff_cuda_unstr_naive,
               hdiff_cuda_unstr_idxvar,
               hdiff_cuda_unstr_idxvar_kloop,
               hdiff_cuda_unstr_idxvar_shared,
               fastwaves_ref,
-              fastwaves_regular_unfused,
-              fastwaves_unstr_unfused,
               fastwaves_regular_naive,
               fastwaves_regular_idxvar,
               fastwaves_regular_kloop,
               fastwaves_unstr_naive,
               fastwaves_unstr_idxvar,
               fastwaves_unstr_kloop,
-              laplap_regular_unfused,
               laplap_regular_naive,
               laplap_regular_idxvar,
               laplap_regular_idxvar_kloop,
               laplap_regular_idxvar_kloop_sliced,
               laplap_regular_idxvar_shared,
               laplap_regular_shared,
-              laplap_unstr_unfused,
               laplap_unstr_naive,
               laplap_unstr_idxvar,
               laplap_unstr_idxvar_kloop,
               laplap_unstr_idxvar_kloop_sliced,
               laplap_unstr_idxvar_shared,
-              unspecified} 
+
+              // --- old/broken/not interesting TODO clean those up (remove or fix)
+              unspecified,
+              hdiff_cuda_regular_unfused,
+              hdiff_cuda_unstr_unfused, 
+              hdiff_cuda_regular_shared_kloop,
+              hdiff_cuda_regular_iloop,
+              hdiff_cuda_regular_coop,
+              fastwaves_regular_unfused,
+              fastwaves_unstr_unfused,
+              laplap_regular_unfused,
+              laplap_unstr_unfused
+              } 
 benchmark_type_t;
 
 /** Benchmarks can be run in single or double precision, this enum is used to differentiate the two. */
@@ -252,7 +255,7 @@ Benchmark *create_benchmark(benchmark_params_t param_bench, coord3 size,
         //ret = (precision == single_prec ?
         //    (Benchmark *) new HdiffCPUUnstrBenchmark<float>(size) :
         //    (Benchmark *) new HdiffCPUUnstrBenchmark<double>(size) );
-        break;
+        //break;
         case hdiff_cuda_regular_unfused:
         ret = (precision == single_prec ?
             (Benchmark *) new HdiffCudaRegularUnfusedBenchmark<float>(size) :

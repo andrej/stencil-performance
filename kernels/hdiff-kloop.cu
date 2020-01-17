@@ -8,13 +8,12 @@ void hdiff_kloop(const HdiffCudaBase::Info info,
 
     const int i = threadIdx.x + blockIdx.x*blockDim.x;
     const int j = threadIdx.y + blockIdx.y*blockDim.y;
-    if(i >= info.max_coord.x || j >= info.max_coord.y) {
+    if(!(IS_IN_BOUNDS(i, j, 0))) {
         return;
     }
-
-    const int idx = INDEX(i, j, k);
     
-    for(int k = info.halo.z; k < info.max_coord.z; k++) {
+    for(int k = 0; k < info.max_coord.z; k++) {
+        int idx = INDEX(i, j, k);
         value_t lap_ij = 
             4 * in[NEIGHBOR(idx, 0, 0, 0)] 
             - in[NEIGHBOR(idx, -1, 0, 0)] - in[NEIGHBOR(idx, +1, 0, 0)]

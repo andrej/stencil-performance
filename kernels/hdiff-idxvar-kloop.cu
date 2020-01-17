@@ -20,7 +20,7 @@ void hdiff_idxvar_kloop(const HdiffCudaBase::Info info,
 
     const int i = threadIdx.x + blockIdx.x*blockDim.x;
     const int j = threadIdx.y + blockIdx.y*blockDim.y;
-    if(i >= info.max_coord.x || j >= info.max_coord.y) {
+    if(!(IS_IN_BOUNDS(i, j, 0))) {
         return;
     }
 
@@ -45,7 +45,7 @@ void hdiff_idxvar_kloop(const HdiffCudaBase::Info info,
     int n_p1_n1_0     = NEIGHBOR(n_p1_0_0, 0, -1, 0);
 
     #pragma unroll 4
-    for (int k = info.halo.z; k < info.max_coord.z; k++) {
+    for (int k = 0; k < info.max_coord.z; k++) {
 
         value_t lap_ij = 
             4 * in[n_0_0_0] 

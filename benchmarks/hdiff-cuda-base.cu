@@ -72,8 +72,9 @@ std::map<coord3, HdiffReferenceBenchmark<value_t> *> *HdiffCudaBaseBenchmark<val
 template<typename value_t>
 HdiffCudaBaseBenchmark<value_t>::HdiffCudaBaseBenchmark(coord3 size) :
 Benchmark(size),
-halo(coord3(2,2,0)) {
+halo(coord3(2, 2, 0)) {
     this->name = "hdiff";
+    this->inner_size = this->size - 2*this->halo;
     if(!HdiffCudaBaseBenchmark<value_t>::reference_benchs) {
         HdiffCudaBaseBenchmark<value_t>::reference_benchs = new std::map<coord3, HdiffReferenceBenchmark<value_t> *>();
     }
@@ -95,12 +96,16 @@ void HdiffCudaBaseBenchmark<value_t>::setup(){
     /* Import values from reference grids to ensure same conditions. */
     this->input->import(this->reference_bench->input);
     this->coeff->import(this->reference_bench->coeff);
-    this->lap->fill(0.0);
-    this->flx->fill(0.0);
-    this->fly->fill(0.0);
+    if(this->lap) {
+        this->lap->fill(0.0);
+    }
+    if(this->flx) {
+        this->flx->fill(0.0);
+    }
+    if(this->fly) {
+        this->fly->fill(0.0);
+    }
     this->output->fill(0.0);
-    this->inner_size = this->size - 2*this->halo;
-
     this->Benchmark::setup();
 }
 
@@ -115,16 +120,13 @@ void HdiffCudaBaseBenchmark<value_t>::teardown() {
     // Don't free, because this reference benchmark will be reused.
     // This is ugly but not important enough to fix right now. If the memory 
     // leak becomes an issue, simply run gridbenchmark with --no-verify option.
-
     this->Benchmark::teardown();
 }
 
 template<typename value_t>
 HdiffCudaBase::Info HdiffCudaBaseBenchmark<value_t>::get_info() {
     coord3 inner_size = this->inner_size;
-    dim3 numthreads = this->numthreads();
-    dim3 numblocks = this->numblocks();
-    return { .max_coord = inner_size + this->halo };
+    return { .max_coord = inner_size };
 }
 
 template<typename value_t>

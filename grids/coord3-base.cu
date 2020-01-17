@@ -42,12 +42,11 @@ Coord3BaseGrid<value_t>::Coord3BaseGrid() {}
 //template<typename value_t, typename allocator, typename other_value_t, typename other_allocator_t>
 template<typename value_t>
 void Coord3BaseGrid<value_t>::import(Grid<value_t, coord3> *other) {
-    int N = std::min(this->dimensions.x, other->dimensions.x);
-    int M = std::min(this->dimensions.y, other->dimensions.y);
-    int L = std::min(this->dimensions.z, other->dimensions.z);
-    for(int x = 0; x < N; x++) {
-        for(int y = 0; y < M; y++) {
-            for(int z = 0; z < L; z++) {
+    assert(this->dimensions == other->dimensions);
+    assert(this->halo == other->halo);
+    for(int x = -this->halo.x; x < this->dimensions.x+this->halo.x; x++) {
+        for(int y = -this->halo.y; y < this->dimensions.y+this->halo.y; y++) {
+            for(int z = -this->halo.z; z < this->dimensions.z+this->halo.z; z++) {
                 this->set(coord3(x, y, z), (*other)[coord3(x, y, z)]);
             }
         }
@@ -56,12 +55,9 @@ void Coord3BaseGrid<value_t>::import(Grid<value_t, coord3> *other) {
 
 template<typename value_t>
 void Coord3BaseGrid<value_t>::fill(value_t value) {
-    int N = this->dimensions.x;
-    int M = this->dimensions.y;
-    int L = this->dimensions.z;
-    for(int x = 0; x < N; x++) {
-        for(int y = 0; y < M; y++) {
-            for(int z = 0; z < L; z++) {
+    for(int x = -this->halo.x; x < this->dimensions.x+this->halo.x; x++) {
+        for(int y = -this->halo.y; y < this->dimensions.y+this->halo.y; y++) {
+            for(int z = -this->halo.z; z < this->dimensions.z+this->halo.z; z++) {
                 this->set(coord3(x, y, z), value);
             }
         }
@@ -70,13 +66,10 @@ void Coord3BaseGrid<value_t>::fill(value_t value) {
 
 template<typename value_t>
 void Coord3BaseGrid<value_t>::print() {
-    int N = this->dimensions.x;
-    int M = this->dimensions.y;
-    int L = this->dimensions.z;
-    for(int x=0; x<N; x++) {
-        for(int y=0; y<M; y++) {
+    for(int y = -this->halo.y; y < this->dimensions.y+this->halo.y; y++) {
+        for(int x = -this->halo.x; x < this->dimensions.x+this->halo.x; x++) {
             fprintf(stderr, "[");
-            for(int z=0; z<L; z++) {
+            for(int z = -this->halo.z; z < this->dimensions.z+this->halo.z; z++) {
                 fprintf(stderr, "%5.1f", (*this)[coord3(x, y, z)]);
             }
             fprintf(stderr, "]  ");

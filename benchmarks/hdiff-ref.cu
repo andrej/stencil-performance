@@ -39,8 +39,8 @@ class HdiffReferenceBenchmark : public Benchmark {
     coord3 inner_size; // size w.o. 2* halo
 
     // Print (1, 1, 1) for numblocks/numthreads as this is on CPU
-    dim3 numblocks();
-    dim3 numthreads();
+    dim3 numblocks(coord3 domain);
+    dim3 numthreads(coord3 domain);
 
 };
 
@@ -59,12 +59,12 @@ void HdiffReferenceBenchmark<value_t>::setup(){
     // Algorithm requires a halo: padding that is not touched
     this->inner_size = this->size - 2*this->halo;
     // Set up grids
-    this->input = new RegularGrid3D<value_t>(this->inner_size, this->halo);
-    this->output = new RegularGrid3D<value_t>(this->inner_size, this->halo);
-    this->coeff = new RegularGrid3D<value_t>(this->inner_size, this->halo);
-    this->lap = new RegularGrid3D<value_t>(this->inner_size, this->halo);
-    this->flx = new RegularGrid3D<value_t>(this->inner_size, this->halo);
-    this->fly = new RegularGrid3D<value_t>(this->inner_size, this->halo);
+    this->input = RegularGrid3D<value_t>::create(this->inner_size, this->halo);
+    this->output = RegularGrid3D<value_t>::create(this->inner_size, this->halo);
+    this->coeff = RegularGrid3D<value_t>::create(this->inner_size, this->halo);
+    this->lap = RegularGrid3D<value_t>::create(this->inner_size, this->halo);
+    this->flx = RegularGrid3D<value_t>::create(this->inner_size, this->halo);
+    this->fly = RegularGrid3D<value_t>::create(this->inner_size, this->halo);
 
     // Populate with data
     this->populate_grids();
@@ -75,15 +75,15 @@ void HdiffReferenceBenchmark<value_t>::setup(){
 template<typename value_t>
 void HdiffReferenceBenchmark<value_t>::populate_grids() {
     // Populate memory with values as in reference implementation (copied 1:1)
-    value_t *m_in = &this->input->data[this->input->index(coord(0, 0, 0))];
-    value_t *m_out = &this->input->data[this->output->index(coord(0, 0, 0));
-    value_t *m_coeff = &this->input->data[this->coeff->index(coord(0, 0, 0));
-    value_t *m_lap = &this->input->data[this->lap->index(coord(0, 0, 0));
-    value_t *m_flx = &this->input->data[this->flx->index(coord(0, 0, 0));
-    value_t *m_fly = &this->input->data[this->fly->index(coord(0, 0, 0));
-    const int isize = &this->input->data[this->inner_size.x;
-    const int jsize = &this->input->data[this->inner_size.y;
-    const int ksize = &this->input->data[this->inner_size.z;
+    value_t *m_in = this->input->data;
+    value_t *m_out = this->output->data;
+    value_t *m_coeff = this->coeff->data;
+    value_t *m_lap = this->lap->data;
+    value_t *m_flx = this->flx->data;
+    value_t *m_fly = this->fly->data;
+    const int isize = this->inner_size.x;
+    const int jsize = this->inner_size.y;
+    const int ksize = this->inner_size.z;
     // original code starts here
     value_t dx = 1. / (value_t)(isize);
     value_t dy = 1. / (value_t)(jsize);
@@ -116,12 +116,12 @@ void HdiffReferenceBenchmark<value_t>::populate_grids() {
 template<typename value_t>
 void HdiffReferenceBenchmark<value_t>::run() {
     // Grids
-    value_t *in = &this->input->data[this->input->index(coord(0, 0, 0))];
-    value_t *coeff = &this->input->data[this->coeff->index(coord(0, 0, 0))];
-    value_t *out_ref = &this->input->data[this->output->index(coord(0, 0, 0))];
-    value_t *lap_ref = &this->input->data[this->lap->index(coord(0, 0, 0))];
-    value_t *flx_ref = &this->input->data[this->flx->index(coord(0, 0, 0))];
-    value_t *fly_ref = &this->input->data[this->fly->index(coord(0, 0, 0))];
+    value_t *in = this->input->data;
+    value_t *coeff = this->coeff->data;
+    value_t *out_ref = this->output->data;
+    value_t *lap_ref = this->lap->data;
+    value_t *flx_ref = this->flx->data;
+    value_t *fly_ref = this->fly->data;
     // convenience variables
     const int isize = this->inner_size.x;
     const int jsize = this->inner_size.y;
@@ -163,12 +163,6 @@ void HdiffReferenceBenchmark<value_t>::run() {
 
 template<typename value_t>
 void HdiffReferenceBenchmark<value_t>::teardown() {
-    this->input->deallocate();
-    this->output->deallocate();
-    this->coeff->deallocate();
-    this->lap->deallocate();
-    this->flx->deallocate();
-    this->fly->deallocate();
     delete this->input;
     delete this->output;
     delete this->coeff;
@@ -178,12 +172,12 @@ void HdiffReferenceBenchmark<value_t>::teardown() {
 }
 
 template<typename value_t>
-dim3 HdiffReferenceBenchmark<value_t>::numblocks() {
+dim3 HdiffReferenceBenchmark<value_t>::numblocks(coord3 domain) {
     return dim3(1, 1, 1);
 }
 
 template<typename value_t>
-dim3 HdiffReferenceBenchmark<value_t>::numthreads() {
+dim3 HdiffReferenceBenchmark<value_t>::numthreads(coord3 domain) {
     return dim3(1, 1, 1);
 }
 

@@ -19,11 +19,11 @@ void hdiff_shared_kloop(const HdiffCudaBase::Info info,
     // Global grid position
     const int i = threadIdx.x + blockIdx.x*blockDim.x;
     const int j = threadIdx.y + blockIdx.y*blockDim.y;
-    if(i >= info.max_coord.x || j >= info.max_coord.y) {
+    if(!(IS_IN_BOUNDS(i, j, 0))) {
         return;
     }
 
-    const int idx = INDEX(i, j, k);
+    const int idx = INDEX(i, j, 0);
     const int smem_idx = SMEM_INDEX((int)threadIdx.x, (int)threadIdx.y, 0);
 
     // Shared memory
@@ -35,7 +35,7 @@ void hdiff_shared_kloop(const HdiffCudaBase::Info info,
     value_t *local_fly = &local_flx[blockDim.x*blockDim.y];
     
     // K-loop
-    for(int k = info.halo.z; k < info.max_coord.z; k++) {
+    for(int k = 0; k < info.max_coord.z; k++) {
 
         // Calculate own laplace
         const value_t lap_ij = 4 * in[NEIGHBOR(idx, 0, 0, 0)] 
@@ -53,7 +53,7 @@ void hdiff_shared_kloop(const HdiffCudaBase::Info info,
                 - in[NEIGHBOR(idx, 0, 0, 0)] - in[NEIGHBOR(idx, +2, 0, 0)]
                 - in[NEIGHBOR(idx, +1, -1, 0)] - in[NEIGHBOR(idx, +1, +1, 0)];
         } else {
-            lap_ipj = local_lap[SMEM_NEIGHBOR(idx,0, +1, 0, 0)];
+            lap_ipj = local_lap[SMEM_NEIGHBOR(idx, +1, 0, 0)];
         }
 
         value_t lap_ijp;
@@ -62,7 +62,7 @@ void hdiff_shared_kloop(const HdiffCudaBase::Info info,
                 - in[NEIGHBOR(idx, -1, +1, 0)] - in[NEIGHBOR(idx, +1, +1, 0)]
                 - in[NEIGHBOR(idx, 0, 0, 0)] - in[NEIGHBOR(idx, 0, +2, 0)];
         } else {
-            lap_ijp = local_lap[SMEM_NEIGHBOR(idx,0, 0, +1, 0)];
+            lap_ijp = local_lap[SMEM_NEIGHBOR(idx, 0, +1, 0)];
         }
 
         // Own flx/fly calculation
@@ -86,7 +86,7 @@ void hdiff_shared_kloop(const HdiffCudaBase::Info info,
             flx_imj = lap_ij - lap_imj;
             flx_imj = flx_imj * (in[idx] - in[NEIGHBOR(idx, -1, 0, 0)]) > 0 ? 0 : flx_imj;
         } else {
-            flx_imj = local_flx[SMEM_NEIGHBOR(idx,0, -1, 0, 0)];
+            flx_imj = local_flx[SMEM_NEIGHBOR(idx, -1, 0, 0)];
         }
 
         value_t fly_ijm;
@@ -98,7 +98,7 @@ void hdiff_shared_kloop(const HdiffCudaBase::Info info,
             fly_ijm = lap_ij - lap_ijm;
             fly_ijm = fly_ijm * (in[idx] - in[NEIGHBOR(idx, 0, -1, 0)]) > 0 ? 0 : fly_ijm;
         } else {
-            fly_ijm = local_fly[SMEM_NEIGHBOR(idx,0, 0, -1, 0)];
+            fly_ijm = local_fly[SMEM_NEIGHBOR(idx, 0, -1, 0)];
         }
 
         out[idx] = in[idx]

@@ -18,16 +18,15 @@ void fastwaves_kloop(const FastWavesBenchmark::Info info,
                      value_t *vout) {
     const int i = blockIdx.x*blockDim.x + threadIdx.x;
     const int j = blockIdx.y*blockDim.y + threadIdx.y;
-    const int k_start = info.halo.z;
-    if(i >= info.max_coord.x || j >= info.max_coord.y || k_start >= info.max_coord.z - 1) {
+    if(!(IS_IN_BOUNDS(i, j, 0))) {
         return;
     }
 
-    const int idx = INDEX(i, j, k);
+    const int idx = INDEX(i, j, 0);
 
     // first iteration indices will be passed into -> 0
     int idx_0_0_0, idx_0_0_n1, idx_0_0_p1, idx_p1_0_n1, idx_p1_0_0, idx_p1_0_p1, idx_0_p1_n1, idx_0_p1_0, idx_0_p1_p1;
-    idx_0_0_n1    = NEIGHBOR(idx_start, 0, 0, -1);
+    idx_0_0_n1    = NEIGHBOR(idx, 0, 0, -1);
     idx_0_0_0     = NEXT_Z_NEIGHBOR(idx_0_0_n1);
     idx_0_0_p1    = NEXT_Z_NEIGHBOR(idx_0_0_0);
     idx_p1_0_n1   = NEIGHBOR(idx_0_0_n1, +1, 0, 0);
@@ -41,7 +40,7 @@ void fastwaves_kloop(const FastWavesBenchmark::Info info,
     value_t ppgc_0_0_0, ppgc_p1_0_0, ppgc_0_p1_0;
 
     #pragma unroll 4
-    for(int k = k_start; k < info.max_coord.z - 1; k++) {
+    for(int k = 0; k < info.max_coord.z - 1; k++) {
         // ppgu, ppgv
         value_t ppgu, ppgv;
         if(k < c_flat_limit) {

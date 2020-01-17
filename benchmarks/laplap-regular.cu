@@ -13,6 +13,7 @@ namespace LapLapRegular {
 
     #define GRID_ARGS const int y_stride, const int z_stride, 
     #define INDEX(x, y, z) GRID_REGULAR_INDEX(y_stride, z_stride, x, y, z)
+    #define IS_IN_BOUNDS(i, j, k) (i < max_coord.x && j < max_coord.y && k < max_coord.z)
     #define NEIGHBOR(idx, x_, y_, z_) GRID_REGULAR_NEIGHBOR(y_stride, z_stride, idx, x_, y_, z_)
     #define DOUBLE_NEIGHBOR(idx, x1, y1, z1, x2, y2, z2) NEIGHBOR(idx, (x1+x2), (y1+y2), (z1+z2))
     #define NEXT_Z_NEIGHBOR(idx) (idx+z_stride)
@@ -33,6 +34,7 @@ namespace LapLapRegular {
 
     #undef GRID_ARGS
     #undef INDEX
+    #undef IS_IN_BOUNDS
     #undef NEIGHBOR
     #undef DOUBLE_NEIGHBOR
     #undef NEXT_Z_NEIGHBOR
@@ -56,8 +58,8 @@ class LapLapRegularBenchmark : public LapLapBaseBenchmark<value_t> {
     void setup();
     void run();
 
-    dim3 numthreads();
-    dim3 numblocks();
+    dim3 numthreads(coord3 domain=coord3());
+    dim3 numblocks(coord3 domain=coord3());
 
     void parse_args();
     int k_per_thread = 16;
@@ -95,67 +97,66 @@ void LapLapRegularBenchmark<value_t>::run() {
     dim3 numblocks = this->numblocks();
     const coord3 halo1(1, 1, 0);
     const coord3 halo2(2, 2, 0);
-    const coord3 max_coord1 = this->size - halo1;
-    const coord3 max_coord2 = this->size - halo2;
     if(this->variant == LapLapRegular::naive) {
         LapLapRegular::laplap_naive<value_t><<<this->numblocks(), this->numthreads()>>>(
             strides.y, strides.z,
-            max_coord2,
-            this->input->pointer(coord(0, 0, 0)),
-            this->output->pointer(coord(0, 0, 0))
+            this->inner_size,
+            this->input->pointer(coord3(0, 0, 0)),
+            this->output->pointer(coord3(0, 0, 0))
         );
     } else if(this->variant == LapLapRegular::idxvar) {
         LapLapRegular::laplap_idxvar<value_t><<<this->numblocks(), this->numthreads()>>>(
             strides.y, strides.z,
-            max_coord2,
-            this->input->pointer(coord(0, 0, 0)),
-            this->output->pointer(coord(0, 0, 0))
+            this->inner_size,
+            this->input->pointer(coord3(0, 0, 0)),
+            this->output->pointer(coord3(0, 0, 0))
         );
     } else if(this->variant == LapLapRegular::idxvar_kloop) {
         LapLapRegular::laplap_idxvar_kloop<value_t><<<this->numblocks(), this->numthreads()>>>(
             strides.y, strides.z,
-            max_coord2,
-            this->input->pointer(coord(0, 0, 0)),
-            this->output->pointer(coord(0, 0, 0))
+            this->inner_size,
+            this->input->pointer(coord3(0, 0, 0)),
+            this->output->pointer(coord3(0, 0, 0))
         );
     } else if(this->variant == LapLapRegular::idxvar_kloop_sliced) {
         LapLapRegular::laplap_idxvar_kloop_sliced<value_t><<<this->numblocks(), this->numthreads()>>>(
             strides.y, strides.z,
             this->k_per_thread,
-            max_coord2,
-            this->input->pointer(coord(0, 0, 0)),
-            this->output->pointer(coord(0, 0, 0))
+            this->inner_size,
+            this->input->pointer(coord3(0, 0, 0)),
+            this->output->pointer(coord3(0, 0, 0))
         );
     } else if(this->variant == LapLapRegular::idxvar_shared) {
         dim3 numthreads = this->numthreads();
         int smem = numthreads.x*numthreads.y*13*sizeof(int);
         LapLapRegular::laplap_idxvar_shared<value_t><<<this->numblocks(), numthreads, smem>>>(
             strides.y, strides.z,
-            max_coord2,
-            this->input->pointer(coord(0, 0, 0)),
-            this->output->pointer(coord(0, 0, 0))
+            this->inner_size,
+            this->input->pointer(coord3(0, 0, 0)),
+            this->output->pointer(coord3(0, 0, 0))
         );
     } else if(this->variant == LapLapRegular::shared){
         dim3 numthreads = this->numthreads();
         int smem = sizeof(value_t) * numthreads.x * numthreads.y * numthreads.z;
         LapLapRegular::laplap_shared<value_t><<<this->numblocks(), numthreads, smem>>>(
             strides.y, strides.z,
-            max_coord2,
-            this->input->pointer(coord(0, 0, 0)),
-            this->output->pointer(coord(0, 0, 0))
+            this->inner_size,
+            this->input->pointer(coord3(0, 0, 0)),
+            this->output->pointer(coord3(0, 0, 0))
         );
     } else if(this->variant == LapLapRegular::unfused) {
+        coord3 small_strides = dynamic_cast<RegularGrid3D<value_t> *>(this->intermediate)->get_strides();
         LapLapRegular::lap<value_t><<<this->numblocks(), this->numthreads()>>>(
-            strides.y, strides.z,
-            max_coord1,
-            this->input->pointer(coord(0, 0, 0)),
-            this->intermediate->pointer(coord(0, 0, 0))
+            small_strides.y, small_strides.z,
+            this->size - 2*coord3(1, 1, 0),
+            this->input->pointer(coord3(-1, -1, 0)),
+            this->intermediate->pointer(coord3(-1, -1, 0)) // intermediate already has only (1, 1, 0) halom
         );
         LapLapRegular::lap<value_t><<<this->numblocks(), this->numthreads()>>>(
             strides.y, strides.z,
-            max_coord2,
-            this->intermediate->pointer(coord(0, 0, 0)),
-            this->output->pointer(coord(0, 0, 0))
+            this->inner_size,
+            this->intermediate->pointer(coord3(0, 0, 0)),
+            this->output->pointer(coord3(0, 0, 0))
         );
     }
     if(cudaDeviceSynchronize() != cudaSuccess) {
@@ -166,11 +167,11 @@ void LapLapRegularBenchmark<value_t>::run() {
 template<typename value_t>
 void LapLapRegularBenchmark<value_t>::setup() {
     coord3 halo2(2, 2, 0);
-    this->input = new CudaRegularGrid3D<value_t>(this->size-2*halo2, halo2);
-    this->output = new CudaRegularGrid3D<value_t>(this->size-2*halo2, halo2);
+    this->input = CudaRegularGrid3D<value_t>::create(this->inner_size, halo2);
+    this->output = CudaRegularGrid3D<value_t>::create(this->inner_size, halo2);
     if(this->variant == LapLapRegular::unfused) {
-        coord3 halo1(1, 1, 0);
-        this->intermediate = new CudaRegularGrid3D<value_t>(this->size-2*halo1, halo1);
+        //coord3 halo1(1, 1, 0);
+        this->intermediate = CudaRegularGrid3D<value_t>::create(this->inner_size, halo2);
     }
     if(this->variant == LapLapRegular::idxvar_shared) {
         this->input->setSmemBankSize(sizeof(int));
@@ -179,24 +180,28 @@ void LapLapRegularBenchmark<value_t>::setup() {
 }
 
 template<typename value_t>
-dim3 LapLapRegularBenchmark<value_t>::numthreads() {
-    dim3 numthreads = this->LapLapBaseBenchmark<value_t>::numthreads();
-    if(this->variant == LapLapRegular::idxvar_kloop) {
-        numthreads.z = 1;
+dim3 LapLapRegularBenchmark<value_t>::numthreads(coord3 domain) {
+    domain = this->inner_size;
+    if(this->variant == LapLapRegular::unfused) {
+        domain = this->size - 2*coord3(1, 1, 0);
+    } else if(this->variant == LapLapRegular::idxvar_kloop) {
+        domain.z = 1;
     }
+    dim3 numthreads = this->LapLapBaseBenchmark<value_t>::numthreads(domain);
     return numthreads;
 }
 
 template<typename value_t>
-dim3 LapLapRegularBenchmark<value_t>::numblocks() {
-    dim3 numblocks = this->LapLapBaseBenchmark<value_t>::numblocks();
-    dim3 numthreads = this->numthreads();
-    if(this->variant == LapLapRegular::idxvar_kloop) {
-        numblocks.z = 1;
+dim3 LapLapRegularBenchmark<value_t>::numblocks(coord3 domain) {
+    domain = this->inner_size;
+    if(this->variant == LapLapRegular::unfused) {
+        domain = this->size - 2*coord3(1, 1, 0);
+    } else if(this->variant == LapLapRegular::idxvar_kloop) {
+        domain.z = 1;
     } else if(this->variant == LapLapRegular::idxvar_kloop_sliced) {
-        int sz_z = ((this->size.z + this->k_per_thread - 1) / this->k_per_thread);
-        numblocks.z = (sz_z + numthreads.z - 1) / numthreads.z;
+        domain.z = ((this->inner_size.z + this->k_per_thread - 1) / this->k_per_thread);
     }
+    dim3 numblocks = this->LapLapBaseBenchmark<value_t>::numblocks(domain);
     return numblocks;
 }
 

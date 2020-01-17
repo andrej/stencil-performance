@@ -15,18 +15,19 @@ class CudaRegularGrid3D :
 virtual public RegularGrid3D<value_t>,
 virtual public CudaBaseGrid<value_t, coord3>
 {
+    protected:
+    using RegularGrid3D<value_t>::RegularGrid3D;
+
     public:
-    CudaRegularGrid3D(coord3 dimensions);
-    
+    static CudaRegularGrid3D<value_t> *create(coord3 dimensions, coord3 halo=coord3(0, 0, 0));
+
 };
 
-// IMPLEMENTATIONS
-
 template<typename value_t>
-CudaRegularGrid3D<value_t>::CudaRegularGrid3D(coord3 dimensions) :
-Grid<value_t, coord3>(dimensions,
-                      sizeof(value_t)*dimensions.x*dimensions.y*dimensions.z) {
-    this->init();
+CudaRegularGrid3D<value_t> *CudaRegularGrid3D<value_t>::create(coord3 dimensions, coord3 halo) {
+    CudaRegularGrid3D<value_t> *obj = new CudaRegularGrid3D<value_t>(dimensions, halo);
+    obj->init();
+    return obj;
 }
 
 #endif

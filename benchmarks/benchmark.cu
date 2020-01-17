@@ -42,7 +42,7 @@ class Benchmark {
 	//Benchmark();
 	Benchmark(coord3 size);
 
-	coord3 size;
+    coord3 size;
     dim3 _numblocks;
     dim3 _numthreads;
 	std::string name;
@@ -90,8 +90,8 @@ class Benchmark {
 	// Cuda specific: number of threads and blocks to execute the benchmark in
 	// May be used by the benchmark implementation in run() to determine how many
 	// threads and blocks to launch the kernel in
-	virtual dim3 numthreads();
-	virtual dim3 numblocks();
+	virtual dim3 numthreads(coord3 domain=coord3());
+	virtual dim3 numblocks(coord3 domain=coord3());
 
 };
 
@@ -112,52 +112,49 @@ T median<T>(std::vector<T> vec) {
     }
 }
 
-//Benchmark::Benchmark() { printf("default constructor\n");}
-
 Benchmark::Benchmark(coord3 size) : size(size) {}
 
 void Benchmark::setup() {
 }
 
 void Benchmark::teardown() {
-    cudaDeviceReset();
 }
 
 void Benchmark::post() {
     if(cudaGetLastError() != cudaSuccess) {
         this->error = true;
-        /*std::ostringstream msg;
-        dim3 nblocks = this->numblocks();
-        dim3 nthreads = this->numthreads();
-        msg << "Unable to run kernel with (" << nblocks.x << ", " << nblocks.y << ", " << nblocks.z << 
-               ") blocks and (" << nthreads.x << ", " << nthreads.y << ", " << nthreads.z << ") threads.";
-        throw std::runtime_error(msg.str());*/
         CUDA_THROW_LAST();
     }
 }
 
-dim3 Benchmark::numblocks() {
+dim3 Benchmark::numblocks(coord3 domain) {
     if(this->_numblocks.x != 0 &&
         this->_numblocks.y != 0 &&
         this->_numblocks.z != 0) {
         return this->_numblocks;
     }
+    if(domain == coord3(0, 0, 0)) {
+        domain = this->size;
+    }
     dim3 numthreads = this->numthreads();
-    int x = (this->size.x + numthreads.x - 1) / numthreads.x;
-    int y = (this->size.y + numthreads.y - 1) / numthreads.y;
-    int z = (this->size.z + numthreads.z - 1) / numthreads.z;
+    int x = (domain.x + numthreads.x - 1) / numthreads.x;
+    int y = (domain.y + numthreads.y - 1) / numthreads.y;
+    int z = (domain.z + numthreads.z - 1) / numthreads.z;
     return dim3( (unsigned int) x, (unsigned int) y, (unsigned int) z );
 }
 
-dim3 Benchmark::numthreads() {
+dim3 Benchmark::numthreads(coord3 domain) {
     if(this->_numthreads.x != 0 &&
         this->_numthreads.y != 0 &&
         this->_numthreads.z != 0) {
         return this->_numthreads;
     }
-    int x = (this->size.x + this->_numblocks.x - 1) / this->_numblocks.x;
-    int y = (this->size.y + this->_numblocks.y - 1) / this->_numblocks.y;
-    int z = (this->size.z + this->_numblocks.z - 1) / this->_numblocks.z;
+    if(domain == coord3(0, 0, 0)) {
+        domain = this->size;
+    }
+    int x = (domain.x + this->_numblocks.x - 1) / this->_numblocks.x;
+    int y = (domain.y + this->_numblocks.y - 1) / this->_numblocks.y;
+    int z = (domain.z + this->_numblocks.z - 1) / this->_numblocks.z;
     if (x*y*z > CUDA_MAXNUMTHREADS_X*CUDA_MAXNUMTHREADS_Y*CUDA_MAXNUMTHREADS_Z) {
         // The limiting is only done if the total maximum is exceeded
         x = std::min(x, CUDA_MAXNUMTHREADS_X);
@@ -168,6 +165,7 @@ dim3 Benchmark::numthreads() {
 }
 
 benchmark_result_t Benchmark::execute() {
+    CUDA_THROW( cudaDeviceReset() );
     this->setup();
     bool error = false;
     std::vector<double> runtimes;

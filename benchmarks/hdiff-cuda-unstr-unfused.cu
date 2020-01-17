@@ -12,10 +12,12 @@ namespace HdiffCudaUnstructuredUnfused {
 
     #define GRID_ARGS const int* neighborships, const int z_stride, 
     #define INDEX(x_, y_, z_) (x_) + (y_)*blockDim.x*gridDim.x + (z_)*blockDim.x*gridDim.x*blockDim.y*gridDim.y
+    #define IS_IN_BOUNDS(i, j, k) (i + j*blockDim.x*gridDim.x < z_stride && k < info.max_coord.z)
     #define NEIGHBOR(idx, x_, y_, z_) GRID_UNSTR_NEIGHBOR(neighborships, z_stride, idx, x_, y_, z_)
     #include "kernels/hdiff-unfused.cu"
     #undef GRID_ARGS
     #undef INDEX
+    #undef IS_IN_BOUNDS
     #undef NEIGHBOR
 
 };
@@ -63,19 +65,18 @@ void HdiffCudaUnstructuredUnfusedBenchmark<value_t>::run() {
     coord3 _nthreads = coord3(nthreads.x, nthreads.y, nthreads.z);
     dim3 nblocks_lap = this->gridsize(_nthreads, coord3(-1, -1, 0), coord3(1, 1, 1), this->inner_size + coord3(+1, +1, 0));
     CudaUnstructuredGrid3D<value_t> *unstr_input = (dynamic_cast<CudaUnstructuredGrid3D<value_t> *>(this->input));
-    coord3 strides(1, unstr_input->dimensions.x, unstr_input->dimensions.x*unstr_input->dimensions.y);
     int *neighborships = unstr_input->neighborships;
     CALL_KERNEL(HdiffCudaUnstructuredUnfused::hdiff_unfused_lap, \
                 nblocks_lap, nthreads, \
                 this->get_info(),
-                neighborships, strides.z,
+                neighborships, unstr_input->z_stride(),
                 this->input->pointer(coord3(0, 0, 0)),
                 this->lap->pointer(coord3(0, 0, 0)));
     dim3 nblocks_flx = this->gridsize(_nthreads, coord3(-1, 0, 0), coord3(1, 1, 1), this->inner_size);
     CALL_KERNEL(HdiffCudaUnstructuredUnfused::hdiff_unfused_flx, \
                 nblocks_flx, nthreads, \
                 this->get_info(),
-                neighborships, strides.z,
+                neighborships, unstr_input->z_stride(),
                 this->input->pointer(coord3(0, 0, 0)),
                 this->lap->pointer(coord3(0, 0, 0)),
                 this->flx->pointer(coord3(0, 0, 0)));
@@ -84,7 +85,7 @@ void HdiffCudaUnstructuredUnfusedBenchmark<value_t>::run() {
     CALL_KERNEL(HdiffCudaUnstructuredUnfused::hdiff_unfused_fly, \
                 nblocks_fly, nthreads, \
                 this->get_info(),
-                neighborships, strides.z,
+                neighborships, unstr_input->z_stride(),
                 this->input->pointer(coord3(0, 0, 0)),
                 this->lap->pointer(coord3(0, 0, 0)),
                 this->fly->pointer(coord3(0, 0, 0)));
@@ -92,7 +93,7 @@ void HdiffCudaUnstructuredUnfusedBenchmark<value_t>::run() {
     CALL_KERNEL(HdiffCudaUnstructuredUnfused::hdiff_unfused_out, \
                 nblocks_out, nthreads, \
                 this->get_info(),
-                neighborships, strides.z,
+                neighborships, unstr_input->z_stride(),
                 this->input->pointer(coord3(0, 0, 0)),
                 this->coeff->pointer(coord3(0, 0, 0)),
                 this->flx->pointer(coord3(0, 0, 0)),
@@ -122,18 +123,13 @@ dim3 HdiffCudaUnstructuredUnfusedBenchmark<value_t>::gridsize(coord3 blocksize, 
 
 template<typename value_t>
 void HdiffCudaUnstructuredUnfusedBenchmark<value_t>::setup() {
-    this->input = CudaUnstructuredGrid3D<value_t>::create_regular(this->size);
-    int *neighborships = dynamic_cast<CudaUnstructuredGrid3D<value_t> *>(this->input)->neighborships;
-    //this->output = CudaUnstructuredGrid3D<value_t>::create_regular(this->size);
-    //this->coeff = CudaUnstructuredGrid3D<value_t>::create_regular(this->size);
-    //this->lap = CudaUnstructuredGrid3D<value_t>::create_regular(this->size);
-    //this->flx = CudaUnstructuredGrid3D<value_t>::create_regular(this->size);
-    //this->fly = CudaUnstructuredGrid3D<value_t>::create_regular(this->size);
-    this->output = new CudaUnstructuredGrid3D<value_t>(this->size, neighborships);
-    this->coeff = new CudaUnstructuredGrid3D<value_t>(this->size, neighborships);
-    this->lap = new CudaUnstructuredGrid3D<value_t>(this->size, neighborships);
-    this->flx = new CudaUnstructuredGrid3D<value_t>(this->size, neighborships);
-    this->fly = new CudaUnstructuredGrid3D<value_t>(this->size, neighborships);
+    CudaUnstructuredGrid3D<value_t> *input = CudaUnstructuredGrid3D<value_t>::create_regular(this->size);
+    this->input = input;
+    this->output = CudaUnstructuredGrid3D<value_t>::clone(*input);
+    this->coeff = CudaUnstructuredGrid3D<value_t>::clone(*input);
+    this->lap = CudaUnstructuredGrid3D<value_t>::clone(*input);
+    this->flx = CudaUnstructuredGrid3D<value_t>::clone(*input);
+    this->fly = CudaUnstructuredGrid3D<value_t>::clone(*input);
     this->HdiffCudaBaseBenchmark<value_t>::setup();
 }
 

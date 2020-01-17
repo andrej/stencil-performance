@@ -10,7 +10,7 @@ void fastwaves_ppgk(const FastWavesBenchmark::Info info,
     const int i = blockIdx.x*blockDim.x + threadIdx.x;
     const int j = blockIdx.y*blockDim.y + threadIdx.y;
     const int k = blockIdx.z*blockDim.z + threadIdx.z + c_flat_limit;
-    if(i >= info.max_coord.x + 1 || j >= info.max_coord.y + 1 || k >= info.max_coord.z) {
+    if(!(IS_IN_BOUNDS_P1(i, j, k))) {
         return;
     }
 
@@ -32,7 +32,7 @@ void fastwaves_ppgc(const FastWavesBenchmark::Info info,
     const int i = blockIdx.x*blockDim.x + threadIdx.x;
     const int j = blockIdx.y*blockDim.y + threadIdx.y;
     int k = blockIdx.z*blockDim.z + threadIdx.z + c_flat_limit;
-    if(i >= info.max_coord.x + 1 || j >= info.max_coord.y + 1 || k >= info.max_coord.z) {
+    if(!(IS_IN_BOUNDS_P1(i, j, k))) {
         return;
     }
 
@@ -71,9 +71,11 @@ void fastwaves_ppgrad_uv(const FastWavesBenchmark::Info info,
     const int i = blockIdx.x*blockDim.x + threadIdx.x;
     const int j = blockIdx.y*blockDim.y + threadIdx.y;
     const int k = blockIdx.z*blockDim.z + threadIdx.z;
-    if(i >= info.max_coord.x || j >= info.max_coord.y || k >= info.max_coord.z - 1) {
+    if(!(IS_IN_BOUNDS(i, j, k))) {
         return;
     }
+
+    const int idx = INDEX(i, j, k);
 
     /* "ppgu" :
         "auto res = "

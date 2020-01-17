@@ -16,6 +16,7 @@ namespace HdiffCudaRegular {
 
     #define GRID_ARGS const int y_stride, const int z_stride, 
     #define INDEX(x, y, z) GRID_REGULAR_INDEX(y_stride, z_stride, x, y, z)
+    #define IS_IN_BOUNDS(i, j, k) (i < info.max_coord.x && j < info.max_coord.y && k < info.max_coord.z)
     #define NEIGHBOR(idx, x_, y_, z_) GRID_REGULAR_NEIGHBOR(y_stride, z_stride, idx, x_, y_, z_)
     #define DOUBLE_NEIGHBOR(idx, x1, y1, z1, x2, y2, z2) NEIGHBOR(idx, (x1+x2), (y1+y2), (z1+z2))
     #define NEXT_Z_NEIGHBOR(idx) (idx+z_stride)
@@ -31,14 +32,15 @@ namespace HdiffCudaRegular {
     #include "kernels/hdiff-idxvar-shared.cu"
 
     #define SMEM_GRID_ARGS
-    #define SMEM_INDEX(_x, _y, _z) GRID_REGULAR_INDEX(blockDim.x, blockDim.x*blockDim.y, _x, _y, _z)
-    #define SMEM_NEIGHBOR(idx, x_, y_, z_) GRID_REGULAR_NEIGHBOR(blockDim.x, blockDim.x*blockDim.y, idx, x_, y_, z_)
+    #define SMEM_INDEX(_x, _y, _z) GRID_REGULAR_INDEX((int)blockDim.x, (int)blockDim.x*(int)blockDim.y, _x, _y, _z)
+    #define SMEM_NEIGHBOR(idx, x_, y_, z_) GRID_REGULAR_NEIGHBOR((int)blockDim.x, (int)blockDim.x*(int)blockDim.y, idx, x_, y_, z_)
 
     #include "kernels/hdiff-shared.cu"
     #include "kernels/hdiff-shared-kloop.cu"
 
     #undef GRID_ARGS
     #undef INDEX
+    #undef IS_IN_BOUNDS
     #undef NEIGHBOR
     #undef DOUBLE_NEIGHBOR
     #undef NEXT_Z_NEIGHBOR
@@ -65,8 +67,8 @@ class HdiffCudaRegularBenchmark : public HdiffCudaBaseBenchmark<value_t> {
     virtual void teardown();
     virtual void post();
 
-    dim3 numthreads();
-    dim3 numblocks();
+    dim3 numthreads(coord3 domain=coord3());
+    dim3 numblocks(coord3 domain=coord3());
     
     // parameter for the jloop/iloop kernel only
     virtual void parse_args();
@@ -198,19 +200,18 @@ void HdiffCudaRegularBenchmark<value_t>::run() {
             this->coeff->pointer(coord3(0, 0, 0))
         );
     }
-    if(cudaDeviceSynchronize() != cudaSuccess) {
-        this->error = true;
-    }
+    CUDA_THROW_LAST();
+    CUDA_THROW( cudaDeviceSynchronize() );
 }
 
 template<typename value_t>
 void HdiffCudaRegularBenchmark<value_t>::setup() {
-    this->input = new CudaRegularGrid3D<value_t>(this->inner_size, this->halo);
-    this->output = new CudaRegularGrid3D<value_t>(this->inner_size, this->halo);
-    this->coeff = new CudaRegularGrid3D<value_t>(this->inner_size, this->halo);
-    this->lap = new CudaRegularGrid3D<value_t>(this->inner_size, this->halo);
-    this->flx = new CudaRegularGrid3D<value_t>(this->inner_size, this->halo);
-    this->fly = new CudaRegularGrid3D<value_t>(this->inner_size, this->halo);
+    this->input = CudaRegularGrid3D<value_t>::create(this->inner_size, this->halo);
+    this->output = CudaRegularGrid3D<value_t>::create(this->inner_size, this->halo);
+    this->coeff = CudaRegularGrid3D<value_t>::create(this->inner_size, this->halo);
+    this->lap = CudaRegularGrid3D<value_t>::create(this->inner_size, this->halo);
+    this->flx = CudaRegularGrid3D<value_t>::create(this->inner_size, this->halo);
+    this->fly = CudaRegularGrid3D<value_t>::create(this->inner_size, this->halo);
     if(this->variant == HdiffCudaRegular::idxvar_shared) {
         this->input->setSmemBankSize(sizeof(int));
     }
@@ -235,36 +236,38 @@ void HdiffCudaRegularBenchmark<value_t>::post() {
 }
 
 template<typename value_t>
-dim3 HdiffCudaRegularBenchmark<value_t>::numthreads() {
-    dim3 numthreads = this->HdiffCudaBaseBenchmark<value_t>::numthreads();
+dim3 HdiffCudaRegularBenchmark<value_t>::numthreads(coord3 domain) {
+    domain = this->inner_size;
     if(this->variant == HdiffCudaRegular::kloop ||
         this->variant == HdiffCudaRegular::idxvar_kloop ||
         this->variant == HdiffCudaRegular::shared_kloop) {
-        numthreads.z = 1;
+        domain.z = 1;
     }
     if(this->variant == HdiffCudaRegular::jloop) {
-        numthreads.y = 1;
+        domain.y = 1;
     }
     if(this->variant == HdiffCudaRegular::iloop) {
-        numthreads.x = 1;
+        domain.x = 1;
     }
+    dim3 numthreads = this->HdiffCudaBaseBenchmark<value_t>::numthreads(domain);
     return numthreads;
 }
 
 template<typename value_t>
-dim3 HdiffCudaRegularBenchmark<value_t>::numblocks() {
-    dim3 numblocks = this->HdiffCudaBaseBenchmark<value_t>::numblocks();
+dim3 HdiffCudaRegularBenchmark<value_t>::numblocks(coord3 domain) {
+    domain = this->size;
     if(this->variant == HdiffCudaRegular::kloop ||
         this->variant == HdiffCudaRegular::idxvar_kloop ||
         this->variant == HdiffCudaRegular::shared_kloop) {
-        numblocks.z = 1;
+        domain.z = 1;
     }
     if(this->variant == HdiffCudaRegular::jloop) {
-        numblocks.y = (this->size.y + this->jloop_j_per_thread - 1) / this->jloop_j_per_thread;
+        domain.y = (this->size.y + this->jloop_j_per_thread - 1) / this->jloop_j_per_thread;
     }
     if(this->variant == HdiffCudaRegular::iloop) {
-        numblocks.x = (this->size.x + this->iloop_i_per_thread - 1) / this->iloop_i_per_thread;
+        domain.x = (this->size.x + this->iloop_i_per_thread - 1) / this->iloop_i_per_thread;
     }
+    dim3 numblocks = this->HdiffCudaBaseBenchmark<value_t>::numblocks(domain);
     return numblocks;
 }
 

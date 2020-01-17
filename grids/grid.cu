@@ -20,19 +20,25 @@
  *  - Coordinate to data index translation in index()
  *  - Index to coordinate translation in coordinate()
  *  - Neighborship lookup using one neighbor() function
+ *  - A static "create" method that returns an object of the type and calls init()
  */
 template<typename value_t, typename coord_t>
 class Grid {
 
-    public:
-    
-    Grid(coord_t dimensions, size_t size, coord_t halo=coord_t());
-    
+    protected:
+    // Subclasses 
+    Grid() = default;
+    virtual ~Grid();
+
     /** Initialization stuff that cannot be done in the constructor because
      * access to subclass virtual funcitons is required. */
     virtual void init();
 
-    virtual ~Grid();
+    virtual void allocate();
+
+    virtual void deallocate();
+
+    public:
 
     /** Size as number of items in each dimension. */
     coord_t dimensions;
@@ -62,10 +68,6 @@ class Grid {
     /** Returns the memory index of the neighbor at a given offset offs. */
     virtual int neighbor(int index, coord_t offs);
     virtual int neighbor(coord_t coords, coord_t offs);
-    
-    virtual void allocate();
-
-    virtual void deallocate();
 
     /** Copy all the values from the given grid B into this grid. This operation
      * is not supported between arbitrary types of grids, as conversion between
@@ -102,22 +104,15 @@ class Grid {
 // IMPLEMENTATIONS
 
 template<typename value_t, typename coord_t>
-Grid<value_t, coord_t>::Grid(coord_t outer_dimensions, size_t size, coord_t halo) :
-dimensions(dimensions),
-halo(halo),
-size(size) {
-}
-
-template<typename value_t, typename coord_t>
 void Grid<value_t, coord_t>::init() {
     this->allocate();
 }
 
 template<typename value_t, typename coord_t>
 Grid<value_t, coord_t>::~Grid() {
-    if(this->data) {
+    /*if(this->data) {
         this->deallocate();
-    }
+    }*/
 }
 
 template<typename value_t, typename coord_t>
@@ -169,7 +164,7 @@ int Grid<value_t, coord_t>::neighbor(coord_t coords, coord_t offs) {
 
 template<typename value_t, typename coord_t>
 int Grid<value_t, coord_t>::neighbor(int index, coord_t offs) {
-    return this->neighbor(this->coordinates(index), offs);
+    return this->neighbor(this->coordinate(index), offs);
 }
 
 #endif

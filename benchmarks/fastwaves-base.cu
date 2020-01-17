@@ -67,15 +67,13 @@ Benchmark(size),
 halo(coord3(2, 2, 2)),
 c_flat_limit(0), // FIXME 10
 dt_small(10),
-edadlat(1) {}
+edadlat(1) {
+    this->size = size;
+    this->inner_size = this->size - 2*this->halo;
+}
 
 template<typename value_t>
 void FastWavesBaseBenchmark<value_t>::setup() {
-    this->inner_size = this->size - 2*this->halo;
-    if(this->inner_size.x < 0 || this->inner_size.y < 0 || this->inner_size.z < 0) {
-        throw std::runtime_error("Grid too small for this kernel.");
-    }
-
     if(!this->reference_benchmark) {
         this->reference_benchmark = new FastWavesRefBenchmark<value_t>(this->size);
         this->reference_benchmark->c_flat_limit = this->c_flat_limit;
@@ -196,7 +194,7 @@ bool FastWavesBaseBenchmark<value_t>::verify(double tol) {
 
 template<typename value_t>
 FastWavesBenchmark::Info FastWavesBaseBenchmark<value_t>::get_info() {
-    return { .max_coord = this->inner_size + this->halo };
+    return { .max_coord = this->inner_size };
 }
 
 #endif

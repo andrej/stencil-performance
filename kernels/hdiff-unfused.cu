@@ -13,9 +13,7 @@ void hdiff_unfused_lap(HdiffCudaBase::Info info, GRID_ARGS const value_t *in, va
     const int i = blockIdx.x * blockDim.x + threadIdx.x - 1; // ref implementation starts at i = -1
     const int j = blockIdx.y * blockDim.y + threadIdx.y - 1;
     const int k = blockIdx.z * blockDim.z + threadIdx.z;
-    if(i >= info.max_coord.x ||
-        j >= info.max_coord.y ||
-        k >= info.max_coord.z) {
+    if(!(IS_IN_BOUNDS(i, j, k))) {
         return;
     }
     const int idx = INDEX(i, j, k);
@@ -72,10 +70,8 @@ void hdiff_unfused_out(HdiffCudaBase::Info info, GRID_ARGS const value_t *in, co
     const int i = blockIdx.x * blockDim.x + threadIdx.x;
     const int j = blockIdx.y * blockDim.y + threadIdx.y;
     const int k = blockIdx.z * blockDim.z + threadIdx.z;
-    if(i >= info.max_coord.x ||
-        j >= info.max_coord.y ||
-        k >= info.max_coord.z) {
-            return;
+    if(!(IS_IN_BOUNDS(i, j, k))) {
+        return;
     }
     const int idx = INDEX(i, j, k);
     out[idx] =

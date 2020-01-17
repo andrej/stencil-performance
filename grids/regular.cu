@@ -28,9 +28,12 @@ template<typename value_t>
 class RegularGrid3D : 
 virtual public Coord3BaseGrid<value_t> {
 
-    public:
+    protected:
+    RegularGrid3D() {};
+    RegularGrid3D(coord3 dimensions, coord3 halo=coord3(0, 0, 0));
 
-    RegularGrid3D(coord3 dimensions, coord3 halo);
+    public:
+    static RegularGrid3D *create(coord3 dimensions, coord3 halo=coord3(0, 0, 0));
 
     int index(coord3 coords);
     coord3 coordinate(int index);
@@ -42,31 +45,40 @@ virtual public Coord3BaseGrid<value_t> {
     /** Returns the X-, Y- and Z- strides. */
     coord3 get_strides();
 
-    /** Halo */
-    coord3 halo;
-
 };
 
 // IMPLEMENTATIONS
 
 template<typename value_t>
-RegularGrid3D<value_t>::RegularGrid3D(coord3 dimensions, coord3 halo) : 
-Grid<value_t, coord3>(dimensions,
-                      sizeof(value_t)*(dimensions.x+2*halo.x)*(dimensions.y+2*halo.y)*(dimensions.z+2*halo.z),
-                      halo) {
-    this->init();
+RegularGrid3D<value_t>::RegularGrid3D(coord3 dimensions, coord3 halo) {
+    this->dimensions = dimensions;
+    this->halo = halo;
+    this->size = sizeof(value_t)*(dimensions.x+2*halo.x)*(dimensions.y+2*halo.y)*(dimensions.z+2*halo.z);
     coord3 strides = this->get_strides();
-    this->zero_offset = halo.x*strides.x + halo.y*strides.y + halo.z*strides.z;
+    this->zero_offset = this->halo.x*strides.x + this->halo.y*strides.y + this->halo.z*strides.z;
 }
 
 template<typename value_t>
+RegularGrid3D<value_t> *RegularGrid3D<value_t>::create(coord3 dimensions, coord3 halo) {
+    RegularGrid3D<value_t> *obj = new RegularGrid3D<value_t>(dimensions, halo);
+    obj->init(); // Calls default Grid initializer and allocates space
+    return obj;
+}
+
+#define GRID_REGULAR_INDEX(stride_y, stride_z, x, y, z) \
+        ( (x) + (y) * stride_y + (z) * stride_z )
+template<typename value_t>
 int RegularGrid3D<value_t>::index(coord3 coords) {
+    assert(-this->halo.x <= coords.x && coords.x < this->dimensions.x+this->halo.x &&
+           -this->halo.y <= coords.y && coords.y < this->dimensions.y+this->halo.y &&
+           -this->halo.z <= coords.z && coords.z < this->dimensions.z+this->halo.z);
     coord3 M = this->get_strides();
-    return this->zero_offset + (coords.x + coords.y * M.y + coords.z * M.z);
+    return this->zero_offset + GRID_REGULAR_INDEX(M.y, M.z, coords.x, coords.y, coords.z);
 }
 
 template<typename value_t>
 coord3 RegularGrid3D<value_t>::coordinate(int index) {
+    assert(0 <= index < this->size/sizeof(value_t));
     coord3 M = this->get_strides();
     index -= this->zero_offset;
     return coord3(index % M.y,
