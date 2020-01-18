@@ -5,7 +5,7 @@
 
 namespace FastWavesRegularBenchmarkNamespace {
 
-    enum Variant { unfused, naive, idxvar, kloop };
+    enum Variant { unfused, naive, idxvar, idxvar_kloop, kloop };
 
     #define GRID_ARGS const int y_stride, const int z_stride, 
     #define INDEX(x, y, z) GRID_REGULAR_INDEX(y_stride, z_stride, x, y, z)
@@ -18,6 +18,7 @@ namespace FastWavesRegularBenchmarkNamespace {
     #include "kernels/fastwaves-unfused.cu"
     #include "kernels/fastwaves-naive.cu"
     #include "kernels/fastwaves-idxvar.cu"
+    #include "kernels/fastwaves-idxvar-kloop.cu"
     #include "kernels/fastwaves-kloop.cu"
 
     #undef GRID_ARGS
@@ -43,6 +44,8 @@ class FastWavesRegularBenchmark : public FastWavesBaseBenchmark<value_t> {
     void run();
     dim3 numthreads(coord3 domain=coord3());
     dim3 numblocks(coord3 domain=coord3());
+    
+    coord3 strides;
 
 };
 
@@ -56,6 +59,8 @@ variant(variant) {
         this->name = "fastwaves-regular-naive";
     } else if(this->variant == FastWavesRegularBenchmarkNamespace::idxvar) {
         this->name = "fastwaves-regular-idxvar";
+    } else if(this->variant == FastWavesRegularBenchmarkNamespace::idxvar_kloop) {
+        this->name = "fastwaves-regular-idxvar-kloop";
     } else if(this->variant == FastWavesRegularBenchmarkNamespace::kloop) {
         this->name = "fastwaves-regular-kloop";
     }
@@ -78,6 +83,7 @@ void FastWavesRegularBenchmark<value_t>::setup() {
         this->ppgk = CudaRegularGrid3D<value_t>::create(this->inner_size, this->halo);
         this->ppgc = CudaRegularGrid3D<value_t>::create(this->inner_size, this->halo);
     }
+    this->strides = (dynamic_cast<RegularGrid3D<value_t> *>(this->u_in))->get_strides();
     this->FastWavesBaseBenchmark<value_t>::setup(); // set initial values
 }
 
@@ -85,25 +91,24 @@ template<typename value_t>
 void FastWavesRegularBenchmark<value_t>::run() {
     dim3 blocks = this->numblocks();
     dim3 threads = this->numthreads();
-    coord3 strides = (dynamic_cast<CudaRegularGrid3D<value_t>*>(this->u_in))->get_strides();
     // Unfused: Call kernels one by one
     if(this->variant == FastWavesRegularBenchmarkNamespace::unfused) {
         FastWavesRegularBenchmarkNamespace::fastwaves_ppgk<<<blocks, threads>>>(
             this->get_info(),
             this->c_flat_limit,
-            strides.y, strides.z,
+            this->strides.y, this->strides.z,
             this->ppuv->pointer(coord3(0, 0, 0)),
             this->wgtfac->pointer(coord3(0, 0, 0)),
             this->ppgk->pointer(coord3(0, 0, 0)));
         FastWavesRegularBenchmarkNamespace::fastwaves_ppgc<<<blocks, threads>>>(
             this->get_info(),
-            strides.y, strides.z,
+            this->strides.y, this->strides.z,
             this->c_flat_limit,
             this->ppgk->pointer(coord3(0, 0, 0)),
             this->ppgc->pointer(coord3(0, 0, 0)));
         FastWavesRegularBenchmarkNamespace::fastwaves_ppgrad_uv<<<blocks, threads>>>(
             this->get_info(),
-            strides.y, strides.z,
+            this->strides.y, this->strides.z,
             this->ppuv->pointer(coord3(0, 0, 0)),
             this->ppgc->pointer(coord3(0, 0, 0)),
             this->hhl->pointer(coord3(0, 0, 0)),
@@ -120,16 +125,19 @@ void FastWavesRegularBenchmark<value_t>::run() {
             this->v_out->pointer(coord3(0, 0, 0)));
     } else if(this->variant == FastWavesRegularBenchmarkNamespace::naive
               || this->variant == FastWavesRegularBenchmarkNamespace::idxvar
+              || this->variant == FastWavesRegularBenchmarkNamespace::idxvar_kloop
               || this->variant == FastWavesRegularBenchmarkNamespace::kloop) {
         auto kernel = &FastWavesRegularBenchmarkNamespace::fastwaves_naive<value_t>;
         if(this->variant == FastWavesRegularBenchmarkNamespace::idxvar) {
             kernel = &FastWavesRegularBenchmarkNamespace::fastwaves_idxvar<value_t>;
+        } else if(this->variant == FastWavesRegularBenchmarkNamespace::idxvar_kloop) {
+            kernel = &FastWavesRegularBenchmarkNamespace::fastwaves_idxvar_kloop<value_t>;
         } else if(this->variant == FastWavesRegularBenchmarkNamespace::kloop) {
             kernel = &FastWavesRegularBenchmarkNamespace::fastwaves_kloop<value_t>;
         }
         (*kernel)<<<blocks, threads>>>(
             this->get_info(),
-            strides.y, strides.z,
+            this->strides.y, this->strides.z,
             this->ppuv->pointer(coord3(0, 0, 0)),
             this->wgtfac->pointer(coord3(0, 0, 0)),
             this->hhl->pointer(coord3(0, 0, 0)),
@@ -145,7 +153,8 @@ void FastWavesRegularBenchmark<value_t>::run() {
             this->u_out->pointer(coord3(0, 0, 0)),
             this->v_out->pointer(coord3(0, 0, 0)));
     }
-    cudaDeviceSynchronize();
+    CUDA_THROW_LAST();
+    CUDA_THROW( cudaDeviceSynchronize() );
 }
 
 template<typename value_t>
@@ -154,7 +163,8 @@ dim3 FastWavesRegularBenchmark<value_t>::numthreads(coord3 domain) {
     if(this->variant != FastWavesRegularBenchmarkNamespace::unfused) {
         domain.z -= 1;
     }
-    if(this->variant == FastWavesRegularBenchmarkNamespace::kloop) {
+    if(this->variant == FastWavesRegularBenchmarkNamespace::kloop ||
+       this->variant == FastWavesRegularBenchmarkNamespace::idxvar_kloop) {
         domain.z = 1;
     }
     dim3 numthreads = this->FastWavesBaseBenchmark<value_t>::numthreads(domain);
@@ -167,7 +177,8 @@ dim3 FastWavesRegularBenchmark<value_t>::numblocks(coord3 domain) {
         domain = this->inner_size;
         domain.z -= 1;
     }
-    if(this->variant == FastWavesRegularBenchmarkNamespace::kloop) {
+    if(this->variant == FastWavesRegularBenchmarkNamespace::kloop ||
+       this->variant == FastWavesRegularBenchmarkNamespace::idxvar_kloop) {
         domain.z = 1;
     }
     dim3 numblocks = this->FastWavesBaseBenchmark<value_t>::numblocks(domain);

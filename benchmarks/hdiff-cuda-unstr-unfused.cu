@@ -12,7 +12,7 @@ namespace HdiffCudaUnstructuredUnfused {
 
     #define GRID_ARGS const int* neighborships, const int z_stride, 
     #define INDEX(x_, y_, z_) (x_) + (y_)*blockDim.x*gridDim.x + (z_)*blockDim.x*gridDim.x*blockDim.y*gridDim.y
-    #define IS_IN_BOUNDS(i, j, k) (i + j*blockDim.x*gridDim.x < z_stride && k < info.max_coord.z)
+    #define IS_IN_BOUNDS(i, j, k) (i + j*blockDim.x*gridDim.x < (z_stride) && k < info.max_coord.z)
     #define NEIGHBOR(idx, x_, y_, z_) GRID_UNSTR_NEIGHBOR(neighborships, z_stride, idx, x_, y_, z_)
     #include "kernels/hdiff-unfused.cu"
     #undef GRID_ARGS

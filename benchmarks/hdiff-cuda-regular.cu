@@ -75,6 +75,8 @@ class HdiffCudaRegularBenchmark : public HdiffCudaBaseBenchmark<value_t> {
     int jloop_j_per_thread;
     int iloop_i_per_thread;
 
+    coord3 strides;
+
 };
 
 // IMPLEMENTATIONS
@@ -108,13 +110,12 @@ HdiffCudaBaseBenchmark<value_t>(size) {
 
 template<typename value_t>
 void HdiffCudaRegularBenchmark<value_t>::run() {
-    coord3 strides = (dynamic_cast<CudaRegularGrid3D<value_t>*>(this->input))->get_strides();
     dim3 numthreads = this->numthreads();
     dim3 numblocks = this->numblocks();
     if(this->variant == HdiffCudaRegular::naive) {
         HdiffCudaRegular::hdiff_naive<value_t><<<this->numblocks(), this->numthreads()>>>(
             this->get_info(),
-            strides.y, strides.z,
+            this->strides.y, this->strides.z,
             this->input->pointer(coord3(0, 0, 0)),
             this->output->pointer(coord3(0, 0, 0)),
             this->coeff->pointer(coord3(0, 0, 0))
@@ -122,7 +123,7 @@ void HdiffCudaRegularBenchmark<value_t>::run() {
     } else if(this->variant == HdiffCudaRegular::kloop) {
         HdiffCudaRegular::hdiff_kloop<value_t><<<this->numblocks(), this->numthreads()>>>(
             this->get_info(),
-            strides.y, strides.z,
+            this->strides.y, this->strides.z,
             this->input->pointer(coord3(0, 0, 0)),
             this->output->pointer(coord3(0, 0, 0)),
             this->coeff->pointer(coord3(0, 0, 0))
@@ -130,7 +131,7 @@ void HdiffCudaRegularBenchmark<value_t>::run() {
     } else if(this->variant == HdiffCudaRegular::coop) {
         HdiffCudaRegular::hdiff_coop<value_t><<<this->numblocks(), this->numthreads()>>>(
             this->get_info(),
-            strides.y, strides.z,
+            this->strides.y, this->strides.z,
             this->input->pointer(coord3(0, 0, 0)),
             this->output->pointer(coord3(0, 0, 0)),
             this->coeff->pointer(coord3(0, 0, 0)),
@@ -142,7 +143,7 @@ void HdiffCudaRegularBenchmark<value_t>::run() {
         int smem_size = 3*numthreads.x*numthreads.y*numthreads.z*sizeof(value_t);
         HdiffCudaRegular::hdiff_shared<value_t><<<this->numblocks(), numthreads, smem_size>>>(
             this->get_info(),
-            strides.y, strides.z,
+            this->strides.y, this->strides.z,
             this->input->pointer(coord3(0, 0, 0)),
             this->output->pointer(coord3(0, 0, 0)),
             this->coeff->pointer(coord3(0, 0, 0))
@@ -151,7 +152,7 @@ void HdiffCudaRegularBenchmark<value_t>::run() {
         int smem_size = 3*numthreads.x*numthreads.y*sizeof(value_t);
         HdiffCudaRegular::hdiff_shared_kloop<value_t><<<numblocks, numthreads, smem_size>>>(
             this->get_info(),
-            strides.y, strides.z,
+            this->strides.y, this->strides.z,
             this->input->pointer(coord3(0, 0, 0)),
             this->output->pointer(coord3(0, 0, 0)),
             this->coeff->pointer(coord3(0, 0, 0))
@@ -159,7 +160,7 @@ void HdiffCudaRegularBenchmark<value_t>::run() {
     } else if(this->variant == HdiffCudaRegular::jloop) {
         HdiffCudaRegular::hdiff_jloop<value_t><<<this->numblocks(), this->numthreads()>>>(
             this->get_info(),
-            strides.y, strides.z,
+            this->strides.y, this->strides.z,
             this->jloop_j_per_thread,
             this->input->pointer(coord3(0, 0, 0)),
             this->output->pointer(coord3(0, 0, 0)),
@@ -168,7 +169,7 @@ void HdiffCudaRegularBenchmark<value_t>::run() {
     } else if(this->variant == HdiffCudaRegular::iloop) {
         HdiffCudaRegular::hdiff_iloop<value_t><<<this->numblocks(), this->numthreads()>>>(
             this->get_info(),
-            strides.y, strides.z,
+            this->strides.y, this->strides.z,
             this->iloop_i_per_thread,
             this->input->pointer(coord3(0, 0, 0)),
             this->output->pointer(coord3(0, 0, 0)),
@@ -177,7 +178,7 @@ void HdiffCudaRegularBenchmark<value_t>::run() {
     } else if(this->variant == HdiffCudaRegular::idxvar) {
         HdiffCudaRegular::hdiff_idxvar<value_t><<<this->numblocks(), this->numthreads()>>>(
             this->get_info(),
-            strides.y, strides.z,
+            this->strides.y, this->strides.z,
             this->input->pointer(coord3(0, 0, 0)),
             this->output->pointer(coord3(0, 0, 0)),
             this->coeff->pointer(coord3(0, 0, 0))
@@ -186,7 +187,7 @@ void HdiffCudaRegularBenchmark<value_t>::run() {
         int smem_size = numthreads.x*numthreads.y*12*sizeof(int);
         HdiffCudaRegular::hdiff_idxvar_shared<value_t><<<this->numblocks(), this->numthreads(), smem_size>>>(
             this->get_info(),
-            strides.y, strides.z,
+            this->strides.y, this->strides.z,
             this->input->pointer(coord3(0, 0, 0)),
             this->output->pointer(coord3(0, 0, 0)),
             this->coeff->pointer(coord3(0, 0, 0))
@@ -194,7 +195,7 @@ void HdiffCudaRegularBenchmark<value_t>::run() {
     } else {
         HdiffCudaRegular::hdiff_idxvar_kloop<value_t><<<this->numblocks(), this->numthreads()>>>(
             this->get_info(),
-            strides.y, strides.z,
+            this->strides.y, this->strides.z,
             this->input->pointer(coord3(0, 0, 0)),
             this->output->pointer(coord3(0, 0, 0)),
             this->coeff->pointer(coord3(0, 0, 0))
@@ -215,6 +216,7 @@ void HdiffCudaRegularBenchmark<value_t>::setup() {
     if(this->variant == HdiffCudaRegular::idxvar_shared) {
         this->input->setSmemBankSize(sizeof(int));
     }
+    this->strides = (dynamic_cast<CudaRegularGrid3D<value_t>*>(this->input))->get_strides();
     this->HdiffCudaBaseBenchmark<value_t>::setup();
 }
 

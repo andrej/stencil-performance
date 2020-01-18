@@ -13,7 +13,7 @@ namespace LapLapUnstr {
 
     #define GRID_ARGS const int * __restrict__ neighborships, const int z_stride, const int offs,
     #define INDEX(x_, y_, z_) (x_) + (y_)*blockDim.x*gridDim.x + offs + (z_)*z_stride
-    #define IS_IN_BOUNDS(i, j, k) (i + j*blockDim.x*gridDim.x < z_stride && k < max_coord.z)
+    #define IS_IN_BOUNDS(i, j, k) (i + j*blockDim.x*gridDim.x < (z_stride-offs) && k < max_coord.z)
     #define NEIGHBOR(idx, x_, y_, z_) GRID_UNSTR_NEIGHBOR(neighborships, z_stride, idx, x_, y_, z_)
     #define NEXT_Z_NEIGHBOR(idx) (idx+z_stride)
     #define Z_NEIGHBOR(idx, z) (idx+z*z_stride)
@@ -73,6 +73,10 @@ class LapLapUnstrBenchmark : public LapLapBaseBenchmark<value_t> {
     void parse_args();
     int k_per_thread = 16;
     bool pointer_chasing = false;
+    
+    int z_stride;
+    int offs;
+    int *neighborships;
 
 };
 
@@ -100,14 +104,8 @@ variant(variant) {
 
 template<typename value_t>
 void LapLapUnstrBenchmark<value_t>::run() {
-    CudaUnstructuredGrid3D<value_t> *unstr_input = (dynamic_cast<CudaUnstructuredGrid3D<value_t>*>(this->input));
-    int *neighborships = unstr_input->neighborships;
-    const int z_stride = unstr_input->z_stride();
-    const int offs = this->input->index(coord3(0, 0, 0));
     dim3 numthreads = this->numthreads();
     dim3 numblocks = this->numblocks();
-    const coord3 halo1(1, 1, 0);
-    const coord3 halo2(2, 2, 0);
     if(this->variant == LapLapUnstr::unfused
        || this->variant == LapLapUnstr::naive
        || this->variant == LapLapUnstr::idxvar
@@ -137,10 +135,10 @@ void LapLapUnstrBenchmark<value_t>::run() {
                 kernel = &LapLapUnstr::NonChasing::laplap_idxvar_shared<value_t>;
             }
         }
-        (*kernel)<<<numthreads, numblocks, smem>>>(
+        (*kernel)<<<numblocks, numthreads, smem>>>(
             neighborships,
-            z_stride,
-            offs,
+            this->z_stride,
+            this->offs,
             this->inner_size,
             this->input->data,
             this->output->data
@@ -150,10 +148,10 @@ void LapLapUnstrBenchmark<value_t>::run() {
         if(!this->pointer_chasing) {
             kernel = &LapLapUnstr::NonChasing::laplap_idxvar_kloop_sliced<value_t>;
         }
-        (*kernel)<<<numthreads, numblocks>>>(
+        (*kernel)<<<numblocks, numthreads>>>(
             neighborships,
-            z_stride,
-            offs,
+            this->z_stride,
+            this->offs,
             this->k_per_thread,
             this->inner_size,
             this->input->data,
@@ -164,18 +162,18 @@ void LapLapUnstrBenchmark<value_t>::run() {
         if(this->pointer_chasing) {
             kernel = &LapLapUnstr::Chasing::lap<value_t>;
         }
-        (*kernel)<<<this->numblocks(), this->numthreads()>>>(
+        (*kernel)<<<numblocks, numthreads>>>(
             neighborships,
-            z_stride,
+            this->z_stride,
             this->input->index(coord3(-1, -1, 0)),
             this->size - 2*coord3(1, 1, 0),
             this->input->data,
             this->intermediate->data
         );
-        (*kernel)<<<this->numblocks(), this->numthreads()>>>(
+        (*kernel)<<<numblocks, numthreads>>>(
             neighborships,
-            z_stride,
-            offs,
+            this->z_stride,
+            this->offs,
             this->inner_size,
             this->intermediate->data,
             this->output->data
@@ -198,6 +196,9 @@ void LapLapUnstrBenchmark<value_t>::setup() {
     if(this->variant == LapLapUnstr::idxvar_shared) {
         this->input->setSmemBankSize(sizeof(int));
     }
+    this->neighborships = input->neighborships;
+    this->z_stride = input->z_stride();
+    this->offs = this->input->index(coord3(0, 0, 0));
     this->LapLapBaseBenchmark<value_t>::setup();
 }
 
@@ -236,9 +237,12 @@ void LapLapUnstrBenchmark<value_t>::parse_args() {
             this->pointer_chasing = true;
         } else if(this->variant == LapLapUnstr::idxvar_kloop_sliced) {
             sscanf(this->argv[0], "%d", &this->k_per_thread);
-        }else {
+        } else {
             this->Benchmark::parse_args();
         }
+    }
+    if(this->pointer_chasing) {
+        this->name.append("-chasing");
     }
 }
 

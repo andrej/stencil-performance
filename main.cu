@@ -39,12 +39,13 @@ typedef enum {all_benchs,
               hdiff_cuda_unstr_idxvar,
               hdiff_cuda_unstr_idxvar_kloop,
               hdiff_cuda_unstr_idxvar_shared,
-              fastwaves_ref,
               fastwaves_regular_naive,
               fastwaves_regular_idxvar,
+              fastwaves_regular_idxvar_kloop,
               fastwaves_regular_kloop,
               fastwaves_unstr_naive,
               fastwaves_unstr_idxvar,
+              fastwaves_unstr_idxvar_kloop,
               fastwaves_unstr_kloop,
               laplap_regular_naive,
               laplap_regular_idxvar,
@@ -65,6 +66,7 @@ typedef enum {all_benchs,
               hdiff_cuda_regular_shared_kloop,
               hdiff_cuda_regular_iloop,
               hdiff_cuda_regular_coop,
+              fastwaves_ref,
               fastwaves_regular_unfused,
               fastwaves_unstr_unfused,
               laplap_regular_unfused,
@@ -361,6 +363,11 @@ Benchmark *create_benchmark(benchmark_params_t param_bench, coord3 size,
             (Benchmark *) new FastWavesRegularBenchmark<float>(size, FastWavesRegularBenchmarkNamespace::idxvar) :
             (Benchmark *) new FastWavesRegularBenchmark<double>(size, FastWavesRegularBenchmarkNamespace::idxvar) );
         break;
+        case fastwaves_regular_idxvar_kloop:
+        ret = (precision == single_prec ?
+            (Benchmark *) new FastWavesRegularBenchmark<float>(size, FastWavesRegularBenchmarkNamespace::idxvar_kloop) :
+            (Benchmark *) new FastWavesRegularBenchmark<double>(size, FastWavesRegularBenchmarkNamespace::idxvar_kloop) );
+        break;
         case fastwaves_regular_kloop:
         ret = (precision == single_prec ?
             (Benchmark *) new FastWavesRegularBenchmark<float>(size, FastWavesRegularBenchmarkNamespace::kloop) :
@@ -375,6 +382,11 @@ Benchmark *create_benchmark(benchmark_params_t param_bench, coord3 size,
         ret = (precision == single_prec ?
             (Benchmark *) new FastWavesUnstrBenchmark<float>(size, FastWavesUnstrBenchmarkNamespace::idxvar) :
             (Benchmark *) new FastWavesUnstrBenchmark<double>(size, FastWavesUnstrBenchmarkNamespace::idxvar) );
+        break;
+        case fastwaves_unstr_idxvar_kloop:
+        ret = (precision == single_prec ?
+            (Benchmark *) new FastWavesUnstrBenchmark<float>(size, FastWavesUnstrBenchmarkNamespace::idxvar_kloop) :
+            (Benchmark *) new FastWavesUnstrBenchmark<double>(size, FastWavesUnstrBenchmarkNamespace::idxvar_kloop) );
         break;
         case fastwaves_unstr_kloop:
         ret = (precision == single_prec ?
@@ -561,7 +573,7 @@ void prettyprint(benchmark_t *it, bool skip_errors) {
     }
     dim3 numblocks = bench->numblocks();
     dim3 numthreads = bench->numthreads();
-    printf("%-28s,%10s,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%10.0f,%10.0f,%10.0f,%10.0f%s\n",
+    printf("%-36s,%10s,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%10.0f,%10.0f,%10.0f,%10.0f%s\n",
             bench->name.c_str(),
             (params.precision == single_prec ? "single" : "double"),
             bench->size.x, bench->size.y, bench->size.z,
@@ -594,8 +606,8 @@ int main(int argc, char** argv) {
             printf("%s ", argv[i]);
         }
         printf("\n");
-        printf("Benchmark                   , Precision, Domain size,,, Blocks     ,,, Threads    ,,, Kernel-only execution time                \n");
-        printf("                            ,          ,   X,   Y,   Z,   X,   Y,   Z,   X,   Y,   Z,   Average,    Median,   Minimum,   Maximum\n");
+        printf("Benchmark                           , Precision, Domain size,,, Blocks     ,,, Threads    ,,, Kernel-only execution time                \n");
+        printf("                                    ,          ,   X,   Y,   Z,   X,   Y,   Z,   X,   Y,   Z,   Average,    Median,   Minimum,   Maximum\n");
     }
     for(auto it=benchmarks->begin(); it != benchmarks->end(); ++it) {
         run_benchmark(it->obj);

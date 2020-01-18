@@ -64,6 +64,8 @@ class LapLapRegularBenchmark : public LapLapBaseBenchmark<value_t> {
     void parse_args();
     int k_per_thread = 16;
 
+    coord3 strides;
+
 };
 
 // IMPLEMENTATIONS
@@ -92,35 +94,32 @@ variant(variant) {
 
 template<typename value_t>
 void LapLapRegularBenchmark<value_t>::run() {
-    coord3 strides = (dynamic_cast<CudaRegularGrid3D<value_t>*>(this->input))->get_strides();
     dim3 numthreads = this->numthreads();
     dim3 numblocks = this->numblocks();
-    const coord3 halo1(1, 1, 0);
-    const coord3 halo2(2, 2, 0);
     if(this->variant == LapLapRegular::naive) {
         LapLapRegular::laplap_naive<value_t><<<this->numblocks(), this->numthreads()>>>(
-            strides.y, strides.z,
+            this->strides.y, this->strides.z,
             this->inner_size,
             this->input->pointer(coord3(0, 0, 0)),
             this->output->pointer(coord3(0, 0, 0))
         );
     } else if(this->variant == LapLapRegular::idxvar) {
         LapLapRegular::laplap_idxvar<value_t><<<this->numblocks(), this->numthreads()>>>(
-            strides.y, strides.z,
+            this->strides.y, this->strides.z,
             this->inner_size,
             this->input->pointer(coord3(0, 0, 0)),
             this->output->pointer(coord3(0, 0, 0))
         );
     } else if(this->variant == LapLapRegular::idxvar_kloop) {
         LapLapRegular::laplap_idxvar_kloop<value_t><<<this->numblocks(), this->numthreads()>>>(
-            strides.y, strides.z,
+            this->strides.y, this->strides.z,
             this->inner_size,
             this->input->pointer(coord3(0, 0, 0)),
             this->output->pointer(coord3(0, 0, 0))
         );
     } else if(this->variant == LapLapRegular::idxvar_kloop_sliced) {
         LapLapRegular::laplap_idxvar_kloop_sliced<value_t><<<this->numblocks(), this->numthreads()>>>(
-            strides.y, strides.z,
+            this->strides.y, this->strides.z,
             this->k_per_thread,
             this->inner_size,
             this->input->pointer(coord3(0, 0, 0)),
@@ -130,7 +129,7 @@ void LapLapRegularBenchmark<value_t>::run() {
         dim3 numthreads = this->numthreads();
         int smem = numthreads.x*numthreads.y*13*sizeof(int);
         LapLapRegular::laplap_idxvar_shared<value_t><<<this->numblocks(), numthreads, smem>>>(
-            strides.y, strides.z,
+            this->strides.y, this->strides.z,
             this->inner_size,
             this->input->pointer(coord3(0, 0, 0)),
             this->output->pointer(coord3(0, 0, 0))
@@ -139,7 +138,7 @@ void LapLapRegularBenchmark<value_t>::run() {
         dim3 numthreads = this->numthreads();
         int smem = sizeof(value_t) * numthreads.x * numthreads.y * numthreads.z;
         LapLapRegular::laplap_shared<value_t><<<this->numblocks(), numthreads, smem>>>(
-            strides.y, strides.z,
+            this->strides.y, this->strides.z,
             this->inner_size,
             this->input->pointer(coord3(0, 0, 0)),
             this->output->pointer(coord3(0, 0, 0))
@@ -153,15 +152,14 @@ void LapLapRegularBenchmark<value_t>::run() {
             this->intermediate->pointer(coord3(-1, -1, 0)) // intermediate already has only (1, 1, 0) halom
         );
         LapLapRegular::lap<value_t><<<this->numblocks(), this->numthreads()>>>(
-            strides.y, strides.z,
+            this->strides.y, this->strides.z,
             this->inner_size,
             this->intermediate->pointer(coord3(0, 0, 0)),
             this->output->pointer(coord3(0, 0, 0))
         );
     }
-    if(cudaDeviceSynchronize() != cudaSuccess) {
-        this->error = true;
-    }
+    CUDA_THROW_LAST();
+    CUDA_THROW( cudaDeviceSynchronize() );
 }
 
 template<typename value_t>
@@ -176,6 +174,7 @@ void LapLapRegularBenchmark<value_t>::setup() {
     if(this->variant == LapLapRegular::idxvar_shared) {
         this->input->setSmemBankSize(sizeof(int));
     }
+    this->strides = (dynamic_cast<CudaRegularGrid3D<value_t>*>(this->input))->get_strides();
     this->LapLapBaseBenchmark<value_t>::setup();
 }
 

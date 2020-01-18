@@ -14,7 +14,7 @@ namespace HdiffCudaUnstr {
 
     #define GRID_ARGS const int * __restrict__ neighborships, const int z_stride, const int offs,
     #define INDEX(x_, y_, z_) (x_) + (y_)*blockDim.x*gridDim.x + offs + (z_)*z_stride
-    #define IS_IN_BOUNDS(i, j, k) (i + j*blockDim.x*gridDim.x < z_stride && k < info.max_coord.z)
+    #define IS_IN_BOUNDS(i, j, k) (i + j*blockDim.x*gridDim.x < (z_stride-offs) && k < info.max_coord.z)
     #define NEIGHBOR(idx, x_, y_, z_) GRID_UNSTR_NEIGHBOR(neighborships, z_stride, idx, x_, y_, z_)
     //#define DOUBLE_NEIGHBOR(idx, x1, y1, z1, x2, y2, z2) NEIGHBOR(NEIGHBOR(idx, x1, y1, z1), x2, y2, z2)
     #define DOUBLE_NEIGHBOR(idx, x1, y1, z1, x2, y2, z2) NEIGHBOR(idx, (x1+x2), (y1+y2), (z1+z2))
@@ -61,6 +61,10 @@ class HdiffCudaUnstrBenchmark : public HdiffCudaBaseBenchmark<value_t> {
     virtual void post();
     virtual dim3 numblocks(coord3 domain=coord3());
     virtual dim3 numthreads(coord3 domain=coord3());
+    
+    int *neighborships;
+    int z_stride;
+    int offs;
 
 };
 
@@ -95,12 +99,9 @@ void HdiffCudaUnstrBenchmark<value_t>::run() {
         dim3 numthreads = this->numthreads();
         smem = numthreads.x*numthreads.y*12*sizeof(int);
     }
-    CudaUnstructuredGrid3D<value_t> *unstr_input = dynamic_cast<CudaUnstructuredGrid3D<value_t>*>(this->input);
     (*kernel_fun)<<<this->numblocks(), this->numthreads(), smem>>>(
         this->get_info(),
-        unstr_input->neighborships,
-        unstr_input->z_stride(),
-        unstr_input->index(coord3(0, 0, 0)),
+        this->neighborships, this->z_stride, this->offs,
         this->input->data,
         this->output->data,
         this->coeff->data
@@ -143,6 +144,9 @@ void HdiffCudaUnstrBenchmark<value_t>::setup() {
     if(this->variant == HdiffCudaUnstr::idxvar_shared) {
         this->input->setSmemBankSize(sizeof(int));
     }
+    this->neighborships = input->neighborships;
+    this->z_stride = input->z_stride();
+    this->offs = input->index(coord3(0, 0, 0));
     this->HdiffCudaBaseBenchmark<value_t>::setup();
 }
 
