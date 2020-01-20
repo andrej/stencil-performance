@@ -103,6 +103,7 @@ struct args_t {
     bool skip_errors = false; // skip printing output for erroneous benchmarks
     bool no_header = false; // print no header in the output table
     bool no_verify = false; // skip verification
+    bool print_runs = false; // print runtime of each run
     std::vector<precision_t> precisions;
 };
 
@@ -205,6 +206,8 @@ args_t parse_args(int argc, char** argv) {
                 ret.precisions.push_back(single_prec);
             } else if(arg == "--double-prec") {
                 ret.precisions.push_back(double_prec);
+            } else if(arg == "--print-runs") {
+                ret.print_runs = true;
             } else {
                     fprintf(stderr, "Unrecognized or incomplete argument %s.\n", arg.c_str());
                     exit(1);
@@ -565,7 +568,7 @@ void run_benchmark(Benchmark *bench, bool quiet) {
 }
 
 /** Pretty print the results in a table (format is CSV-compatible, can be exported into Excel). */
-void prettyprint(benchmark_t *it, bool skip_errors) {
+void prettyprint(benchmark_t *it, bool skip_errors, bool print_runs) {
     benchmark_params_t params = it->params;
     Benchmark *bench = it->obj;
     if(bench->error && skip_errors) {
@@ -573,14 +576,20 @@ void prettyprint(benchmark_t *it, bool skip_errors) {
     }
     dim3 numblocks = bench->numblocks();
     dim3 numthreads = bench->numthreads();
-    printf("%-36s,%10s,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%10.0f,%10.0f,%10.0f,%10.0f%s\n",
+    printf("%-36s,%10s,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%10.0f,%10.0f,%10.0f,%10.0f",
             bench->name.c_str(),
             (params.precision == single_prec ? "single" : "double"),
             bench->size.x, bench->size.y, bench->size.z,
             numblocks.x, numblocks.y, numblocks.z,
             numthreads.x, numthreads.y, numthreads.z,
-            bench->results.runtime.avg, bench->results.runtime.median, bench->results.runtime.min, bench->results.runtime.max,
-            (bench->error ? ", (Error)" : ""));
+            bench->results.runtime.avg, bench->results.runtime.median, bench->results.runtime.min, bench->results.runtime.max);
+    if(print_runs) {
+        for(auto it = bench->results.times.begin(); it != bench->results.times.end(); ++it) {
+            printf(",%10.f", *it);
+        }
+    }
+    printf("\n");
+    printf((bench->error ? ", (Error)" : ""));
     fflush(stdout);
 }
 
@@ -606,12 +615,24 @@ int main(int argc, char** argv) {
             printf("%s ", argv[i]);
         }
         printf("\n");
-        printf("Benchmark                           , Precision, Domain size,,, Blocks     ,,, Threads    ,,, Kernel-only execution time                \n");
-        printf("                                    ,          ,   X,   Y,   Z,   X,   Y,   Z,   X,   Y,   Z,   Average,    Median,   Minimum,   Maximum\n");
+        printf("Benchmark                           , Precision, Domain size,,, Blocks     ,,, Threads    ,,, Kernel-only execution time                ");
+        if(args.print_runs) {
+            for(int i = 0; i < args.runs; i++) {
+                printf("           ");
+            }
+        }
+        printf("\n");
+        printf("                                    ,          ,   X,   Y,   Z,   X,   Y,   Z,   X,   Y,   Z,   Average,    Median,   Minimum,   Maximum");
+        if(args.print_runs) {
+            for(int i = 0; i < args.runs; i++) {
+                printf(", Run %2d   ", i+1);
+            }
+        }
+        printf("\n");
     }
     for(auto it=benchmarks->begin(); it != benchmarks->end(); ++it) {
         run_benchmark(it->obj);
-        prettyprint(&*it, args.skip_errors);
+        prettyprint(&*it, args.skip_errors, args.print_runs);
         delete it->obj;
     }
     delete benchmarks;

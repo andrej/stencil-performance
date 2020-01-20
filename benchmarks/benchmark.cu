@@ -20,7 +20,8 @@ using clk = std::chrono::high_resolution_clock;
 
 /** Benchmark result: Average, minimum and maximum runtime in seconds. */
 typedef struct { 
-	struct {double avg; double median; double min; double max;} runtime;
+    struct {double avg; double median; double min; double max;} runtime;
+    std::vector<double> times;
 	bool error; 
 } benchmark_result_t;
 
@@ -199,6 +200,7 @@ benchmark_result_t Benchmark::execute() {
     double min = *std::min_element(runtimes.begin(), runtimes.end());
     double max = *std::max_element(runtimes.begin(), runtimes.end());
     benchmark_result_t res = { .runtime = { avg, med, min, max },
+                               .times = runtimes,
 							   .error = error };
 	this->results = res; // not using temporary variable res gives NVCC compiler segfault ...
 	return this->results;
@@ -207,7 +209,7 @@ benchmark_result_t Benchmark::execute() {
 void Benchmark::parse_args() {
     if(this->argc > 0) {
         char msg[100];
-        snprintf(msg, 100, "Benchmark %s supports no arguments.", this->name.c_str());
+        snprintf(msg, 100, "Unrecognized arguments for benchmark %s.", this->name.c_str());
         throw std::runtime_error(msg);
     }
 }

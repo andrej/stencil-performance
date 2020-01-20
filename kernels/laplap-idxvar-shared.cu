@@ -16,19 +16,33 @@ void laplap_idxvar_shared(GRID_ARGS const coord3 max_coord, const value_t *in, v
     const int k_step = K_STEP;
     int center, left, leftleft, topleft, bottomleft, right, topright, rightright, bottomright, top, toptop, bottom, bottombottom;
     if(is_first) {
+
+
         center        = idxvars[0] = INDEX(i, j, 0);
         left          = idxvars[1] = NEIGHBOR(center, -1,  0, 0);
+        right         = idxvars[5] = NEIGHBOR(center, +1,  0, 0);
+        top           = idxvars[9] = NEIGHBOR(center,  0, -1, 0);
+        bottom        = idxvars[11] = NEIGHBOR(center,  0, +1, 0);
+    
+        #ifdef CHASING
+        leftleft      = idxvars[2] = NEIGHBOR(left, -1,  0,  0);
+        topleft       = idxvars[3] = NEIGHBOR(top,  -1,  0,  0);
+        bottomleft    = idxvars[4] = NEIGHBOR(bottom, -1,  0,  0);
+        topright      = idxvars[6] = NEIGHBOR(top, +1,  0,  0);
+        rightright    = idxvars[7] = NEIGHBOR(right, +1,  0,  0);
+        bottomright   = idxvars[8] = NEIGHBOR(bottom, +1,  0,  0);
+        toptop        = idxvars[10] = NEIGHBOR(top, 0, -1,  0);
+        bottombottom  = idxvars[12] = NEIGHBOR(bottom, 0, +1,  0);
+        #else
         leftleft      = idxvars[2] = DOUBLE_NEIGHBOR(center, -1,  0, 0, -1,  0,  0);
         topleft       = idxvars[3] = DOUBLE_NEIGHBOR(center,  0, -1, 0, -1,  0,  0);
         bottomleft    = idxvars[4] = DOUBLE_NEIGHBOR(center,  0, +1, 0, -1,  0,  0);
-        right         = idxvars[5] = NEIGHBOR(center, +1,  0, 0);
         topright      = idxvars[6] = DOUBLE_NEIGHBOR(center,  0, -1, 0, +1,  0,  0);
         rightright    = idxvars[7] = DOUBLE_NEIGHBOR(center, +1,  0, 0, +1,  0,  0);
         bottomright   = idxvars[8] = DOUBLE_NEIGHBOR(center,  0, +1, 0, +1,  0,  0);
-        top           = idxvars[9] = NEIGHBOR(center,  0, -1, 0);
         toptop        = idxvars[10] = DOUBLE_NEIGHBOR(center,  0, -1, 0,  0, -1,  0);
-        bottom        = idxvars[11] = NEIGHBOR(center,  0, +1, 0);
         bottombottom  = idxvars[12] = DOUBLE_NEIGHBOR(center,  0, +1, 0,  0, +1,  0);
+        #endif
     } 
     __syncthreads();
     if(!is_first) {

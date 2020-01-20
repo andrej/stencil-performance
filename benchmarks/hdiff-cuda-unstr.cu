@@ -15,30 +15,52 @@ namespace HdiffCudaUnstr {
     #define GRID_ARGS const int * __restrict__ neighborships, const int z_stride, const int offs,
     #define INDEX(x_, y_, z_) (x_) + (y_)*blockDim.x*gridDim.x + offs + (z_)*z_stride
     #define IS_IN_BOUNDS(i, j, k) (i + j*blockDim.x*gridDim.x < (z_stride-offs) && k < info.max_coord.z)
-    #define NEIGHBOR(idx, x_, y_, z_) GRID_UNSTR_NEIGHBOR(neighborships, z_stride, idx, x_, y_, z_)
-    //#define DOUBLE_NEIGHBOR(idx, x1, y1, z1, x2, y2, z2) NEIGHBOR(NEIGHBOR(idx, x1, y1, z1), x2, y2, z2)
-    #define DOUBLE_NEIGHBOR(idx, x1, y1, z1, x2, y2, z2) NEIGHBOR(idx, (x1+x2), (y1+y2), (z1+z2))
 
-    #include "kernels/hdiff-naive.cu"
+    namespace NonChasing {
+        #define NEIGHBOR(idx, x_, y_, z_) GRID_UNSTR_NEIGHBOR(neighborships, z_stride, idx, x_, y_, z_)
+        #define DOUBLE_NEIGHBOR(idx, x1, y1, z1, x2, y2, z2) NEIGHBOR(idx, (x1+x2), (y1+y2), (z1+z2))
+        #include "kernels/hdiff-naive.cu"
+        #undef NEIGHBOR
+        #undef DOUBLE_NEIGHBOR
 
-    #undef NEIGHBOR
-    #undef DOUBLE_NEIGHBOR
-    #undef NEIGHBOR
+        #define NEIGHBOR(idx, x, y, z) GRID_UNSTR_2D_NEIGHBOR(neighborships, z_stride, idx, x, y)
+        #define DOUBLE_NEIGHBOR(idx, x1, y1, z1, x2, y2, z2) NEIGHBOR(idx, (x1+x2), (y1+y2), (z1+z2))
+        #define NEXT_Z_NEIGHBOR(idx) (idx+z_stride)
+        #define K_STEP k*z_stride
+        #include "kernels/hdiff-idxvar.cu"
+        #include "kernels/hdiff-idxvar-kloop.cu"
+        #include "kernels/hdiff-idxvar-shared.cu"
+        #undef NEIGHBOR
+        #undef DOUBLE_NEIGHBOR
+        #undef NEXT_Z_NEIGHBOR
+        #undef K_STEP
+    }
 
-    #define NEIGHBOR(idx, x, y, z) GRID_UNSTR_2D_NEIGHBOR(neighborships, z_stride, idx, x, y)
-    #define NEXT_Z_NEIGHBOR(idx) (idx+z_stride)
-    #define K_STEP k*z_stride
+    namespace Chasing {
+        #define CHASING
+        
+        #define NEIGHBOR(idx, x_, y_, z_) GRID_UNSTR_NEIGHBOR(neighborships, z_stride, idx, x_, y_, z_)
+        #define DOUBLE_NEIGHBOR(idx, x1, y1, z1, x2, y2, z2) NEIGHBOR(NEIGHBOR(idx, x1, y1, z1), x2, y2, z2)
+        #include "kernels/hdiff-naive.cu"
+        #undef NEIGHBOR
+        #undef DOUBLE_NEIGHBOR
 
-    #include "kernels/hdiff-idxvar.cu"
-    #include "kernels/hdiff-idxvar-kloop.cu"
-    #include "kernels/hdiff-idxvar-shared.cu"
+        #define NEIGHBOR(idx, x, y, z) GRID_UNSTR_2D_NEIGHBOR(neighborships, z_stride, idx, x, y)
+        #define NEXT_Z_NEIGHBOR(idx) (idx+z_stride)
+        #define K_STEP k*z_stride
+        #include "kernels/hdiff-idxvar.cu"
+        #include "kernels/hdiff-idxvar-kloop.cu"
+        #include "kernels/hdiff-idxvar-shared.cu"
+
+        #undef NEIGHBOR
+        #undef CHASING
+        #undef NEXT_Z_NEIGHBOR
+        #undef K_STEP
+    }
 
     #undef GRID_ARGS
     #undef INDEX
     #undef IS_IN_BOUNDS
-    #undef NEIGHBOR
-    #undef NEXT_Z_NEIGHBOR
-    #undef K_STEP
 
 };
 
@@ -61,7 +83,9 @@ class HdiffCudaUnstrBenchmark : public HdiffCudaBaseBenchmark<value_t> {
     virtual void post();
     virtual dim3 numblocks(coord3 domain=coord3());
     virtual dim3 numthreads(coord3 domain=coord3());
-    
+    virtual void parse_args();
+
+    bool pointer_chasing = true;
     int *neighborships;
     int z_stride;
     int offs;
@@ -88,14 +112,29 @@ HdiffCudaBaseBenchmark<value_t>(size) {
 
 template<typename value_t>
 void HdiffCudaUnstrBenchmark<value_t>::run() {
-    auto kernel_fun = &HdiffCudaUnstr::hdiff_idxvar<value_t>;
+    auto kernel_fun = &HdiffCudaUnstr::NonChasing::hdiff_idxvar<value_t>;
+    if(this->pointer_chasing) {
+        kernel_fun = &HdiffCudaUnstr::Chasing::hdiff_idxvar<value_t>;
+    }
     int smem = 0;
     if(this->variant == HdiffCudaUnstr::naive) {
-        kernel_fun = &HdiffCudaUnstr::hdiff_naive<value_t>;
+        if(this->pointer_chasing) {
+            kernel_fun = &HdiffCudaUnstr::Chasing::hdiff_naive<value_t>;
+        } else {
+            kernel_fun = &HdiffCudaUnstr::NonChasing::hdiff_naive<value_t>;
+        }
     } else if(this->variant == HdiffCudaUnstr::idxvar_kloop) {
-        kernel_fun = &HdiffCudaUnstr::hdiff_idxvar_kloop<value_t>;
+        if(this->pointer_chasing) {
+            kernel_fun = &HdiffCudaUnstr::Chasing::hdiff_idxvar_kloop<value_t>;
+        } else {
+            kernel_fun = &HdiffCudaUnstr::NonChasing::hdiff_idxvar_kloop<value_t>;
+        }
     } else if(this->variant == HdiffCudaUnstr::idxvar_shared) {
-        kernel_fun = &HdiffCudaUnstr::hdiff_idxvar_shared<value_t>;
+        if(this->pointer_chasing) {
+            kernel_fun = &HdiffCudaUnstr::Chasing::hdiff_idxvar_shared<value_t>;
+        } else {
+            kernel_fun = &HdiffCudaUnstr::NonChasing::hdiff_idxvar_shared<value_t>;
+        }
         dim3 numthreads = this->numthreads();
         smem = numthreads.x*numthreads.y*12*sizeof(int);
     }
@@ -134,7 +173,8 @@ dim3 HdiffCudaUnstrBenchmark<value_t>::numthreads(coord3 domain) {
 
 template<typename value_t>
 void HdiffCudaUnstrBenchmark<value_t>::setup() {
-    CudaUnstructuredGrid3D<value_t> *input = CudaUnstructuredGrid3D<value_t>::create_regular(this->inner_size, this->halo, UnstructuredGrid3D<value_t>::rowmajor, 2);
+    int neighbor_store_depth = (this->pointer_chasing ? 1 : 2);
+    CudaUnstructuredGrid3D<value_t> *input = CudaUnstructuredGrid3D<value_t>::create_regular(this->inner_size, this->halo, UnstructuredGrid3D<value_t>::rowmajor, neighbor_store_depth);
     this->input = input;
     this->output = CudaUnstructuredGrid3D<value_t>::clone(*input);
     this->coeff = CudaUnstructuredGrid3D<value_t>::clone(*input);
@@ -165,6 +205,21 @@ template<typename value_t>
 void HdiffCudaUnstrBenchmark<value_t>::post() {
     this->Benchmark::post();
     this->HdiffCudaBaseBenchmark<value_t>::post();
+}
+
+template<typename value_t>
+void HdiffCudaUnstrBenchmark<value_t>::parse_args() {
+    for(int i = 0; i < this->argc; i++) {
+        std::string arg = std::string(this->argv[i]);
+        if(arg == "--no-chase" || arg == "-c") {
+            this->pointer_chasing = false;
+        } else {
+            this->Benchmark::parse_args();
+        }
+    }
+    if(!this->pointer_chasing) {
+        this->name.append("-no-chase");
+    }
 }
 
 #endif

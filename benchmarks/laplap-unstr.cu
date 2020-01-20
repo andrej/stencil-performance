@@ -34,6 +34,7 @@ namespace LapLapUnstr {
 
     namespace Chasing {
         #define DOUBLE_NEIGHBOR(idx, x1, y1, z1, x2, y2, z2) NEIGHBOR(NEIGHBOR(idx, x1, y1, z1), x2, y2, z2)
+        #define CHASING
         
         #include "kernels/laplap-unfused.cu"
         #include "kernels/laplap-naive.cu"
@@ -43,6 +44,7 @@ namespace LapLapUnstr {
         #include "kernels/laplap-idxvar-shared.cu"
 
         #undef DOUBLE_NEIGHBOR
+        #undef CHASING
     };
 
     #undef GRID_ARGS
@@ -72,7 +74,7 @@ class LapLapUnstrBenchmark : public LapLapBaseBenchmark<value_t> {
     
     void parse_args();
     int k_per_thread = 16;
-    bool pointer_chasing = false;
+    bool pointer_chasing = true;
     
     int z_stride;
     int offs;
@@ -233,16 +235,16 @@ template<typename value_t>
 void LapLapUnstrBenchmark<value_t>::parse_args() {
     for(int i = 0; i < this->argc; i++) {
         std::string arg = std::string(this->argv[i]);
-        if(arg == "--chase" || arg == "-c") {
-            this->pointer_chasing = true;
+        if(arg == "--no-chase" || arg == "-c") {
+            this->pointer_chasing = false;
         } else if(this->variant == LapLapUnstr::idxvar_kloop_sliced) {
             sscanf(this->argv[0], "%d", &this->k_per_thread);
         } else {
             this->Benchmark::parse_args();
         }
     }
-    if(this->pointer_chasing) {
-        this->name.append("-chasing");
+    if(!this->pointer_chasing) {
+        this->name.append("-no-chase");
     }
 }
 

@@ -31,18 +31,29 @@ void hdiff_idxvar_kloop(const HdiffCudaBase::Info info,
     * idx of neighbor X Y Z = n_X_Y_Z with p for positive offset and 
     * n for negative offset. */
     int n_0_0_0       = INDEX(i, j, 0);
-    int n_0_n1_0      = NEIGHBOR(n_0_0_0, 0, -1, 0);
-    int n_0_n2_0      = NEIGHBOR(n_0_n1_0, 0, -1, 0);
-    int n_n1_0_0      = NEIGHBOR(n_0_0_0, -1, 0, 0);
-    int n_n1_n1_0     = NEIGHBOR(n_n1_0_0, 0, -1, 0);
-    int n_n2_0_0      = NEIGHBOR(n_n1_0_0, -1, 0, 0);
-    int n_0_p1_0      = NEIGHBOR(n_0_0_0, 0, +1, 0);
-    int n_0_p2_0      = NEIGHBOR(n_0_p1_0, 0, +1, 0);
-    int n_p1_0_0      = NEIGHBOR(n_0_0_0, +1, 0, 0);
-    int n_p1_p1_0     = NEIGHBOR(n_p1_0_0, 0, +1, 0);
-    int n_p2_0_0      = NEIGHBOR(n_p1_0_0, +1, 0, 0);
-    int n_n1_p1_0     = NEIGHBOR(n_n1_0_0, 0, +1, 0);
-    int n_p1_n1_0     = NEIGHBOR(n_p1_0_0, 0, -1, 0);
+    int n_0_n1_0      = NEIGHBOR(n_0_0_0, 0, -1, 0); /* left */
+    int n_n1_0_0      = NEIGHBOR(n_0_0_0, -1, 0, 0); /* top */
+    int n_0_p1_0      = NEIGHBOR(n_0_0_0, 0, +1, 0); /* right */
+    int n_p1_0_0      = NEIGHBOR(n_0_0_0, +1, 0, 0); /* bottom */
+    #ifdef CHASING
+    int n_0_n2_0      = NEIGHBOR(n_0_n1_0, 0, -1, 0); /* 2 top */
+    int n_n1_n1_0     = NEIGHBOR(n_n1_0_0, 0, -1, 0); /* top left */
+    int n_n2_0_0      = NEIGHBOR(n_n1_0_0, -1, 0, 0); /* 2 left */
+    int n_0_p2_0      = NEIGHBOR(n_0_p1_0, 0, +1, 0); /* 2 right */
+    int n_p1_p1_0     = NEIGHBOR(n_p1_0_0, 0, +1, 0); /* bottom right */
+    int n_p2_0_0      = NEIGHBOR(n_p1_0_0, +1, 0, 0); /* 2 right */
+    int n_n1_p1_0     = NEIGHBOR(n_n1_0_0, 0, +1, 0); /* bottom left */
+    int n_p1_n1_0     = NEIGHBOR(n_p1_0_0, 0, -1, 0); /* top right */
+    #else
+    int n_0_n2_0      = DOUBLE_NEIGHBOR(n_0_0_0, 0, -1, 0, 0, -1, 0); /* 2 top */
+    int n_n1_n1_0     = DOUBLE_NEIGHBOR(n_0_0_0, 0, -1, 0, -1, 0, 0); /* top left */
+    int n_n2_0_0      = DOUBLE_NEIGHBOR(n_0_0_0, -1, 0, 0, -1, 0, 0); /* 2 left */
+    int n_0_p2_0      = DOUBLE_NEIGHBOR(n_0_0_0, 0, +1, 0, 0, +1, 0); /* 2 bottom */
+    int n_p1_p1_0     = DOUBLE_NEIGHBOR(n_0_0_0, 0, +1, 0, +1, 0, 0); /* bottom right */
+    int n_p2_0_0      = DOUBLE_NEIGHBOR(n_0_0_0, +1, 0, 0, +1, 0, 0); /* 2 right */
+    int n_n1_p1_0     = DOUBLE_NEIGHBOR(n_0_0_0, -1, 0, 0, 0, +1, 0); /* bottom left */
+    int n_p1_n1_0     = DOUBLE_NEIGHBOR(n_0_0_0,  0, -1, 0, +1, 0, 0); /* top right */
+    #endif
 
     #pragma unroll 4
     for (int k = 0; k < info.max_coord.z; k++) {

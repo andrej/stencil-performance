@@ -27,40 +27,71 @@ void hdiff_idxvar_shared(const HdiffCudaBase::Info info,
     int * __restrict__ idxvars = (int *)smem;
     const int local_idx = (threadIdx.x + threadIdx.y*blockDim.x) * 12;
     const int global_idx_2d = INDEX(i, j, 0);
+    const int k_step = K_STEP;
 
-    if(k % blockDim.z == 0) {
+    int n_0_0_0, n_0_n1_0, n_0_n2_0, n_n1_0_0, n_n1_n1_0, n_n2_0_0, n_0_p1_0, n_0_p2_0, n_p1_0_0, n_p1_p1_0, n_p2_0_0, n_n1_p1_0, n_p1_n1_0; 
+    
+    const bool is_first = k % blockDim.z == 0;
+
+    n_0_0_0 = global_idx_2d;
+
+    if(is_first) {
         // We are the thread responsible for looking up neighbor info
-        /*  0 -1 */ idxvars[local_idx+0] = NEIGHBOR(global_idx_2d, 0, -1, 0);
-        /*  0 -2 */ idxvars[local_idx+1] = NEIGHBOR(idxvars[local_idx+0], 0, -1, 0);
-        /* -1  0 */ idxvars[local_idx+2] = NEIGHBOR(global_idx_2d, -1, 0, 0);
-        /* -1 -1 */ idxvars[local_idx+3] = NEIGHBOR(idxvars[local_idx+2], 0, -1, 0);
-        /* -2  0 */ idxvars[local_idx+4] = NEIGHBOR(idxvars[local_idx+2], -1, 0, 0);
-        /*  0 +1 */ idxvars[local_idx+5] = NEIGHBOR(global_idx_2d, 0, +1, 0);
-        /*  0 +2 */ idxvars[local_idx+6] = NEIGHBOR(idxvars[local_idx+5], 0, +1, 0);
-        /* +1  0 */ idxvars[local_idx+7] = NEIGHBOR(global_idx_2d, +1, 0, 0);
-        /* +1 +1 */ idxvars[local_idx+8] = NEIGHBOR(idxvars[local_idx+7], 0, +1, 0);
-        /* +2  0 */ idxvars[local_idx+9] = NEIGHBOR(idxvars[local_idx+7], +1, 0, 0);
-        /* -1 +1 */ idxvars[local_idx+10]= NEIGHBOR(idxvars[local_idx+2], 0, +1, 0);
-        /* +1 -1 */ idxvars[local_idx+11]= NEIGHBOR(idxvars[local_idx+7], 0, -1, 0);
+        /*  0 -1 */ n_0_n1_0 =  idxvars[local_idx+0] = NEIGHBOR(global_idx_2d, 0, -1, 0);
+        /* -1  0 */ n_n1_0_0 =  idxvars[local_idx+1] = NEIGHBOR(global_idx_2d, -1, 0, 0);
+        /*  0 +1 */ n_0_p1_0 =  idxvars[local_idx+2] = NEIGHBOR(global_idx_2d, 0, +1, 0);
+        /* +1  0 */ n_p1_0_0 =  idxvars[local_idx+3] = NEIGHBOR(global_idx_2d, +1, 0, 0);
+        #ifdef CHASING
+        /*  0 -2 */ n_0_n2_0 =  idxvars[local_idx+4] = NEIGHBOR(n_0_n1_0, 0, -1, 0);
+        /* -1 -1 */ n_n1_n1_0 = idxvars[local_idx+5] = NEIGHBOR(n_n1_0_0, 0, -1, 0);
+        /* -2  0 */ n_n2_0_0 =  idxvars[local_idx+6] = NEIGHBOR(n_n1_0_0, -1, 0, 0);
+        /*  0 +2 */ n_0_p2_0 =  idxvars[local_idx+7] = NEIGHBOR(n_0_p1_0, 0, +1, 0);
+        /* +1 +1 */ n_p1_p1_0 = idxvars[local_idx+8] = NEIGHBOR(n_p1_0_0, 0, +1, 0);
+        /* +2  0 */ n_p2_0_0 =  idxvars[local_idx+9] = NEIGHBOR(n_p1_0_0, +1, 0, 0);
+        /* -1 +1 */ n_n1_p1_0 = idxvars[local_idx+10]= NEIGHBOR(n_n1_0_0, 0, +1, 0);
+        /* +1 -1 */ n_p1_n1_0 = idxvars[local_idx+11]= NEIGHBOR(n_p1_0_0, 0, -1, 0);
+        #else
+        /*  0 -2 */ n_0_n2_0 =  idxvars[local_idx+4] = DOUBLE_NEIGHBOR(global_idx_2d, 0, -1, 0, 0, -1, 0);
+        /* -1 -1 */ n_n1_n1_0 = idxvars[local_idx+5] = DOUBLE_NEIGHBOR(global_idx_2d, -1, 0, 0, 0, -1, 0);
+        /* -2  0 */ n_n2_0_0 =  idxvars[local_idx+6] = DOUBLE_NEIGHBOR(global_idx_2d, -1, 0, 0, -1, 0, 0);
+        /*  0 +2 */ n_0_p2_0 =  idxvars[local_idx+7] = DOUBLE_NEIGHBOR(global_idx_2d, 0, +1, 0, 0, +1, 0);
+        /* +1 +1 */ n_p1_p1_0 = idxvars[local_idx+8] = DOUBLE_NEIGHBOR(global_idx_2d, +1, 0, 0, 0, +1, 0);
+        /* +2  0 */ n_p2_0_0 =  idxvars[local_idx+9] = DOUBLE_NEIGHBOR(global_idx_2d, +1, 0, 0, +1, 0, 0);
+        /* -1 +1 */ n_n1_p1_0 = idxvars[local_idx+10]= DOUBLE_NEIGHBOR(global_idx_2d, -1, 0, 0, 0, +1, 0);
+        /* +1 -1 */ n_p1_n1_0 = idxvars[local_idx+11]= DOUBLE_NEIGHBOR(global_idx_2d, +1, 0, 0, 0, -1, 0);
+        #endif
+    }
+
+    __syncthreads();
+
+    if(!is_first) {
+        n_0_n1_0 = idxvars[local_idx+0];
+        n_n1_0_0 = idxvars[local_idx+1];
+        n_0_p1_0 = idxvars[local_idx+2];
+        n_p1_0_0 = idxvars[local_idx+3];
+        n_0_n2_0 = idxvars[local_idx+4];
+        n_n1_n1_0 = idxvars[local_idx+5];
+        n_n2_0_0 = idxvars[local_idx+6];
+        n_0_p2_0 = idxvars[local_idx+7];
+        n_p1_p1_0 = idxvars[local_idx+8];
+        n_p2_0_0 = idxvars[local_idx+9];
+        n_n1_p1_0 = idxvars[local_idx+10];
+        n_p1_n1_0 = idxvars[local_idx+11];
     }
     
-    __syncthreads();
-    const int k_step = K_STEP;
-    const int n_0_0_0       = global_idx_2d + k_step;
-    const int n_0_n1_0      = idxvars[local_idx+0] + k_step;
-    const int n_0_n2_0      = idxvars[local_idx+1] + k_step;
-    const int n_n1_0_0      = idxvars[local_idx+2] + k_step;
-    const int n_n1_n1_0     = idxvars[local_idx+3] + k_step;
-    const int n_n2_0_0      = idxvars[local_idx+4] + k_step;
-    //const int n_n2_n1_0     = idxvars_n_n2_n1_0 + k_step;
-    const int n_0_p1_0      = idxvars[local_idx+5] + k_step;
-    const int n_0_p2_0      = idxvars[local_idx+6] + k_step;
-    const int n_p1_0_0      = idxvars[local_idx+7] + k_step;
-    const int n_p1_p1_0     = idxvars[local_idx+8] + k_step;
-    const int n_p2_0_0      = idxvars[local_idx+9] + k_step;
-    //const int n_p2_p1_0     = idxvars_n_p2_p1_0 + k_step;
-    const int n_n1_p1_0     = idxvars[local_idx+10] + k_step;
-    const int n_p1_n1_0     = idxvars[local_idx+11] + k_step;
+    n_0_0_0 += k_step;
+    n_0_n1_0 += k_step;
+    n_0_n2_0 += k_step;
+    n_n1_0_0 += k_step;
+    n_n1_n1_0 += k_step;
+    n_n2_0_0 += k_step;
+    n_0_p1_0 += k_step;
+    n_0_p2_0 += k_step;
+    n_p1_0_0 += k_step;
+    n_p1_p1_0 += k_step;
+    n_p2_0_0 += k_step;
+    n_n1_p1_0 += k_step;
+    n_p1_n1_0 += k_step;
 
     const value_t lap_ij = 
         4 * in[n_0_0_0] 
