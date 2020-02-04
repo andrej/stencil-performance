@@ -7,10 +7,12 @@ SRCS_GRIDS=$(wildcard grids/*.cu)
 SRCS_KERNELS=$(wildcard kernels/*.cu)
 
 gridbenchmark: $(SRCS) $(SRCS_BENCHMARKS) $(SRCS_GRIDS) $(SRCS_KERNELS)
-	$(CXX) $(CPPFLAGS) $(CPPDEBUGFLAGS) -o gridbenchmark main.cu
+	$(CXX) $(CPPFLAGS) $(CPPDEBUGFLAGS) $(ARGS) -o gridbenchmark main.cu
 
 nodebug: $(SRCS) $(SRCS_BENCHMARKS) $(SRCS_GRIDS) $(SRCS_KERNELS)
-	$(CXX) $(CPPFLAGS) -O3 -o gridbenchmark main.cu
+	$(CXX) $(CPPFLAGS) $(ARGS) -O3 -o gridbenchmark main.cu
+
+
 
 clean:
 	rm ./gridbenchmark

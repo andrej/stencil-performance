@@ -131,10 +131,14 @@ _coord3<T> operator*(int b, _coord3<T> A) {
 #ifdef COORD3_64
 typedef _coord3<int64_t> coord3;
 #else 
-#ifdef  COORD3_32
+#ifdef COORD3_32
 typedef _coord3<int32_t> coord3;
 #else
+#ifdef COORD3_16
 typedef _coord3<int16_t> coord3;
+#else
+typedef _coord3<int> coord3;
+#endif
 #endif
 #endif
 
