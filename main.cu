@@ -588,8 +588,8 @@ void prettyprint(benchmark_t *it, bool skip_errors, bool print_runs) {
             printf(",%10.f", *it);
         }
     }
-    printf("\n");
     printf((bench->error ? ", (Error)" : ""));
+    printf("\n");
     fflush(stdout);
 }
 
