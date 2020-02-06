@@ -1,5 +1,5 @@
 CXX=nvcc
-CPPFLAGS=-I./ -arch sm_60 -DCUDA_PROFILER -DNDEBUG #-lineinfo #--ptxas-options=-v
+CPPFLAGS=-I./ -arch sm_60 -DCUDA_PROFILER -DNDEBUG --ptxas-options=-v #-lineinfo #
 CPPDEBUGFLAGS=-g -G -DHDIFF_DEBUG
 SRCS=$(wildcard *.cu)
 SRCS_BENCHMARKS=$(wildcard benchmarks/*.cu)

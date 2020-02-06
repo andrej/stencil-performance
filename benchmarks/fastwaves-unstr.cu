@@ -10,7 +10,7 @@ namespace FastWavesUnstrBenchmarkNamespace {
     #define GRID_ARGS const int * __restrict__ neighborships, const int z_stride, const int offs,
     #define INDEX(x_, y_, z_) (x_) + (y_)*blockDim.x*gridDim.x + offs + (z_)*z_stride
     #define IS_IN_BOUNDS(i, j, k) (i + j*blockDim.x*gridDim.x < (z_stride-offs) && k < info.max_coord.z-1)
-    #define IS_IN_BOUNDS_P1(i, j, k) (i + j*blockDim.x*gridDim.x < (z_stride-offs) && k < info.max_coord.z)
+    #define IS_IN_BOUNDS_P1(i, j, k) (i + j*blockDim.x*gridDim.x < (z_stride-offs) && k >= info.max_coord.z)
     #define NEIGHBOR(idx, x_, y_, z_) GRID_UNSTR_NEIGHBOR(neighborships, z_stride, idx, x_, y_, z_)
     #define NEXT_Z_NEIGHBOR(idx) (idx+z_stride)
     #define K_STEP k*z_stride
