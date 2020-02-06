@@ -1,6 +1,6 @@
 template<typename value_t>
 __global__
-void fastwaves_naive(const FastWavesBenchmark::Info info,
+void fastwaves_naive(const coord3 max_coord,
                      GRID_ARGS
                      const value_t *ppuv,
                      const value_t *wgtfac,

@@ -1,6 +1,6 @@
 template<typename value_t>
 __global__
-void fastwaves_idxvar_kloop(const FastWavesBenchmark::Info info,
+void fastwaves_idxvar_kloop(const coord3 max_coord,
                       GRID_ARGS
                       const value_t *ppuv,
                       const value_t *wgtfac,
@@ -34,7 +34,7 @@ void fastwaves_idxvar_kloop(const FastWavesBenchmark::Info info,
     int idx_0_p1_0  = NEXT_Z_NEIGHBOR(idx_0_p1_n1);
     int idx_0_p1_p1 = NEXT_Z_NEIGHBOR(idx_0_p1_0);
 
-    for(int k = 0; k < info.max_coord.z - 1; k++) {
+    for(int k = 0; k < max_coord.z - 1; k++) {
 
         // ppgu, ppgv
         value_t ppgu, ppgv;

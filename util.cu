@@ -1,8 +1,16 @@
-#ifndef CUDA_UTIL_H
-#define CUDA_UTIL_H
+#ifndef UTIL_H
+#define UTIL_H
 
 #include <stdio.h>
 #include <stdexcept>
+
+/** Round up to the closest greater multiple. */
+int roundup(int value, int multiple) {
+    if(value % multiple == 0) {
+        return value;
+    }
+    return value + multiple - value % multiple;
+}
 
 /** The maxnumthreads limits are only enforced if the total nubmer of threads
  * (product of x, y and z) is exceeded. It is therefore well possible to have

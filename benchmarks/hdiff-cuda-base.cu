@@ -135,11 +135,13 @@ void HdiffCudaBaseBenchmark<value_t>::pre() {
     this->coeff->prefetchToDevice();
     // to prevent page faults, even memory addresses that are only written to need to be prefetched apparently (see tests/unified-test.cu)
     this->output->prefetchToDevice();
+    this->Benchmark::pre();
 }
 
 template<typename value_t>
 void HdiffCudaBaseBenchmark<value_t>::post() {
     this->output->prefetchToHost();
+    this->Benchmark::post();
 }
 
 template<typename value_t>

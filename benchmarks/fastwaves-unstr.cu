@@ -5,17 +5,16 @@
 
 namespace FastWavesUnstrBenchmarkNamespace {
 
-    enum Variant { unfused, naive, idxvar, idxvar_kloop, kloop };
+    enum Variant { naive, idxvar, idxvar_kloop, kloop };
 
-    #define GRID_ARGS const int * __restrict__ neighborships, const int z_stride, const int offs,
+    #define GRID_ARGS const int * __restrict__ neighborships, const int z_stride, const int offs, const int xysize,
     #define INDEX(x_, y_, z_) (x_) + (y_)*blockDim.x*gridDim.x + offs + (z_)*z_stride
-    #define IS_IN_BOUNDS(i, j, k) (i + j*blockDim.x*gridDim.x < (z_stride-offs) && k < info.max_coord.z-1)
-    #define IS_IN_BOUNDS_P1(i, j, k) (i + j*blockDim.x*gridDim.x < (z_stride-offs) && k >= info.max_coord.z)
+    #define IS_IN_BOUNDS(i, j, k) (i + j*blockDim.x*gridDim.x < xysize && k < max_coord.z-1)
+    #define NOT_IN_BOUNDS(i, j, k) (i + j*blockDim.x*gridDim.x >= xysize || k >= max_coord.z-1)
     #define NEIGHBOR(idx, x_, y_, z_) GRID_UNSTR_NEIGHBOR(neighborships, z_stride, idx, x_, y_, z_)
     #define NEXT_Z_NEIGHBOR(idx) (idx+z_stride)
     #define K_STEP k*z_stride
 
-    #include "kernels/fastwaves-unfused.cu"
     #include "kernels/fastwaves-naive.cu"
     #include "kernels/fastwaves-idxvar.cu"
     #include "kernels/fastwaves-idxvar-kloop.cu"
@@ -24,7 +23,7 @@ namespace FastWavesUnstrBenchmarkNamespace {
     #undef GRID_ARGS
     #undef INDEX
     #undef IS_IN_BOUNDS
-    #undef IS_IN_BOUNDS_P1
+    #undef NOT_IN_BOUNDS
     #undef NEIGHBOR
     #undef NEXT_Z_NEIGHBOR
     #undef K_STEP
@@ -48,6 +47,9 @@ class FastWavesUnstrBenchmark : public FastWavesBaseBenchmark<value_t> {
     int *neighborships;
     int z_stride;
     int offs;
+    int xysize;
+
+    void (*kernel)(const coord3, const int *, const int, const int, const int, const value_t *, const value_t *, const value_t *, const value_t *, const value_t *, const value_t *, const value_t *, const value_t *, const value_t *, const double, const double, const int, value_t *, value_t *);
 
 };
 
@@ -55,9 +57,7 @@ template<typename value_t>
 FastWavesUnstrBenchmark<value_t>::FastWavesUnstrBenchmark(coord3 size, FastWavesUnstrBenchmarkNamespace::Variant variant) :
 FastWavesBaseBenchmark<value_t>(size),
 variant(variant) {
-    if(this->variant == FastWavesUnstrBenchmarkNamespace::unfused) {
-        this->name = "fastwaves-unstr-unfused";
-    } else if(this->variant == FastWavesUnstrBenchmarkNamespace::naive) {
+    if(this->variant == FastWavesUnstrBenchmarkNamespace::naive) {
         this->name = "fastwaves-unstr-naive";
     } else if(this->variant == FastWavesUnstrBenchmarkNamespace::idxvar) {
         this->name = "fastwaves-unstr-idxvar";
@@ -82,79 +82,57 @@ void FastWavesUnstrBenchmark<value_t>::setup() {
     this->hhl = CudaUnstructuredGrid3D<value_t>::clone(*u_in);
     this->u_out = CudaUnstructuredGrid3D<value_t>::clone(*u_in);
     this->v_out = CudaUnstructuredGrid3D<value_t>::clone(*u_in);
-    if(this->variant == FastWavesUnstrBenchmarkNamespace::unfused) {
-        this->ppgk = CudaUnstructuredGrid3D<value_t>::clone(*u_in);
-        this->ppgc = CudaUnstructuredGrid3D<value_t>::clone(*u_in);
-    }
+
     this->neighborships = u_in->neighborships;
     this->z_stride = u_in->z_stride();
-    this->offs =  u_in->index(coord3(0, 0, 0)),
+    this->offs = u_in->index(coord3(0, 0, 0)),
+    this->xysize = u_in->dimensions.x*u_in->dimensions.y;
     this->FastWavesBaseBenchmark<value_t>::setup(); // set initial values
+
+    this->ptr_ppuv = this->ppuv->data;
+    this->ptr_wgtfac = this->wgtfac->data;
+    this->ptr_hhl = this->hhl->data;
+    this->ptr_v_in = this->v_in->data;
+    this->ptr_u_in = this->u_in->data;
+    this->ptr_v_tens = this->v_tens->data;
+    this->ptr_u_tens = this->u_tens->data;
+    this->ptr_rho = this->rho->data;
+    this->ptr_fx = this->fx->data;
+    this->ptr_u_out = this->u_out->data;
+    this->ptr_v_out = this->v_out->data;
+
+    this->blocks = this->numblocks();
+    this->threads = this->numthreads();
+
+    this->kernel = &FastWavesUnstrBenchmarkNamespace::fastwaves_naive<value_t>;
+    if(this->variant == FastWavesUnstrBenchmarkNamespace::idxvar) {
+        this->kernel = &FastWavesUnstrBenchmarkNamespace::fastwaves_idxvar<value_t>;
+    } else if(this->variant == FastWavesUnstrBenchmarkNamespace::idxvar_kloop) {
+        this->kernel = &FastWavesUnstrBenchmarkNamespace::fastwaves_idxvar_kloop<value_t>;
+    } else if(this->variant == FastWavesUnstrBenchmarkNamespace::kloop) {
+        this->kernel = &FastWavesUnstrBenchmarkNamespace::fastwaves_kloop<value_t>;
+    }
 }
 
 template<typename value_t>
 void FastWavesUnstrBenchmark<value_t>::run() {
-    dim3 blocks = this->numblocks();
-    dim3 threads = this->numthreads();
-    // Unfused: Call kernels one by one
-    if(this->variant == FastWavesUnstrBenchmarkNamespace::unfused) {
-        FastWavesUnstrBenchmarkNamespace::fastwaves_ppgk<<<blocks, threads>>>(
-            this->get_info(),
-            this->c_flat_limit,
-            this->neighborships, this->z_stride, this->offs,
-            this->ppuv->data,
-            this->wgtfac->data,
-            this->ppgk->data);
-        FastWavesUnstrBenchmarkNamespace::fastwaves_ppgc<<<blocks, threads>>>(
-            this->get_info(),
-            this->neighborships, this->z_stride, this->offs,
-            this->c_flat_limit,
-            this->ppgk->data,
-            this->ppgc->data);
-        FastWavesUnstrBenchmarkNamespace::fastwaves_ppgrad_uv<<<blocks, threads>>>(
-            this->get_info(),
-            this->neighborships, this->z_stride, this->offs,
-            this->ppuv->data,
-            this->ppgc->data,
-            this->hhl->data,
-            this->v_in->data,
-            this->u_in->data,
-            this->v_tens->data,
-            this->u_tens->data,
-            this->rho->data,
-            this->fx->data,
-            this->edadlat,
-            this->dt_small,
-            this->c_flat_limit,
-            this->u_out->data,
-            this->v_out->data);
-    } else {
-        auto kernel = &FastWavesUnstrBenchmarkNamespace::fastwaves_naive<value_t>;
-        if(this->variant == FastWavesUnstrBenchmarkNamespace::idxvar) {
-            kernel = &FastWavesUnstrBenchmarkNamespace::fastwaves_idxvar<value_t>;
-        } else if(this->variant == FastWavesUnstrBenchmarkNamespace::idxvar_kloop) {
-            kernel = &FastWavesUnstrBenchmarkNamespace::fastwaves_idxvar_kloop<value_t>;
-        } else if(this->variant == FastWavesUnstrBenchmarkNamespace::kloop) {
-            kernel = &FastWavesUnstrBenchmarkNamespace::fastwaves_kloop<value_t>;
-        }
-        (*kernel)<<<blocks, threads>>>(
-            this->get_info(),
-            this->neighborships, this->z_stride, this->offs,
-            this->ppuv->data,
-            this->wgtfac->data,
-            this->hhl->data,
-            this->v_in->data,
-            this->u_in->data,
-            this->v_tens->data,
-            this->u_tens->data,
-            this->rho->data,
-            this->fx->data,
-            this->edadlat,
-            this->dt_small,
-            this->c_flat_limit,
-            this->u_out->data,
-            this->v_out->data);
-    }
+    (*this->kernel)<<<this->blocks, this->threads>>>(
+        this->inner_size,
+        this->neighborships, this->z_stride, this->offs, this->xysize,
+        this->ptr_ppuv,
+        this->ptr_wgtfac,
+        this->ptr_hhl,
+        this->ptr_v_in,
+        this->ptr_u_in,
+        this->ptr_v_tens,
+        this->ptr_u_tens,
+        this->ptr_rho,
+        this->ptr_fx,
+        this->edadlat,
+        this->dt_small,
+        this->c_flat_limit,
+        this->ptr_u_out,
+        this->ptr_v_out);
     CUDA_THROW_LAST();
     CUDA_THROW( cudaDeviceSynchronize() );
 }
@@ -162,9 +140,7 @@ void FastWavesUnstrBenchmark<value_t>::run() {
 template<typename value_t>
 dim3 FastWavesUnstrBenchmark<value_t>::numthreads(coord3 domain) {
     domain = this->inner_size;
-    if(this->variant != FastWavesUnstrBenchmarkNamespace::unfused) {
-        domain.z -= 1;
-    }
+    domain.z -= 1;
     if(this->variant == FastWavesUnstrBenchmarkNamespace::kloop
         || this->variant == FastWavesUnstrBenchmarkNamespace::idxvar_kloop) {
         domain.z = 1;
@@ -175,10 +151,8 @@ dim3 FastWavesUnstrBenchmark<value_t>::numthreads(coord3 domain) {
 
 template<typename value_t>
 dim3 FastWavesUnstrBenchmark<value_t>::numblocks(coord3 domain) {
-    if(this->variant != FastWavesUnstrBenchmarkNamespace::unfused) {
-        domain = this->inner_size;
-        domain.z -= 1;
-    }
+    domain = this->inner_size;
+    domain.z -= 1;
     if(this->variant == FastWavesUnstrBenchmarkNamespace::kloop
        || this->variant == FastWavesUnstrBenchmarkNamespace::idxvar_kloop) {
         domain.z = 1;

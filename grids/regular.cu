@@ -37,6 +37,8 @@ virtual public Coord3BaseGrid<value_t> {
 
     int index(coord3 coords);
     coord3 coordinate(int index);
+    int padding; // pad data so that (0, 0, 0) is at alignment boundary (pad the first halo)
+    int alignment = 64; // strides are mutliple of this; together with padding this ensures that first cell in a row is alwas at multiple of alignment -> coalescing memory accesses
     int zero_offset; // position in data of (0, 0, 0)
     
     using Grid<value_t, coord3>::neighbor;
@@ -53,9 +55,14 @@ template<typename value_t>
 RegularGrid3D<value_t>::RegularGrid3D(coord3 dimensions, coord3 halo) {
     this->dimensions = dimensions;
     this->halo = halo;
-    this->size = sizeof(value_t)*(dimensions.x+2*halo.x)*(dimensions.y+2*halo.y)*(dimensions.z+2*halo.z);
     coord3 strides = this->get_strides();
-    this->zero_offset = this->halo.x*strides.x + this->halo.y*strides.y + this->halo.z*strides.z;
+    int first = this->halo.x*strides.x + this->halo.y*strides.y + this->halo.z*strides.z;
+    int align = this->alignment / sizeof(value_t);
+    if(first % align != 0) {
+        this->padding = align - first % align;
+    }
+    this->zero_offset = this->padding + first;
+    this->size = sizeof(value_t) * (this->padding + (dimensions.z+2*halo.z) * strides.z);
 }
 
 template<typename value_t>
@@ -98,9 +105,10 @@ int RegularGrid3D<value_t>::neighbor(int index, coord3 offs) {
 
 template<typename value_t>
 coord3 RegularGrid3D<value_t>::get_strides() {
-    return coord3(1,
-                  this->dimensions.x + 2 * this->halo.x,
-                  (this->dimensions.x + 2 * this->halo.x) * (this->dimensions.y + 2 * this->halo.y));
+    int sx = 1;
+    int sy = roundup(this->dimensions.x + 2 * this->halo.x, this->alignment / sizeof(value_t));
+    int sz = roundup(sy * (this->dimensions.y + 2 * this->halo.y), this->alignment / sizeof(value_t));
+    return coord3(sx, sy, sz);
 }
 
 #endif

@@ -69,11 +69,13 @@ void LapLapBaseBenchmark<value_t>::pre() {
     if(this->intermediate) {
         this->intermediate->prefetchToDevice();
     }
+    this->Benchmark::pre();
 }
 
 template<typename value_t>
 void LapLapBaseBenchmark<value_t>::post() {
     this->output->prefetchToHost();
+    this->Benchmark::post();
 }
 
 template<typename value_t>

@@ -12,11 +12,8 @@
 #include "coord3.cu"
 #include "benchmarks/benchmark.cu"
 #include "benchmarks/hdiff-ref.cu"
-//#include "benchmarks/hdiff-cpu-unstr.cu"
 #include "benchmarks/hdiff-cuda-regular.cu"
-#include "benchmarks/hdiff-cuda-regular-unfused.cu"
 #include "benchmarks/hdiff-cuda-unstr.cu"
-#include "benchmarks/hdiff-cuda-unstr-unfused.cu"
 #include "benchmarks/fastwaves-ref.cu"
 #include "benchmarks/fastwaves-regular.cu"
 #include "benchmarks/fastwaves-unstr.cu"
@@ -29,6 +26,7 @@ typedef enum {all_benchs,
     // Horizontal Diffusion
               hdiff_ref,
               hdiff_cuda_regular_naive,
+              hdiff_cuda_regular_iloop,
               hdiff_cuda_regular_jloop,
               hdiff_cuda_regular_kloop,
               hdiff_cuda_regular_idxvar,
@@ -60,17 +58,7 @@ typedef enum {all_benchs,
               laplap_unstr_idxvar_shared,
 
               // --- old/broken/not interesting TODO clean those up (remove or fix)
-              unspecified,
-              hdiff_cuda_regular_unfused,
-              hdiff_cuda_unstr_unfused, 
-              hdiff_cuda_regular_shared_kloop,
-              hdiff_cuda_regular_iloop,
-              hdiff_cuda_regular_coop,
-              fastwaves_ref,
-              fastwaves_regular_unfused,
-              fastwaves_unstr_unfused,
-              laplap_regular_unfused,
-              laplap_unstr_unfused
+              unspecified
               } 
 benchmark_type_t;
 
@@ -225,7 +213,7 @@ args_t parse_args(int argc, char** argv) {
     // Default numthreads/numblocks if none of both are given
     if(ret.numthreads.empty() && ret.numblocks.empty()) {
         ret.numthreads.push_back(coord3(0, 0, 0)); //auto calculate
-        ret.numblocks.push_back(coord3(32, 32, 32));
+        ret.numblocks.push_back(coord3(0, 0, 0));
     }
     if(ret.numthreads.empty()) {
         // setting to default 0, 0, 0, benchmark class will calculate correct value
@@ -255,21 +243,6 @@ Benchmark *create_benchmark(benchmark_params_t param_bench, coord3 size,
         ret = (precision == single_prec ?
                (Benchmark *) new HdiffReferenceBenchmark<float>(size) :
                (Benchmark *) new HdiffReferenceBenchmark<double>(size) );
-        break;
-        //case hdiff_ref_unstr:
-        //ret = (precision == single_prec ?
-        //    (Benchmark *) new HdiffCPUUnstrBenchmark<float>(size) :
-        //    (Benchmark *) new HdiffCPUUnstrBenchmark<double>(size) );
-        //break;
-        case hdiff_cuda_regular_unfused:
-        ret = (precision == single_prec ?
-            (Benchmark *) new HdiffCudaRegularUnfusedBenchmark<float>(size) :
-            (Benchmark *) new HdiffCudaRegularUnfusedBenchmark<double>(size) );
-        break;
-        case hdiff_cuda_unstr_unfused:
-        ret = (precision == single_prec ?
-            (Benchmark *) new HdiffCudaUnstructuredUnfusedBenchmark<float>(size) :
-            (Benchmark *) new HdiffCudaUnstructuredUnfusedBenchmark<double>(size) );
         break;
         case hdiff_cuda_regular_naive:
         ret = (precision == single_prec ?
@@ -306,20 +279,10 @@ Benchmark *create_benchmark(benchmark_params_t param_bench, coord3 size,
             (Benchmark *) new HdiffCudaRegularBenchmark<float>(size, HdiffCudaRegular::idxvar_shared) :
             (Benchmark *) new HdiffCudaRegularBenchmark<double>(size, HdiffCudaRegular::idxvar_shared) );
         break;
-        case hdiff_cuda_regular_coop:
-        ret = (precision == single_prec ?
-            (Benchmark *) new HdiffCudaRegularBenchmark<float>(size, HdiffCudaRegular::coop) :
-            (Benchmark *) new HdiffCudaRegularBenchmark<double>(size, HdiffCudaRegular::coop) );
-        break;
         case hdiff_cuda_regular_shared:
         ret = (precision == single_prec ?
             (Benchmark *) new HdiffCudaRegularBenchmark<float>(size, HdiffCudaRegular::shared) :
             (Benchmark *) new HdiffCudaRegularBenchmark<double>(size, HdiffCudaRegular::shared) );
-        break;
-        case hdiff_cuda_regular_shared_kloop:
-        ret = (precision == single_prec ?
-            (Benchmark *) new HdiffCudaRegularBenchmark<float>(size, HdiffCudaRegular::shared_kloop) :
-            (Benchmark *) new HdiffCudaRegularBenchmark<double>(size, HdiffCudaRegular::shared_kloop) );
         break;
         case hdiff_cuda_unstr_naive:
         ret = (precision == single_prec ?
@@ -340,21 +303,6 @@ Benchmark *create_benchmark(benchmark_params_t param_bench, coord3 size,
         ret = (precision == single_prec ?
             (Benchmark *) new HdiffCudaUnstrBenchmark<float>(size, HdiffCudaUnstr::idxvar_shared) :
             (Benchmark *) new HdiffCudaUnstrBenchmark<double>(size, HdiffCudaUnstr::idxvar_shared) );
-        break;
-        case fastwaves_ref:
-        ret = (precision == single_prec ?
-            (Benchmark *) new FastWavesRefBenchmark<float>(size) :
-            (Benchmark *) new FastWavesRefBenchmark<double>(size) );
-        break;
-        case fastwaves_regular_unfused:
-        ret = (precision == single_prec ?
-            (Benchmark *) new FastWavesRegularBenchmark<float>(size, FastWavesRegularBenchmarkNamespace::unfused) :
-            (Benchmark *) new FastWavesRegularBenchmark<double>(size, FastWavesRegularBenchmarkNamespace::unfused) );
-        break;
-        case fastwaves_unstr_unfused:
-        ret = (precision == single_prec ?
-            (Benchmark *) new FastWavesUnstrBenchmark<float>(size, FastWavesUnstrBenchmarkNamespace::unfused) :
-            (Benchmark *) new FastWavesUnstrBenchmark<double>(size, FastWavesUnstrBenchmarkNamespace::unfused) );
         break;
         case fastwaves_regular_naive:
         ret = (precision == single_prec ?
@@ -396,11 +344,6 @@ Benchmark *create_benchmark(benchmark_params_t param_bench, coord3 size,
             (Benchmark *) new FastWavesUnstrBenchmark<float>(size, FastWavesUnstrBenchmarkNamespace::kloop) :
             (Benchmark *) new FastWavesUnstrBenchmark<double>(size, FastWavesUnstrBenchmarkNamespace::kloop) );
         break;
-        case laplap_regular_unfused:
-        ret = (precision == single_prec ?
-            (Benchmark *) new LapLapRegularBenchmark<float>(size, LapLapRegular::unfused) :
-            (Benchmark *) new LapLapRegularBenchmark<double>(size, LapLapRegular::unfused) );
-        break;
         case laplap_regular_naive:
         ret = (precision == single_prec ?
             (Benchmark *) new LapLapRegularBenchmark<float>(size, LapLapRegular::naive) :
@@ -430,11 +373,6 @@ Benchmark *create_benchmark(benchmark_params_t param_bench, coord3 size,
         ret = (precision == single_prec ?
             (Benchmark *) new LapLapRegularBenchmark<float>(size, LapLapRegular::shared) :
             (Benchmark *) new LapLapRegularBenchmark<double>(size, LapLapRegular::shared) );
-        break;
-        case laplap_unstr_unfused:
-        ret = (precision == single_prec ?
-            (Benchmark *) new LapLapUnstrBenchmark<float>(size, LapLapUnstr::unfused) :
-            (Benchmark *) new LapLapUnstrBenchmark<double>(size, LapLapUnstr::unfused) );
         break;
         case laplap_unstr_naive:
         ret = (precision == single_prec ?

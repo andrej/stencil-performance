@@ -4,12 +4,6 @@
 #include "benchmarks/benchmark.cu"
 #include "benchmarks/fastwaves-ref.cu"
 
-namespace FastWavesBenchmark {
-    struct Info {
-        coord3 max_coord;
-    };
-}
-
 /** Base Class for Fastwaves benchmarks */
 template<typename value_t>
 class FastWavesBaseBenchmark : public Benchmark {
@@ -18,7 +12,7 @@ class FastWavesBaseBenchmark : public Benchmark {
 
     FastWavesBaseBenchmark(coord3 size);
     
-    const coord3 halo;
+    coord3 halo;
     coord3 inner_size;
 
     const int c_flat_limit;
@@ -46,6 +40,19 @@ class FastWavesBaseBenchmark : public Benchmark {
     CudaBaseGrid<value_t, coord3> *u_out = NULL;
     CudaBaseGrid<value_t, coord3> *v_out = NULL;
 
+    // Entry pointers to the (0, 0, 0) value of above grids for kernels
+    value_t *ptr_ppuv;
+    value_t *ptr_wgtfac;
+    value_t *ptr_hhl;
+    value_t *ptr_v_in;
+    value_t *ptr_u_in;
+    value_t *ptr_v_tens;
+    value_t *ptr_u_tens;
+    value_t *ptr_rho;
+    value_t *ptr_fx;
+    value_t *ptr_u_out;
+    value_t *ptr_v_out;
+
     FastWavesRefBenchmark<value_t> *reference_benchmark = NULL;
     bool reference_calculated = false;
     
@@ -54,8 +61,9 @@ class FastWavesBaseBenchmark : public Benchmark {
     virtual void pre();
     virtual void post();
     bool verify(double tol=1e-4);
-
-    FastWavesBenchmark::Info get_info();
+    
+    dim3 threads;
+    dim3 blocks;
 
 };
 
@@ -82,7 +90,7 @@ void FastWavesBaseBenchmark<value_t>::setup() {
         this->reference_benchmark->setup();
     }
 
-    // Import values
+    // Reset/ Import values
     // Inputs / Constants
     this->u_in->import(this->reference_benchmark->u_pos);
     this->v_in->import(this->reference_benchmark->v_pos);
@@ -94,21 +102,7 @@ void FastWavesBaseBenchmark<value_t>::setup() {
     this->wgtfac->import(this->reference_benchmark->wgtfac);
     this->hhl->import(this->reference_benchmark->hhl);
 
-    // Intermediate Results (not all subclasses may need these)
-    if(this->ppgk) {
-        this->ppgk->fill(0.0);
-    }
-    if(this->ppgc) {
-        this->ppgc->fill(0.0);
-    }
-    if(this->ppgu) {
-        this->ppgu->fill(0.0);
-    }
-    if(this->ppgv) {
-        this->ppgv->fill(0.0);
-    }
-
-    // Outputs
+    // Reset Outputs
     this->u_out->fill(0.0);
     this->v_out->fill(0.0);
 
@@ -166,6 +160,8 @@ void FastWavesBaseBenchmark<value_t>::pre() {
     // Outputs
     this->u_out->prefetchToDevice();
     this->v_out->prefetchToDevice();
+
+    this->Benchmark::pre();
 }
 
 template<typename value_t>
@@ -173,6 +169,8 @@ void FastWavesBaseBenchmark<value_t>::post() {
     // Outputs
     this->u_out->prefetchToHost();
     this->v_out->prefetchToHost();
+
+    this->Benchmark::post();
 }
 
 template<typename value_t>
@@ -190,11 +188,6 @@ bool FastWavesBaseBenchmark<value_t>::verify(double tol) {
         this->u_out->print();
     }
     return ret;
-}
-
-template<typename value_t>
-FastWavesBenchmark::Info FastWavesBaseBenchmark<value_t>::get_info() {
-    return { .max_coord = this->inner_size };
 }
 
 #endif

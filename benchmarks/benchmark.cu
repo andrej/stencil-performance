@@ -14,7 +14,7 @@
 #endif
 #include "coord3.cu"
 #include "grids/coord3-base.cu"
-#include "cuda-util.cu"
+#include "util.cu"
 
 using clk = std::chrono::high_resolution_clock;
 
@@ -68,7 +68,7 @@ class Benchmark {
     virtual void parse_args(); /**< do some setup based on argc, argv */
 
 	/** Subclasses (benchmarks) must at least overwrite this function an perform
-	 * the computations to be benchmarked inside here. */
+     * the computations to be benchmarked inside here. */
 	virtual void run() = 0;
 
 	/** Executes a certain number of runs of the given benchmark and stores some
@@ -85,14 +85,14 @@ class Benchmark {
 	virtual void teardown();
 
 	// Pre and post are called for each iteration of the benchmark, i.e. once per run
-	virtual void pre() {};
+	virtual void pre();
 	virtual void post();
 
 	// Cuda specific: number of threads and blocks to execute the benchmark in
 	// May be used by the benchmark implementation in run() to determine how many
 	// threads and blocks to launch the kernel in
 	virtual dim3 numthreads(coord3 domain=coord3());
-	virtual dim3 numblocks(coord3 domain=coord3());
+    virtual dim3 numblocks(coord3 domain=coord3());
 
 };
 
@@ -119,6 +119,9 @@ void Benchmark::setup() {
 }
 
 void Benchmark::teardown() {
+}
+
+void Benchmark::pre() {
 }
 
 void Benchmark::post() {
@@ -173,20 +176,18 @@ benchmark_result_t Benchmark::execute() {
     for(int i=-1; i<this->runs; i++) {
         this->pre();
         #ifdef CUDA_PROFILER
-        cudaProfilerStart();
+            cudaProfilerStart();
         #endif
         clk::time_point start = clk::now();
         this->run();
         clk::time_point stop = clk::now();
         #ifdef CUDA_PROFILER
-        cudaProfilerStop();
+            cudaProfilerStop();
         #endif
         this->post();
-        error = error || this->error;
         if(this->do_verify) {
-            error = error || !this->verify();
+            this->error |= !this->verify();
         }
-        this->error = error;
         if(i == -1) {
             // First run is untimed, as Cuda recompiles the kernel on first run which would distort our measurements.
             continue;

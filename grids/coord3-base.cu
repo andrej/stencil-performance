@@ -1,6 +1,7 @@
 #ifndef COORD3_GRID_H
 #define COORD3_GRID_H
 #include <stdio.h>
+#include <cmath>
 #include "grid.cu"
 #include "coord3.cu"
 
@@ -86,7 +87,8 @@ bool Coord3BaseGrid<value_t>::compare(Grid<value_t, coord3> *other, double tol) 
     for(int x=0; x<other->dimensions.x; x++) {
         for(int y=0; y<other->dimensions.y; y++) {
             for(int z=0; z<other->dimensions.z; z++) {
-                if(abs((*other)[coord3(x, y, z)] - (*this)[coord3(x, y, z)]) > tol) {
+                value_t diff = (*other)[coord3(x, y, z)] - (*this)[coord3(x, y, z)];
+                if(isnan(diff) || abs(diff) > tol) {
                     return false;
                 }
             }

@@ -1,6 +1,6 @@
 template<typename value_t>
 __global__
-void fastwaves_idxvar(const FastWavesBenchmark::Info info,
+void fastwaves_idxvar(const coord3 max_coord,
                       GRID_ARGS
                       const value_t *ppuv,
                       const value_t *wgtfac,
@@ -19,7 +19,7 @@ void fastwaves_idxvar(const FastWavesBenchmark::Info info,
     const int i = blockIdx.x*blockDim.x + threadIdx.x;
     const int j = blockIdx.y*blockDim.y + threadIdx.y;
     const int k = blockIdx.z*blockDim.z + threadIdx.z;
-    if(!(IS_IN_BOUNDS(i, j, k))) {
+    if(NOT_IN_BOUNDS(i, j, k)) {
         return;
     }
 
