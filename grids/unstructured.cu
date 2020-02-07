@@ -5,8 +5,12 @@
 #include <memory>
 #include <map>
 #include <stdexcept>
+#include <functional>
+#include <algorithm>
+#include <vector>
 #include "grids/grid.cu"
 #include "grids/coord3-base.cu"
+#include "grids/zcurve-util.cu"
 
 /** Unstructured Grid in 2 coords, structured in one Y-coordinate
  *
@@ -61,7 +65,7 @@ virtual public Coord3BaseGrid<value_t> {
     static UnstructuredGrid3D<value_t> *create(coord3 dimensions, coord3 halo=coord3(0, 0, 0), int neighbor_store_depth=1, int *neighborships=NULL);
     
     /** Return a new grid with regular neighborship relations. */
-    enum layout_t { rowmajor };
+    enum layout_t { rowmajor, zcurve };
     static UnstructuredGrid3D<value_t> *create_regular(coord3 dims, coord3 halo=coord3(0, 0, 0), layout_t layout=rowmajor, int neighbor_store_depth=1);
 
     int index(coord3 coord);
@@ -111,6 +115,7 @@ virtual public Coord3BaseGrid<value_t> {
      * regular grid would have, i.e. add top, left, right, bottom, front and
      * back neighbors as in a regular grid. */
     void add_regular_nodes(layout_t layout=rowmajor);
+    void add_regular_halo();
     void add_regular_neighbors();
 
     /** Grid is regular in Z-dimension. Halo is at the beginning of data. The 
@@ -367,10 +372,45 @@ void UnstructuredGrid3D<value_t>::add_neighbor(int A, int B, coord3 offs, int de
 /* Add all the nodes of a regular grid */
 template<typename value_t>
 void UnstructuredGrid3D<value_t>::add_regular_nodes(layout_t layout) {
+    // Add the halo nodes with their seperate layout, first of everything else
+    this->add_regular_halo();
+
+    // Create vector of all inner coordinates; the ordering determines the memory layout
+    std::vector<coord3> coord_sequence;
+    int z = 0;
+    for(int y = 0; y<this->dimensions.y; y++) {
+        for(int x = 0; x<this->dimensions.x; x++) {
+            coord_sequence.push_back(coord3(x, y, z));
+        }
+    }
+
+    // How this vector is sorted determines the memory layout
+    // For z-curves this ensures that the data is still dense in the given index range,
+    // even if the grid is not square (We simply use the Z-curve index for comparison
+    // between coordinates, i.e. ordering. In the grid, the indices might be lower, not sparse).    
+    if(layout == zcurve) {
+        int width = 4; // don't intertwine last 4 bits -> leads to curve being 32 elements wide
+        StretchedZCurveComparator comp(width);
+        std::sort(coord_sequence.begin(), coord_sequence.end(), comp);
+    } else {
+        // already sorted by the way we inserted it
+    }
+
+    // Actually add the nodes
+    int new_index = this->halo_size();
+    for(auto it = coord_sequence.begin(); it != coord_sequence.end(); ++it) {
+        this->add_node(*it, 0, new_index);
+        new_index++;
+    }
+}
+
+template<typename value_t>
+void UnstructuredGrid3D<value_t>::add_regular_halo() {
     coord3 halo = this->halo;
     coord3 inner = this->dimensions;
-    /* The halo is added at the very beginning of memory. This way, when iterating
-     * from index(0, 0, 0) through memory, no halo cell is ever touched. */
+    /* The halo is added at the very beginning of each X-Y-plane memory slice.
+     * This way, when iterating from index(0, 0, z) through memory until
+     * (dimensions.x-1, dimensions.y-1, z), no halo cell is ever touched. */
     int z = 0; // grid is regular in Z-coord
     int new_index = 0;
     /* The halo is allocated in memory from the outward in. This means that if we
@@ -397,14 +437,7 @@ void UnstructuredGrid3D<value_t>::add_regular_nodes(layout_t layout) {
             }
         }
     }
-    /* Inner fields. */
     assert(new_index == this->halo_size());
-    for(int y = 0; y<inner.y; y++) {
-        for(int x = 0; x<inner.x; x++) {
-            this->add_node(coord3(x, y, z), 0, new_index);
-            new_index++;
-        }
-    }
 }
 
 /* Add same neighbors as in a regular grid */

@@ -80,6 +80,8 @@ class LapLapUnstrBenchmark : public LapLapBaseBenchmark<value_t> {
     int offs;
     int *neighborships;
 
+    typename UnstructuredGrid3D<value_t>::layout_t layout = UnstructuredGrid3D<value_t>::rowmajor;
+
 };
 
 // IMPLEMENTATIONS
@@ -189,7 +191,7 @@ template<typename value_t>
 void LapLapUnstrBenchmark<value_t>::setup() {
     coord3 halo2(2, 2, 0);
     int neighbor_store_depth = (this->pointer_chasing ? 1 : 2);
-    CudaUnstructuredGrid3D<value_t> *input = CudaUnstructuredGrid3D<value_t>::create_regular(this->inner_size, halo2, CudaUnstructuredGrid3D<value_t>::rowmajor, neighbor_store_depth);
+    CudaUnstructuredGrid3D<value_t> *input = CudaUnstructuredGrid3D<value_t>::create_regular(this->inner_size, halo2, this->layout, neighbor_store_depth);
     this->input = input;
     this->output = CudaUnstructuredGrid3D<value_t>::clone(*input);
     if(this->variant == LapLapUnstr::unfused) {
@@ -235,7 +237,9 @@ template<typename value_t>
 void LapLapUnstrBenchmark<value_t>::parse_args() {
     for(int i = 0; i < this->argc; i++) {
         std::string arg = std::string(this->argv[i]);
-        if(arg == "--no-chase" || arg == "-c") {
+        if(arg == "--z-curves" || arg == "-z") {
+            this->layout = CudaUnstructuredGrid3D<value_t>::zcurve;
+        } else if(arg == "--no-chase" || arg == "-c") {
             this->pointer_chasing = false;
         } else if(this->variant == LapLapUnstr::idxvar_kloop_sliced) {
             sscanf(this->argv[0], "%d", &this->k_per_thread);
@@ -245,6 +249,9 @@ void LapLapUnstrBenchmark<value_t>::parse_args() {
     }
     if(!this->pointer_chasing) {
         this->name.append("-no-chase");
+    }
+    if(this->layout == CudaUnstructuredGrid3D<value_t>::zcurve) {
+        this->name.append("-z-curves");
     }
 }
 

@@ -84,9 +84,11 @@ bool operator !=(const _coord3<T> A, const dim3 B) {
 
 template<typename T>
 bool operator<(const _coord3<T> A, const _coord3<T> B) {
-    return A.x < B.x || 
-           (A.x == B.x && A.y < B.y) ||
-           (A.x == B.x && A.y == B.y && A.z < B.z);
+    // This gives the default ordering as if ordered by indices of a row-major
+    // layout: x changing fastest, z slowest
+    return A.z < B.z || 
+           (A.z == B.z && A.y < B.y) ||
+           (A.z == B.z && A.y == B.y && A.x < B.x);
 }
 
 template<typename T>

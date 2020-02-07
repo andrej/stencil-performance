@@ -43,11 +43,14 @@ class FastWavesUnstrBenchmark : public FastWavesBaseBenchmark<value_t> {
     void run();
     dim3 numthreads(coord3 domain=coord3());
     dim3 numblocks(coord3 domain=coord3());
+    void parse_args();
 
     int *neighborships;
     int z_stride;
     int offs;
     int xysize;
+
+    typename UnstructuredGrid3D<value_t>::layout_t layout = UnstructuredGrid3D<value_t>::rowmajor;
 
     void (*kernel)(const coord3, const int *, const int, const int, const int, const value_t *, const value_t *, const value_t *, const value_t *, const value_t *, const value_t *, const value_t *, const value_t *, const value_t *, const double, const double, const int, value_t *, value_t *);
 
@@ -70,7 +73,7 @@ variant(variant) {
 
 template<typename value_t>
 void FastWavesUnstrBenchmark<value_t>::setup() {
-    CudaUnstructuredGrid3D<value_t> *u_in = CudaUnstructuredGrid3D<value_t>::create_regular(this->inner_size, this->halo);
+    CudaUnstructuredGrid3D<value_t> *u_in = CudaUnstructuredGrid3D<value_t>::create_regular(this->inner_size, this->halo, this->layout);
     this->u_in = u_in;
     this->v_in = CudaUnstructuredGrid3D<value_t>::clone(*u_in);
     this->u_tens = CudaUnstructuredGrid3D<value_t>::clone(*u_in);
@@ -159,6 +162,19 @@ dim3 FastWavesUnstrBenchmark<value_t>::numblocks(coord3 domain) {
     }
     dim3 numblocks = this->FastWavesBaseBenchmark<value_t>::numblocks(domain);
     return numblocks;
+}
+
+template<typename value_t>
+void FastWavesUnstrBenchmark<value_t>::parse_args() {
+    for(int i = 0; i < this->argc; i++) {
+        std::string arg = std::string(this->argv[i]);
+        if(arg == "--z-curves" || arg == "-z") {
+            this->layout = CudaUnstructuredGrid3D<value_t>::zcurve;
+        }
+    }
+    if(this->layout == CudaUnstructuredGrid3D<value_t>::zcurve) {
+        this->name.append("-z-curves");
+    }
 }
 
 #endif

@@ -90,6 +90,8 @@ class HdiffCudaUnstrBenchmark : public HdiffCudaBaseBenchmark<value_t> {
     int z_stride;
     int offs;
 
+    typename UnstructuredGrid3D<value_t>::layout_t layout = UnstructuredGrid3D<value_t>::rowmajor;
+
 };
 
 // IMPLEMENTATIONS
@@ -174,7 +176,7 @@ dim3 HdiffCudaUnstrBenchmark<value_t>::numthreads(coord3 domain) {
 template<typename value_t>
 void HdiffCudaUnstrBenchmark<value_t>::setup() {
     int neighbor_store_depth = (this->pointer_chasing ? 1 : 2);
-    CudaUnstructuredGrid3D<value_t> *input = CudaUnstructuredGrid3D<value_t>::create_regular(this->inner_size, this->halo, UnstructuredGrid3D<value_t>::rowmajor, neighbor_store_depth);
+    CudaUnstructuredGrid3D<value_t> *input = CudaUnstructuredGrid3D<value_t>::create_regular(this->inner_size, this->halo, this->layout, neighbor_store_depth);
     this->input = input;
     this->output = CudaUnstructuredGrid3D<value_t>::clone(*input);
     this->coeff = CudaUnstructuredGrid3D<value_t>::clone(*input);
@@ -211,7 +213,9 @@ template<typename value_t>
 void HdiffCudaUnstrBenchmark<value_t>::parse_args() {
     for(int i = 0; i < this->argc; i++) {
         std::string arg = std::string(this->argv[i]);
-        if(arg == "--no-chase" || arg == "-c") {
+        if(arg == "--z-curves" || arg == "-z") {
+            this->layout = CudaUnstructuredGrid3D<value_t>::zcurve;
+        } else if(arg == "--no-chase" || arg == "-c") {
             this->pointer_chasing = false;
         } else {
             this->Benchmark::parse_args();
@@ -219,6 +223,9 @@ void HdiffCudaUnstrBenchmark<value_t>::parse_args() {
     }
     if(!this->pointer_chasing) {
         this->name.append("-no-chase");
+    }
+    if(this->layout == CudaUnstructuredGrid3D<value_t>::zcurve) {
+        this->name.append("-z-curves");
     }
 }
 
