@@ -3,6 +3,7 @@
 #include <stddef.h>
 #include <assert.h>
 #include <memory>
+#include <random>
 
 /** Grid
  * 
@@ -90,7 +91,8 @@ class Grid {
     void set(coord_t coords, value_t v);
 
     /** Fill all cells in the grid with the given value. */
-    virtual void fill(value_t v) = 0;
+    virtual void fill(value_t v);
+    virtual void fill_random();
 
     /** Print the values of this grid. */
     virtual void print() = 0;
@@ -98,6 +100,12 @@ class Grid {
     /** Compare the values in this grid with the values of another grid,
      * check for equality up to some tolerance. */
     virtual bool compare(Grid<value_t, coord_t> *other, double tol=1e-5) = 0;
+
+    /** Give indices into data array where the actual values start and stop.
+     * Note that the values must be a contiguous block and only data values
+     * may be within this range. */
+    virtual int values_start();
+    virtual int values_stop();
 
 };
 
@@ -165,6 +173,32 @@ int Grid<value_t, coord_t>::neighbor(coord_t coords, coord_t offs) {
 template<typename value_t, typename coord_t>
 int Grid<value_t, coord_t>::neighbor(int index, coord_t offs) {
     return this->neighbor(this->coordinate(index), offs);
+}
+
+template<typename value_t, typename coord_t>
+void Grid<value_t, coord_t>::fill(value_t v) {
+    memset(this->data, v, this->size);
+}
+
+template<typename value_t, typename coord_t>
+void Grid<value_t, coord_t>::fill_random() {
+    std::default_random_engine gen;
+    std::uniform_real_distribution<value_t> dist(-1.0, +1.0);
+    const int values_start = this->values_start();
+    const int values_stop = this->values_stop();
+    for(int i = values_start; i < values_stop; i++) {
+        this->data[i] = dist(gen);
+    }
+}
+
+template<typename value_t, typename coord_t>
+int Grid<value_t, coord_t>::values_start() {
+    return 0;
+}
+
+template<typename value_t, typename coord_t>
+int Grid<value_t, coord_t>::values_stop() {
+    return this->size / sizeof(value_t);
 }
 
 #endif

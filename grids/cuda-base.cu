@@ -19,8 +19,8 @@ virtual public Grid<value_t, coord_t>
     ~CudaBaseGrid();    
 
     virtual void allocate();
-    
     virtual void deallocate();
+    virtual void fill(value_t v);
 
     /** A *blocking* call that synchronizes the current state of the grid to
      * the device or host. Call before host/device accesses to prevent page
@@ -47,6 +47,7 @@ template<typename value_t, typename coord_t>
 void CudaBaseGrid<value_t, coord_t>::allocate() {
     value_t *ptr;
     CUDA_THROW( cudaMallocManaged(&ptr, this->size) );
+    CUDA_THROW( cudaMemset(ptr, 0, this->size) );
     this->setSmemBankSize();
     this->data = ptr;
 }
@@ -69,6 +70,11 @@ void CudaBaseGrid<value_t, coord_t>::deallocate() {
         CUDA_THROW( cudaFree(this->data) );
         this->data = NULL;
     }
+}
+
+template<typename value_t, typename coord_t>
+void CudaBaseGrid<value_t, coord_t>::fill(value_t v) {
+    CUDA_THROW( cudaMemset(this->data, v, this->size) );
 }
 
 template<typename value_t, typename coord_t>

@@ -127,6 +127,11 @@ virtual public Coord3BaseGrid<value_t> {
     bool is_index_in_halo(int index);
     bool is_coordinate_in_halo(coord3 coord);
 
+    /** Give indices of our data block, as we have also a neighborship block
+     * which should not be overwritten by data values! */
+    virtual int values_start();
+    virtual int values_stop();
+
 };
 
 // IMPLEMENTATIONS
@@ -135,15 +140,16 @@ template<typename value_t>
 UnstructuredGrid3D<value_t>::UnstructuredGrid3D(coord3 dimensions, coord3 halo, int neighbor_store_depth, int *neighborships) :
 neighborships(neighborships),
 neighbor_store_depth(neighbor_store_depth) {
+    this->dimensions = dimensions;
+    this->halo = halo;
     coord3 outer = dimensions + 2 * halo; 
     const int stored_neighbors_per_node = 
         (neighborships == NULL ? 
             2 * neighbor_store_depth * (neighbor_store_depth + 1) : 
             0); /* https://oeis.org/A046092 */
-    int sz = (  sizeof(value_t) * outer.x * outer.y * outer.z /* for the values */
+    int sz = (  sizeof(value_t) * this->values_stop() /* for the values */
               + sizeof(int) * stored_neighbors_per_node * outer.x * outer.y ); /* for the ptrs */
-    this->dimensions = dimensions;
-    this->halo = halo;
+
     this->size = sz;
 }
 
@@ -168,11 +174,7 @@ UnstructuredGrid3D<value_t> *UnstructuredGrid3D<value_t>::create_regular(coord3 
 template<typename value_t>
 void UnstructuredGrid3D<value_t>::init(){
     this->Grid<value_t, coord3>::init(); // this allocates this->data
-    //coord3 inner = this->dimensions;
-    coord3 outer = this->dimensions + 2*this->halo;
-    //int inner_sz = inner.x * inner.y * inner.z;
-    int outer_sz = outer.x * outer.y * outer.z;
-    //int halo_sz = outer_sz - inner_sz;
+    int outer_sz = this->values_stop();
     this->values = this->data; // values are in the first part of our data block
     // initialize empty neighborship pointers
     if(this->neighborships == NULL) {
@@ -463,6 +465,17 @@ void UnstructuredGrid3D<value_t>::add_regular_neighbors() {
             this->add_neighbor(coord3(x, y-1, z), coord3(x, y, z), coord3(0, +1, 0));
         }
     }
+}
+
+template<typename value_t>
+int UnstructuredGrid3D<value_t>::values_start() {
+    return 0;
+}
+
+template<typename value_t>
+int UnstructuredGrid3D<value_t>::values_stop() {
+    coord3 outer = this->dimensions + 2 * this->halo;
+    return outer.x * outer.y * outer.z;
 }
 
 #endif

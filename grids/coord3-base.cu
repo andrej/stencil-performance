@@ -24,9 +24,6 @@ virtual public Grid<value_t, coord3> {
     //template<typename other_value_t, typename other_allocator_t>
     void import(Grid<value_t, coord3> *other) final;
 
-    /** Fill all the cells in the grid with the same value. */
-    void fill(value_t value);
-
     /** Print the grid (makes sense for small sizes for debugging). */
     void print();
 
@@ -49,17 +46,6 @@ void Coord3BaseGrid<value_t>::import(Grid<value_t, coord3> *other) {
         for(int y = -this->halo.y; y < this->dimensions.y+this->halo.y; y++) {
             for(int z = -this->halo.z; z < this->dimensions.z+this->halo.z; z++) {
                 this->set(coord3(x, y, z), (*other)[coord3(x, y, z)]);
-            }
-        }
-    }
-}
-
-template<typename value_t>
-void Coord3BaseGrid<value_t>::fill(value_t value) {
-    for(int x = -this->halo.x; x < this->dimensions.x+this->halo.x; x++) {
-        for(int y = -this->halo.y; y < this->dimensions.y+this->halo.y; y++) {
-            for(int z = -this->halo.z; z < this->dimensions.z+this->halo.z; z++) {
-                this->set(coord3(x, y, z), value);
             }
         }
     }

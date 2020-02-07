@@ -111,6 +111,10 @@ void FastWavesRefBenchmark<value_t>::populate_grids() {
         this->hhl->data[i] = dist(eng);
     }
 
+    // The reference implementation populates the grids to the values below
+    // I do not see how it makes any difference for the computation if we just run it on random data
+    // Therefore, commented out to allow us to run the benchmarks a little more quickly
+    /*
     // Now, to fill some of the Grids with more regular data in a certain range
     // Using this helper function
     auto fill_field = [&](Grid<value_t, coord3> *ptr, value_t offset1, value_t offset2, value_t base1, value_t base2, value_t spreadx, value_t spready) {
@@ -148,6 +152,7 @@ void FastWavesRefBenchmark<value_t>::populate_grids() {
     fill_field(this->hhl, 1.4, 0.3, 0.87, 1.11, 1.4, 2.3);
     fill_field(this->wgtfac, 1.4, 0.3, 0.87, 1.11, 1.4, 2.3);
     fill_field(this->fx, 1.4, 0.3, 0.87, 1.11, 1.4, 2.3);
+    */
 }
 
 template<typename value_t>

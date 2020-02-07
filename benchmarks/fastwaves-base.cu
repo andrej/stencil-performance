@@ -30,12 +30,6 @@ class FastWavesBaseBenchmark : public Benchmark {
     CudaBaseGrid<value_t, coord3> *wgtfac = NULL;
     CudaBaseGrid<value_t, coord3> *hhl = NULL;
 
-    // Intermediate Results
-    CudaBaseGrid<value_t, coord3> *ppgk = NULL;
-    CudaBaseGrid<value_t, coord3> *ppgc = NULL;
-    CudaBaseGrid<value_t, coord3> *ppgu = NULL;
-    CudaBaseGrid<value_t, coord3> *ppgv = NULL;
-
     // Outputs
     CudaBaseGrid<value_t, coord3> *u_out = NULL;
     CudaBaseGrid<value_t, coord3> *v_out = NULL;
@@ -82,7 +76,7 @@ edadlat(1) {
 
 template<typename value_t>
 void FastWavesBaseBenchmark<value_t>::setup() {
-    if(!this->reference_benchmark) {
+    if(!this->reference_benchmark && this->do_verify) {
         this->reference_benchmark = new FastWavesRefBenchmark<value_t>(this->size);
         this->reference_benchmark->c_flat_limit = this->c_flat_limit;
         this->reference_benchmark->dt_small = this->dt_small;
@@ -92,15 +86,29 @@ void FastWavesBaseBenchmark<value_t>::setup() {
 
     // Reset/ Import values
     // Inputs / Constants
-    this->u_in->import(this->reference_benchmark->u_pos);
-    this->v_in->import(this->reference_benchmark->v_pos);
-    this->u_tens->import(this->reference_benchmark->u_tens);
-    this->v_tens->import(this->reference_benchmark->v_tens);
-    this->rho->import(this->reference_benchmark->rho);
-    this->ppuv->import(this->reference_benchmark->ppuv);
-    this->fx->import(this->reference_benchmark->fx);
-    this->wgtfac->import(this->reference_benchmark->wgtfac);
-    this->hhl->import(this->reference_benchmark->hhl);
+    if(this->do_verify) {
+        this->u_in->import(this->reference_benchmark->u_pos);
+        this->v_in->import(this->reference_benchmark->v_pos);
+        this->u_tens->import(this->reference_benchmark->u_tens);
+        this->v_tens->import(this->reference_benchmark->v_tens);
+        this->rho->import(this->reference_benchmark->rho);
+        this->ppuv->import(this->reference_benchmark->ppuv);
+        this->fx->import(this->reference_benchmark->fx);
+        this->wgtfac->import(this->reference_benchmark->wgtfac);
+        this->hhl->import(this->reference_benchmark->hhl);
+    } else {
+        // Importing is expensive. If we do not verify, simply create some random values
+        // they need not be the same as some reference grid, as there is no reference
+        this->u_in->fill_random();
+        this->v_in->fill_random();
+        this->u_tens->fill_random();
+        this->v_tens->fill_random();
+        this->rho->fill_random();
+        this->ppuv->fill_random();
+        this->fx->fill_random();
+        this->wgtfac->fill_random();
+        this->hhl->fill_random();
+    }
 
     // Reset Outputs
     this->u_out->fill(0.0);
@@ -111,7 +119,9 @@ void FastWavesBaseBenchmark<value_t>::setup() {
 
 template<typename value_t>
 void FastWavesBaseBenchmark<value_t>::teardown() {
-    this->reference_benchmark->teardown();
+    if(this->reference_benchmark) {
+        this->reference_benchmark->teardown();
+    }
     delete this->u_in;
     delete this->v_in;
     delete this->u_tens;
@@ -121,10 +131,6 @@ void FastWavesBaseBenchmark<value_t>::teardown() {
     delete this->fx;
     delete this->wgtfac;
     delete this->hhl;
-    delete this->ppgk;
-    delete this->ppgc;
-    delete this->ppgu;
-    delete this->ppgv;
     delete this->u_out;
     delete this->v_out;
     this->Benchmark::teardown();
@@ -142,20 +148,6 @@ void FastWavesBaseBenchmark<value_t>::pre() {
     this->fx->prefetchToDevice();
     this->wgtfac->prefetchToDevice();
     this->hhl->prefetchToDevice();
-
-    // Intermediate Results
-    if(this->ppgk) {
-        this->ppgk->prefetchToDevice();
-    }
-    if(this->ppgc) {
-        this->ppgc->prefetchToDevice();
-    }
-    if(this->ppgu) {
-         this->ppgu->prefetchToDevice();
-    }
-    if(this->ppgv) {
-        this->ppgv->prefetchToDevice();
-    }
 
     // Outputs
     this->u_out->prefetchToDevice();

@@ -1,6 +1,5 @@
 #ifndef LAPLAP_BASE_BENCHMARK_H
 #define LAPLAP_BASE_BENCHMARK_H
-#include <random>
 #include <stdlib.h>
 #include "benchmarks/benchmark.cu"
 #include "grids/regular.cu"
@@ -39,18 +38,7 @@ Benchmark(size) {
 
 template<typename value_t>
 void LapLapBaseBenchmark<value_t>::setup() {
-    std::default_random_engine gen;
-    std::uniform_real_distribution<value_t> dist(-1.0, +1.0);
-    Coord3BaseGrid<value_t> *in = dynamic_cast<Coord3BaseGrid<value_t> *>(this->input);
-    for(int i = -in->halo.x; i < in->dimensions.x+in->halo.x; i++) {
-        for(int j = -in->halo.y; j < in->dimensions.y+in->halo.y; j++) {
-            for(int k = -in->halo.z; k < in->dimensions.z+in->halo.z; k++) {
-                coord3 p(i, j, k);
-                in->set(p, dist(gen));
-            }
-        }
-    }
-    this->output->fill(0.0);
+    this->input->fill_random();
     this->Benchmark::setup();
 }
 

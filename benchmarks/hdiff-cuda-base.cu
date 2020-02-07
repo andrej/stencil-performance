@@ -82,7 +82,7 @@ halo(coord3(2, 2, 0)) {
 
 template<typename value_t>
 void HdiffCudaBaseBenchmark<value_t>::setup(){
-    if(!this->reference_bench) {
+    if(!this->reference_bench && this->do_verify) {
         if(HdiffCudaBaseBenchmark<value_t>::reference_benchs->count(this->size) > 0) {
             // already calculated in cache
             this->reference_bench = (*HdiffCudaBaseBenchmark<value_t>::reference_benchs)[this->size];
@@ -94,8 +94,13 @@ void HdiffCudaBaseBenchmark<value_t>::setup(){
         }
     }
     /* Import values from reference grids to ensure same conditions. */
-    this->input->import(this->reference_bench->input);
-    this->coeff->import(this->reference_bench->coeff);
+    if(this->do_verify) {
+        this->input->import(this->reference_bench->input);
+        this->coeff->import(this->reference_bench->coeff);
+    } else {
+        this->input->fill_random();
+        this->coeff->fill_random();
+    }
     if(this->lap) {
         this->lap->fill(0.0);
     }
