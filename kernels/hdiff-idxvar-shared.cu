@@ -24,59 +24,54 @@ void hdiff_idxvar_shared(const HdiffCudaBase::Info info,
     }
     
     extern __shared__ char smem[]; // stores four neighbors of cell i at smem[i*4]
-    int * __restrict__ idxvars = (int *)smem;
     const int local_idx = (threadIdx.x + threadIdx.y*blockDim.x) * 12;
-    const int global_idx_2d = INDEX(i, j, 0);
-    const int k_step = K_STEP;
-
-    int n_0_0_0, n_0_n1_0, n_0_n2_0, n_n1_0_0, n_n1_n1_0, n_n2_0_0, n_0_p1_0, n_0_p2_0, n_p1_0_0, n_p1_p1_0, n_p2_0_0, n_n1_p1_0, n_p1_n1_0; 
-    
+    int * __restrict__ idxvars = &((int *)smem)[local_idx];
     const bool is_first = k % blockDim.z == 0;
-
-    n_0_0_0 = global_idx_2d;
-
+    const int k_step = K_STEP;
+    int n_0_0_0, n_0_n1_0, n_0_n2_0, n_n1_0_0, n_n1_n1_0, n_n2_0_0, n_0_p1_0, n_0_p2_0, n_p1_0_0, n_p1_p1_0, n_p2_0_0, n_n1_p1_0, n_p1_n1_0; 
+    n_0_0_0 = INDEX(i, j, 0);
     if(is_first) {
         // We are the thread responsible for looking up neighbor info
-        /*  0 -1 */ n_0_n1_0 =  idxvars[local_idx+0] = NEIGHBOR(global_idx_2d, 0, -1, 0);
-        /* -1  0 */ n_n1_0_0 =  idxvars[local_idx+1] = NEIGHBOR(global_idx_2d, -1, 0, 0);
-        /*  0 +1 */ n_0_p1_0 =  idxvars[local_idx+2] = NEIGHBOR(global_idx_2d, 0, +1, 0);
-        /* +1  0 */ n_p1_0_0 =  idxvars[local_idx+3] = NEIGHBOR(global_idx_2d, +1, 0, 0);
+        /*  0 -1 */ n_0_n1_0 =  idxvars[0] = NEIGHBOR(n_0_0_0, 0, -1, 0);
+        /* -1  0 */ n_n1_0_0 =  idxvars[1] = NEIGHBOR(n_0_0_0, -1, 0, 0);
+        /*  0 +1 */ n_0_p1_0 =  idxvars[2] = NEIGHBOR(n_0_0_0, 0, +1, 0);
+        /* +1  0 */ n_p1_0_0 =  idxvars[3] = NEIGHBOR(n_0_0_0, +1, 0, 0);
         #ifdef CHASING
-        /*  0 -2 */ n_0_n2_0 =  idxvars[local_idx+4] = NEIGHBOR(n_0_n1_0, 0, -1, 0);
-        /* -1 -1 */ n_n1_n1_0 = idxvars[local_idx+5] = NEIGHBOR(n_n1_0_0, 0, -1, 0);
-        /* -2  0 */ n_n2_0_0 =  idxvars[local_idx+6] = NEIGHBOR(n_n1_0_0, -1, 0, 0);
-        /*  0 +2 */ n_0_p2_0 =  idxvars[local_idx+7] = NEIGHBOR(n_0_p1_0, 0, +1, 0);
-        /* +1 +1 */ n_p1_p1_0 = idxvars[local_idx+8] = NEIGHBOR(n_p1_0_0, 0, +1, 0);
-        /* +2  0 */ n_p2_0_0 =  idxvars[local_idx+9] = NEIGHBOR(n_p1_0_0, +1, 0, 0);
-        /* -1 +1 */ n_n1_p1_0 = idxvars[local_idx+10]= NEIGHBOR(n_n1_0_0, 0, +1, 0);
-        /* +1 -1 */ n_p1_n1_0 = idxvars[local_idx+11]= NEIGHBOR(n_p1_0_0, 0, -1, 0);
+        /*  0 -2 */ n_0_n2_0 =  idxvars[4] = NEIGHBOR(n_0_n1_0, 0, -1, 0);
+        /* -1 -1 */ n_n1_n1_0 = idxvars[5] = NEIGHBOR(n_n1_0_0, 0, -1, 0);
+        /* -2  0 */ n_n2_0_0 =  idxvars[6] = NEIGHBOR(n_n1_0_0, -1, 0, 0);
+        /*  0 +2 */ n_0_p2_0 =  idxvars[7] = NEIGHBOR(n_0_p1_0, 0, +1, 0);
+        /* +1 +1 */ n_p1_p1_0 = idxvars[8] = NEIGHBOR(n_p1_0_0, 0, +1, 0);
+        /* +2  0 */ n_p2_0_0 =  idxvars[9] = NEIGHBOR(n_p1_0_0, +1, 0, 0);
+        /* -1 +1 */ n_n1_p1_0 = idxvars[10]= NEIGHBOR(n_n1_0_0, 0, +1, 0);
+        /* +1 -1 */ n_p1_n1_0 = idxvars[11]= NEIGHBOR(n_p1_0_0, 0, -1, 0);
         #else
-        /*  0 -2 */ n_0_n2_0 =  idxvars[local_idx+4] = DOUBLE_NEIGHBOR(global_idx_2d, 0, -1, 0, 0, -1, 0);
-        /* -1 -1 */ n_n1_n1_0 = idxvars[local_idx+5] = DOUBLE_NEIGHBOR(global_idx_2d, -1, 0, 0, 0, -1, 0);
-        /* -2  0 */ n_n2_0_0 =  idxvars[local_idx+6] = DOUBLE_NEIGHBOR(global_idx_2d, -1, 0, 0, -1, 0, 0);
-        /*  0 +2 */ n_0_p2_0 =  idxvars[local_idx+7] = DOUBLE_NEIGHBOR(global_idx_2d, 0, +1, 0, 0, +1, 0);
-        /* +1 +1 */ n_p1_p1_0 = idxvars[local_idx+8] = DOUBLE_NEIGHBOR(global_idx_2d, +1, 0, 0, 0, +1, 0);
-        /* +2  0 */ n_p2_0_0 =  idxvars[local_idx+9] = DOUBLE_NEIGHBOR(global_idx_2d, +1, 0, 0, +1, 0, 0);
-        /* -1 +1 */ n_n1_p1_0 = idxvars[local_idx+10]= DOUBLE_NEIGHBOR(global_idx_2d, -1, 0, 0, 0, +1, 0);
-        /* +1 -1 */ n_p1_n1_0 = idxvars[local_idx+11]= DOUBLE_NEIGHBOR(global_idx_2d, +1, 0, 0, 0, -1, 0);
+        /*  0 -2 */ n_0_n2_0 =  idxvars[4] = DOUBLE_NEIGHBOR(n_0_0_0, 0, -1, 0, 0, -1, 0);
+        /* -1 -1 */ n_n1_n1_0 = idxvars[5] = DOUBLE_NEIGHBOR(n_0_0_0, -1, 0, 0, 0, -1, 0);
+        /* -2  0 */ n_n2_0_0 =  idxvars[6] = DOUBLE_NEIGHBOR(n_0_0_0, -1, 0, 0, -1, 0, 0);
+        /*  0 +2 */ n_0_p2_0 =  idxvars[7] = DOUBLE_NEIGHBOR(n_0_0_0, 0, +1, 0, 0, +1, 0);
+        /* +1 +1 */ n_p1_p1_0 = idxvars[8] = DOUBLE_NEIGHBOR(n_0_0_0, +1, 0, 0, 0, +1, 0);
+        /* +2  0 */ n_p2_0_0 =  idxvars[9] = DOUBLE_NEIGHBOR(n_0_0_0, +1, 0, 0, +1, 0, 0);
+        /* -1 +1 */ n_n1_p1_0 = idxvars[10]= DOUBLE_NEIGHBOR(n_0_0_0, -1, 0, 0, 0, +1, 0);
+        /* +1 -1 */ n_p1_n1_0 = idxvars[11]= DOUBLE_NEIGHBOR(n_0_0_0, +1, 0, 0, 0, -1, 0);
         #endif
     }
 
     __syncthreads();
 
     if(!is_first) {
-        n_0_n1_0 = idxvars[local_idx+0];
-        n_n1_0_0 = idxvars[local_idx+1];
-        n_0_p1_0 = idxvars[local_idx+2];
-        n_p1_0_0 = idxvars[local_idx+3];
-        n_0_n2_0 = idxvars[local_idx+4];
-        n_n1_n1_0 = idxvars[local_idx+5];
-        n_n2_0_0 = idxvars[local_idx+6];
-        n_0_p2_0 = idxvars[local_idx+7];
-        n_p1_p1_0 = idxvars[local_idx+8];
-        n_p2_0_0 = idxvars[local_idx+9];
-        n_n1_p1_0 = idxvars[local_idx+10];
-        n_p1_n1_0 = idxvars[local_idx+11];
+        n_0_n1_0 = idxvars[0];
+        n_n1_0_0 = idxvars[1];
+        n_0_p1_0 = idxvars[2];
+        n_p1_0_0 = idxvars[3];
+        n_0_n2_0 = idxvars[4];
+        n_n1_n1_0 = idxvars[5];
+        n_n2_0_0 = idxvars[6];
+        n_0_p2_0 = idxvars[7];
+        n_p1_p1_0 = idxvars[8];
+        n_p2_0_0 = idxvars[9];
+        n_n1_p1_0 = idxvars[10];
+        n_p1_n1_0 = idxvars[11];
     }
     
     n_0_0_0 += k_step;
