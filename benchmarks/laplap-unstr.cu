@@ -81,6 +81,7 @@ class LapLapUnstrBenchmark : public LapLapBaseBenchmark<value_t> {
     int *neighborships;
 
     typename UnstructuredGrid3D<value_t>::layout_t layout = UnstructuredGrid3D<value_t>::rowmajor;
+    int z_curve_width = 4;
 
 };
 
@@ -191,7 +192,7 @@ template<typename value_t>
 void LapLapUnstrBenchmark<value_t>::setup() {
     coord3 halo2(2, 2, 0);
     int neighbor_store_depth = (this->pointer_chasing ? 1 : 2);
-    CudaUnstructuredGrid3D<value_t> *input = CudaUnstructuredGrid3D<value_t>::create_regular(this->inner_size, halo2, this->layout, neighbor_store_depth);
+    CudaUnstructuredGrid3D<value_t> *input = CudaUnstructuredGrid3D<value_t>::create_regular(this->inner_size, halo2, this->layout, neighbor_store_depth, this->z_curve_width);
     this->input = input;
     this->output = CudaUnstructuredGrid3D<value_t>::clone(*input);
     if(this->variant == LapLapUnstr::unfused) {
@@ -239,10 +240,15 @@ void LapLapUnstrBenchmark<value_t>::parse_args() {
         std::string arg = std::string(this->argv[i]);
         if(arg == "--z-curves" || arg == "-z") {
             this->layout = CudaUnstructuredGrid3D<value_t>::zcurve;
+        } else if(arg == "--random" || arg == "-r") {
+            this->layout = CudaUnstructuredGrid3D<value_t>::random;
         } else if(arg == "--no-chase" || arg == "-c") {
             this->pointer_chasing = false;
+        } else if(arg == "--z-curve-width" && this->argc > i+1) {
+            sscanf(this->argv[i+1], "%d", &this->z_curve_width);
+            ++i;
         } else if(this->variant == LapLapUnstr::idxvar_kloop_sliced) {
-            sscanf(this->argv[0], "%d", &this->k_per_thread);
+            sscanf(this->argv[i], "%d", &this->k_per_thread);
         } else {
             this->Benchmark::parse_args();
         }
@@ -252,6 +258,9 @@ void LapLapUnstrBenchmark<value_t>::parse_args() {
     }
     if(this->layout == CudaUnstructuredGrid3D<value_t>::zcurve) {
         this->name.append("-z-curves");
+    }
+    if(this->layout == CudaUnstructuredGrid3D<value_t>::random) {
+        this->name.append("-random");
     }
 }
 

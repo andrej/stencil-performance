@@ -38,7 +38,7 @@ virtual public Coord3BaseGrid<value_t> {
     int index(coord3 coords);
     coord3 coordinate(int index);
     int padding; // pad data so that (0, 0, 0) is at alignment boundary (pad the first halo)
-    int alignment = 64; // strides are mutliple of this; together with padding this ensures that first cell in a row is alwas at multiple of alignment -> coalescing memory accesses
+    int alignment = 32; // strides are mutliple of this; together with padding this ensures that first cell in a row is alwas at multiple of alignment -> coalescing memory accesses
     int zero_offset; // position in data of (0, 0, 0)
     
     using Grid<value_t, coord3>::neighbor;

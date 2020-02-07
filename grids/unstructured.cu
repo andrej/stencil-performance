@@ -12,6 +12,8 @@
 #include "grids/coord3-base.cu"
 #include "grids/zcurve-util.cu"
 
+#define DEFAULT_Z_CURVE_WIDTH 4
+
 /** Unstructured Grid in 2 coords, structured in one Y-coordinate
  *
  * Cell grids can still be accessed by coordinates, but it is up to the user of
@@ -65,8 +67,8 @@ virtual public Coord3BaseGrid<value_t> {
     static UnstructuredGrid3D<value_t> *create(coord3 dimensions, coord3 halo=coord3(0, 0, 0), int neighbor_store_depth=1, int *neighborships=NULL);
     
     /** Return a new grid with regular neighborship relations. */
-    enum layout_t { rowmajor, zcurve };
-    static UnstructuredGrid3D<value_t> *create_regular(coord3 dims, coord3 halo=coord3(0, 0, 0), layout_t layout=rowmajor, int neighbor_store_depth=1);
+    enum layout_t { rowmajor, zcurve, random };
+    static UnstructuredGrid3D<value_t> *create_regular(coord3 dims, coord3 halo=coord3(0, 0, 0), layout_t layout=rowmajor, int neighbor_store_depth=1, unsigned char z_curve_width = DEFAULT_Z_CURVE_WIDTH);
 
     int index(coord3 coord);
     coord3 coordinate(int index);
@@ -114,7 +116,7 @@ virtual public Coord3BaseGrid<value_t> {
     /** "Fake" a regular grid by adding the neighborship relations that a
      * regular grid would have, i.e. add top, left, right, bottom, front and
      * back neighbors as in a regular grid. */
-    void add_regular_nodes(layout_t layout=rowmajor);
+    void add_regular_nodes(layout_t layout=rowmajor, unsigned char z_curve_width = DEFAULT_Z_CURVE_WIDTH);
     void add_regular_halo();
     void add_regular_neighbors();
 
@@ -154,10 +156,10 @@ UnstructuredGrid3D<value_t> *UnstructuredGrid3D<value_t>::create(coord3 dims, co
 
 /* Simulate regular grid with neighbor lookup overhead */
 template<typename value_t>
-UnstructuredGrid3D<value_t> *UnstructuredGrid3D<value_t>::create_regular(coord3 dims, coord3 halo, layout_t layout, int neighbor_store_depth) {
+UnstructuredGrid3D<value_t> *UnstructuredGrid3D<value_t>::create_regular(coord3 dims, coord3 halo, layout_t layout, int neighbor_store_depth, unsigned char z_curve_width) {
     UnstructuredGrid3D<value_t> *obj = new UnstructuredGrid3D<value_t>(dims, halo, neighbor_store_depth);
     obj->init();
-    obj->add_regular_nodes(layout);
+    obj->add_regular_nodes(layout, z_curve_width);
     obj->add_regular_neighbors();
     return obj;
 }
@@ -371,7 +373,7 @@ void UnstructuredGrid3D<value_t>::add_neighbor(int A, int B, coord3 offs, int de
 
 /* Add all the nodes of a regular grid */
 template<typename value_t>
-void UnstructuredGrid3D<value_t>::add_regular_nodes(layout_t layout) {
+void UnstructuredGrid3D<value_t>::add_regular_nodes(layout_t layout, unsigned char z_curve_width) {
     // Add the halo nodes with their seperate layout, first of everything else
     this->add_regular_halo();
 
@@ -389,11 +391,14 @@ void UnstructuredGrid3D<value_t>::add_regular_nodes(layout_t layout) {
     // even if the grid is not square (We simply use the Z-curve index for comparison
     // between coordinates, i.e. ordering. In the grid, the indices might be lower, not sparse).    
     if(layout == zcurve) {
-        int width = 4; // don't intertwine last 4 bits -> leads to curve being 32 elements wide
-        StretchedZCurveComparator comp(width);
+        StretchedZCurveComparator comp(z_curve_width);
         std::sort(coord_sequence.begin(), coord_sequence.end(), comp);
+    } else if(layout == random) {
+        // The first (0, 0, 0) element should not be shuffled as pointer to (0, 0, 0) is used as
+        // pointer to the start of the inner data!
+        std::random_shuffle(coord_sequence.begin()+1, coord_sequence.end());
     } else {
-        // already sorted by the way we inserted it
+        // rowmajor; already sorted that way by the way we inserted it
     }
 
     // Actually add the nodes

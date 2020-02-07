@@ -47,7 +47,6 @@ void LapLapBaseBenchmark<value_t>::setup() {
             for(int k = -in->halo.z; k < in->dimensions.z+in->halo.z; k++) {
                 coord3 p(i, j, k);
                 in->set(p, dist(gen));
-                in->set(p, 100*abs(i) + 10*abs(j) + 1*abs(k));
             }
         }
     }

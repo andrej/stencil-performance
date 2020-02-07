@@ -215,6 +215,8 @@ void HdiffCudaUnstrBenchmark<value_t>::parse_args() {
         std::string arg = std::string(this->argv[i]);
         if(arg == "--z-curves" || arg == "-z") {
             this->layout = CudaUnstructuredGrid3D<value_t>::zcurve;
+        } else if(arg == "--random" || arg == "-r") {
+            this->layout = CudaUnstructuredGrid3D<value_t>::random;
         } else if(arg == "--no-chase" || arg == "-c") {
             this->pointer_chasing = false;
         } else {
@@ -226,6 +228,9 @@ void HdiffCudaUnstrBenchmark<value_t>::parse_args() {
     }
     if(this->layout == CudaUnstructuredGrid3D<value_t>::zcurve) {
         this->name.append("-z-curves");
+    }
+    if(this->layout == CudaUnstructuredGrid3D<value_t>::random) {
+        this->name.append("-random");
     }
 }
 
