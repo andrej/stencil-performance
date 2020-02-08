@@ -12,23 +12,23 @@
  * Namespace containing the kernel variants that use the regular grid macros. */
 namespace HdiffCudaRegular {
 
-    enum Variant { naive, iloop, jloop, kloop, coop, idxvar, idxvar_kloop, idxvar_shared, shared, shared_kloop };
+    enum Variant { naive, iloop, jloop, kloop, idxvar, idxvar_kloop, idxvar_kloop_sliced, idxvar_shared, shared };
 
     #define GRID_ARGS const int y_stride, const int z_stride, 
     #define INDEX(x, y, z) GRID_REGULAR_INDEX(y_stride, z_stride, x, y, z)
-    #define IS_IN_BOUNDS(i, j, k) (i < info.max_coord.x && j < info.max_coord.y && k < info.max_coord.z)
+    #define IS_IN_BOUNDS(i, j, k) (i < max_coord.x && j < max_coord.y && k < max_coord.z)
     #define NEIGHBOR(idx, x_, y_, z_) GRID_REGULAR_NEIGHBOR(y_stride, z_stride, idx, x_, y_, z_)
     #define DOUBLE_NEIGHBOR(idx, x1, y1, z1, x2, y2, z2) NEIGHBOR(idx, (x1+x2), (y1+y2), (z1+z2))
-    #define NEXT_Z_NEIGHBOR(idx) (idx+z_stride)
+    #define Z_NEIGHBOR(idx, z) (idx+z*z_stride)
     #define K_STEP k*z_stride
 
     #include "kernels/hdiff-naive.cu"
     #include "kernels/hdiff-iloop.cu"
     #include "kernels/hdiff-jloop.cu"
     #include "kernels/hdiff-kloop.cu"
-    #include "kernels/hdiff-coop.cu"
     #include "kernels/hdiff-idxvar.cu"
     #include "kernels/hdiff-idxvar-kloop.cu"
+    #include "kernels/hdiff-idxvar-kloop-sliced.cu"
     #include "kernels/hdiff-idxvar-shared.cu"
 
     #define SMEM_GRID_ARGS
@@ -36,14 +36,13 @@ namespace HdiffCudaRegular {
     #define SMEM_NEIGHBOR(idx, x_, y_, z_) GRID_REGULAR_NEIGHBOR((int)blockDim.x, (int)blockDim.x*(int)blockDim.y, idx, x_, y_, z_)
 
     #include "kernels/hdiff-shared.cu"
-    #include "kernels/hdiff-shared-kloop.cu"
 
     #undef GRID_ARGS
     #undef INDEX
     #undef IS_IN_BOUNDS
     #undef NEIGHBOR
     #undef DOUBLE_NEIGHBOR
-    #undef NEXT_Z_NEIGHBOR
+    #undef Z_NEIGHBOR
     #undef K_STEP
     #undef SMEM_GRID_ARGS
     #undef SMEM_INDEX
@@ -74,6 +73,7 @@ class HdiffCudaRegularBenchmark : public HdiffCudaBaseBenchmark<value_t> {
     virtual void parse_args();
     int jloop_j_per_thread;
     int iloop_i_per_thread;
+    int k_per_thread = 8;
 
     coord3 strides;
 
@@ -91,10 +91,6 @@ HdiffCudaBaseBenchmark<value_t>(size) {
         this->name = "hdiff-regular-kloop";
     } else if(variant == HdiffCudaRegular::shared) {
         this->name = "hdiff-regular-shared";
-    } else if(variant == HdiffCudaRegular::shared_kloop) {
-        this->name = "hdiff-regular-shared-kloop";
-    } else if(variant == HdiffCudaRegular::coop) {
-        this->name = "hdiff-regular-coop";
     } else if(variant == HdiffCudaRegular::jloop) {
         this->name = "hdiff-regular-jloop";
     } else if(variant == HdiffCudaRegular::iloop) {
@@ -103,7 +99,9 @@ HdiffCudaBaseBenchmark<value_t>(size) {
         this->name = "hdiff-regular-idxvar";
     } else if(variant == HdiffCudaRegular::idxvar_kloop) {
         this->name = "hdiff-regular-idxvar-kloop";
-    } else {
+    } else if(variant == HdiffCudaRegular::idxvar_kloop_sliced) {
+        this->name = "hdiff-regular-idxvar-kloop-sliced";
+    } else if(variant == HdiffCudaRegular::idxvar_shared){
         this->name = "hdiff-regular-idxvar-shared";
     }
 }
@@ -114,7 +112,7 @@ void HdiffCudaRegularBenchmark<value_t>::run() {
     dim3 numblocks = this->numblocks();
     if(this->variant == HdiffCudaRegular::naive) {
         HdiffCudaRegular::hdiff_naive<value_t><<<this->numblocks(), this->numthreads()>>>(
-            this->get_info(),
+            this->inner_size,
             this->strides.y, this->strides.z,
             this->input->pointer(coord3(0, 0, 0)),
             this->output->pointer(coord3(0, 0, 0)),
@@ -122,36 +120,16 @@ void HdiffCudaRegularBenchmark<value_t>::run() {
         );
     } else if(this->variant == HdiffCudaRegular::kloop) {
         HdiffCudaRegular::hdiff_kloop<value_t><<<this->numblocks(), this->numthreads()>>>(
-            this->get_info(),
+            this->inner_size,
             this->strides.y, this->strides.z,
             this->input->pointer(coord3(0, 0, 0)),
             this->output->pointer(coord3(0, 0, 0)),
             this->coeff->pointer(coord3(0, 0, 0))
-        );
-    } else if(this->variant == HdiffCudaRegular::coop) {
-        HdiffCudaRegular::hdiff_coop<value_t><<<this->numblocks(), this->numthreads()>>>(
-            this->get_info(),
-            this->strides.y, this->strides.z,
-            this->input->pointer(coord3(0, 0, 0)),
-            this->output->pointer(coord3(0, 0, 0)),
-            this->coeff->pointer(coord3(0, 0, 0)),
-            this->lap->pointer(coord3(0, 0, 0)),
-            this->flx->pointer(coord3(0, 0, 0)),
-            this->fly->pointer(coord3(0, 0, 0))
         );
     } else if(this->variant == HdiffCudaRegular::shared) {
         int smem_size = 3*numthreads.x*numthreads.y*numthreads.z*sizeof(value_t);
         HdiffCudaRegular::hdiff_shared<value_t><<<this->numblocks(), numthreads, smem_size>>>(
-            this->get_info(),
-            this->strides.y, this->strides.z,
-            this->input->pointer(coord3(0, 0, 0)),
-            this->output->pointer(coord3(0, 0, 0)),
-            this->coeff->pointer(coord3(0, 0, 0))
-        );
-    } else if(this->variant == HdiffCudaRegular::shared_kloop) {
-        int smem_size = 3*numthreads.x*numthreads.y*sizeof(value_t);
-        HdiffCudaRegular::hdiff_shared_kloop<value_t><<<numblocks, numthreads, smem_size>>>(
-            this->get_info(),
+            this->inner_size,
             this->strides.y, this->strides.z,
             this->input->pointer(coord3(0, 0, 0)),
             this->output->pointer(coord3(0, 0, 0)),
@@ -159,7 +137,7 @@ void HdiffCudaRegularBenchmark<value_t>::run() {
         );
     } else if(this->variant == HdiffCudaRegular::jloop) {
         HdiffCudaRegular::hdiff_jloop<value_t><<<this->numblocks(), this->numthreads()>>>(
-            this->get_info(),
+            this->inner_size,
             this->strides.y, this->strides.z,
             this->jloop_j_per_thread,
             this->input->pointer(coord3(0, 0, 0)),
@@ -168,7 +146,7 @@ void HdiffCudaRegularBenchmark<value_t>::run() {
         );
     } else if(this->variant == HdiffCudaRegular::iloop) {
         HdiffCudaRegular::hdiff_iloop<value_t><<<this->numblocks(), this->numthreads()>>>(
-            this->get_info(),
+            this->inner_size,
             this->strides.y, this->strides.z,
             this->iloop_i_per_thread,
             this->input->pointer(coord3(0, 0, 0)),
@@ -177,24 +155,33 @@ void HdiffCudaRegularBenchmark<value_t>::run() {
         );
     } else if(this->variant == HdiffCudaRegular::idxvar) {
         HdiffCudaRegular::hdiff_idxvar<value_t><<<this->numblocks(), this->numthreads()>>>(
-            this->get_info(),
+            this->inner_size,
             this->strides.y, this->strides.z,
             this->input->pointer(coord3(0, 0, 0)),
             this->output->pointer(coord3(0, 0, 0)),
             this->coeff->pointer(coord3(0, 0, 0))
         );
     } else if(this->variant == HdiffCudaRegular::idxvar_shared) {
-        int smem_size = numthreads.x*numthreads.y*12*sizeof(int);
+        int smem_size = HDIFF_IDXVAR_SHARED_SMEM_SZ_PER_THREAD*numthreads.x*numthreads.y*sizeof(int);
         HdiffCudaRegular::hdiff_idxvar_shared<value_t><<<this->numblocks(), this->numthreads(), smem_size>>>(
-            this->get_info(),
+            this->inner_size,
             this->strides.y, this->strides.z,
             this->input->pointer(coord3(0, 0, 0)),
             this->output->pointer(coord3(0, 0, 0)),
             this->coeff->pointer(coord3(0, 0, 0))
         );
-    } else {
+    } else if(this->variant == HdiffCudaRegular::idxvar_kloop) {
         HdiffCudaRegular::hdiff_idxvar_kloop<value_t><<<this->numblocks(), this->numthreads()>>>(
-            this->get_info(),
+            this->inner_size,
+            this->strides.y, this->strides.z,
+            this->input->pointer(coord3(0, 0, 0)),
+            this->output->pointer(coord3(0, 0, 0)),
+            this->coeff->pointer(coord3(0, 0, 0))
+        );
+    } else if(this->variant == HdiffCudaRegular::idxvar_kloop_sliced) {
+        HdiffCudaRegular::hdiff_idxvar_kloop_sliced<value_t><<<this->numblocks(), this->numthreads()>>>(
+            this->k_per_thread,
+            this->inner_size,
             this->strides.y, this->strides.z,
             this->input->pointer(coord3(0, 0, 0)),
             this->output->pointer(coord3(0, 0, 0)),
@@ -241,14 +228,13 @@ template<typename value_t>
 dim3 HdiffCudaRegularBenchmark<value_t>::numthreads(coord3 domain) {
     domain = this->inner_size;
     if(this->variant == HdiffCudaRegular::kloop ||
-        this->variant == HdiffCudaRegular::idxvar_kloop ||
-        this->variant == HdiffCudaRegular::shared_kloop) {
+        this->variant == HdiffCudaRegular::idxvar_kloop) {
         domain.z = 1;
-    }
-    if(this->variant == HdiffCudaRegular::jloop) {
+    } else if(this->variant == HdiffCudaRegular::idxvar_kloop_sliced) {
+        domain.z = ((this->inner_size.z + this->k_per_thread - 1) / this->k_per_thread);
+    } else if(this->variant == HdiffCudaRegular::jloop) {
         domain.y = 1;
-    }
-    if(this->variant == HdiffCudaRegular::iloop) {
+    } else if(this->variant == HdiffCudaRegular::iloop) {
         domain.x = 1;
     }
     dim3 numthreads = this->HdiffCudaBaseBenchmark<value_t>::numthreads(domain);
@@ -259,14 +245,13 @@ template<typename value_t>
 dim3 HdiffCudaRegularBenchmark<value_t>::numblocks(coord3 domain) {
     domain = this->size;
     if(this->variant == HdiffCudaRegular::kloop ||
-        this->variant == HdiffCudaRegular::idxvar_kloop ||
-        this->variant == HdiffCudaRegular::shared_kloop) {
+        this->variant == HdiffCudaRegular::idxvar_kloop) {
         domain.z = 1;
-    }
-    if(this->variant == HdiffCudaRegular::jloop) {
+    } else if(this->variant == HdiffCudaRegular::idxvar_kloop_sliced) {
+        domain.z = ((this->inner_size.z + this->k_per_thread - 1) / this->k_per_thread);
+    } else if(this->variant == HdiffCudaRegular::jloop) {
         domain.y = (this->size.y + this->jloop_j_per_thread - 1) / this->jloop_j_per_thread;
-    }
-    if(this->variant == HdiffCudaRegular::iloop) {
+    } else if(this->variant == HdiffCudaRegular::iloop) {
         domain.x = (this->size.x + this->iloop_i_per_thread - 1) / this->iloop_i_per_thread;
     }
     dim3 numblocks = this->HdiffCudaBaseBenchmark<value_t>::numblocks(domain);
@@ -282,6 +267,9 @@ void HdiffCudaRegularBenchmark<value_t>::parse_args() {
         }
         if(this->variant == HdiffCudaRegular::iloop) {
             sscanf(this->argv[0], "%d", &this->iloop_i_per_thread);
+        }
+        if(this->variant == HdiffCudaRegular::idxvar_kloop_sliced) {
+            sscanf(this->argv[0], "%d", &this->k_per_thread);
         }
     } else {
         if(this->variant == HdiffCudaRegular::jloop) {

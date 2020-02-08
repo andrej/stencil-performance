@@ -135,7 +135,9 @@ dim3 Benchmark::numblocks(coord3 domain) {
     if(this->_numblocks.x != 0 &&
         this->_numblocks.y != 0 &&
         this->_numblocks.z != 0) {
-        return this->_numblocks;
+        return dim3(this->_numblocks.x < domain.x ? this->_numblocks.x : domain.x,
+                    this->_numblocks.y < domain.y ? this->_numblocks.y : domain.y,
+                    this->_numblocks.z < domain.z ? this->_numblocks.z : domain.z);
     }
     if(domain == coord3(0, 0, 0)) {
         domain = this->size;
@@ -151,7 +153,9 @@ dim3 Benchmark::numthreads(coord3 domain) {
     if(this->_numthreads.x != 0 &&
         this->_numthreads.y != 0 &&
         this->_numthreads.z != 0) {
-        return this->_numthreads;
+        return dim3(this->_numthreads.x < domain.x ? this->_numthreads.x : domain.x,
+            this->_numthreads.y < domain.y ? this->_numthreads.y : domain.y,
+            this->_numthreads.z < domain.z ? this->_numthreads.z : domain.z);
     }
     if(domain == coord3(0, 0, 0)) {
         domain = this->size;

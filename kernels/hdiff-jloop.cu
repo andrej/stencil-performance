@@ -4,7 +4,7 @@
  * cells (in data) in each loop iteration, so memory accesses coalesce. */
 template<typename value_t>
 __global__
-void hdiff_jloop(const HdiffCudaBase::Info info,
+void hdiff_jloop(const coord3 max_coord,
                  GRID_ARGS
                  const int j_per_thread,
                  const value_t *in,
@@ -21,8 +21,8 @@ void hdiff_jloop(const HdiffCudaBase::Info info,
     int idx = INDEX(i, j_start, k);
 
     int j_stop = j_start + j_per_thread;
-    if(j_stop > info.max_coord.y) {
-        j_stop = info.max_coord.y;
+    if(j_stop > max_coord.y) {
+        j_stop = max_coord.y;
     }
     
     // first calculation outside of loop will be shifted into lap_ijm / fly_ijm on first iteration

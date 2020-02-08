@@ -265,9 +265,11 @@ int UnstructuredGrid3D<value_t>::neighbor_pointer(int index, coord3 offs) {
 }
 
 /** Gives the index of the desired neighbor */
+// Using 2D neighbor saves expensive modulus operation -> must ensure Z=0!
 #define GRID_UNSTR_2D_NEIGHBOR(neighborships, z_stride, index, x, y) /* 2D for case Z=0 */ \
      ( (index) \
        + (x!=0 || y!=0 ? neighborships[GRID_UNSTR_2D_NEIGHBOR_PTR(z_stride, index, x, y)] : 0 ) )
+// General purpose macro that also works for indices with Z>0
 #define GRID_UNSTR_NEIGHBOR(neighborships, z_stride, index, x, y, z) /* Cases Z>=0 */ \
      ( (index) \
        + (x!=0 || y!=0 ? neighborships[GRID_UNSTR_NEIGHBOR_PTR(z_stride, index, x, y)] : 0) \

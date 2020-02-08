@@ -12,7 +12,7 @@
  */
 template<typename value_t>
 __global__
-void hdiff_naive(HdiffCudaBase::Info info,
+void hdiff_naive(const coord3 max_coord,
                  GRID_ARGS
                  const value_t *in,
                  value_t *out,

@@ -10,11 +10,11 @@
 namespace HdiffCudaUnstr {
 
     /** Variants of this benchmark. */
-    enum Variant { naive, idxvar, idxvar_kloop, idxvar_shared };
+    enum Variant { naive, idxvar, idxvar_kloop, idxvar_kloop_sliced, idxvar_shared };
 
     #define GRID_ARGS const int * __restrict__ neighborships, const int z_stride, const int offs,
     #define INDEX(x_, y_, z_) (x_) + (y_)*blockDim.x*gridDim.x + offs + (z_)*z_stride
-    #define IS_IN_BOUNDS(i, j, k) (i + j*blockDim.x*gridDim.x < (z_stride-offs) && k < info.max_coord.z)
+    #define IS_IN_BOUNDS(i, j, k) (i + j*blockDim.x*gridDim.x < (z_stride-offs) && k < max_coord.z)
 
     namespace NonChasing {
         #define NEIGHBOR(idx, x_, y_, z_) GRID_UNSTR_NEIGHBOR(neighborships, z_stride, idx, x_, y_, z_)
@@ -25,14 +25,15 @@ namespace HdiffCudaUnstr {
 
         #define NEIGHBOR(idx, x, y, z) GRID_UNSTR_2D_NEIGHBOR(neighborships, z_stride, idx, x, y)
         #define DOUBLE_NEIGHBOR(idx, x1, y1, z1, x2, y2, z2) NEIGHBOR(idx, (x1+x2), (y1+y2), (z1+z2))
-        #define NEXT_Z_NEIGHBOR(idx) (idx+z_stride)
+        #define Z_NEIGHBOR(idx, z) (idx+z*z_stride)
         #define K_STEP k*z_stride
         #include "kernels/hdiff-idxvar.cu"
         #include "kernels/hdiff-idxvar-kloop.cu"
+        #include "kernels/hdiff-idxvar-kloop-sliced.cu"
         #include "kernels/hdiff-idxvar-shared.cu"
         #undef NEIGHBOR
         #undef DOUBLE_NEIGHBOR
-        #undef NEXT_Z_NEIGHBOR
+        #undef Z_NEIGHBOR
         #undef K_STEP
     }
 
@@ -46,15 +47,16 @@ namespace HdiffCudaUnstr {
         #undef DOUBLE_NEIGHBOR
 
         #define NEIGHBOR(idx, x, y, z) GRID_UNSTR_2D_NEIGHBOR(neighborships, z_stride, idx, x, y)
-        #define NEXT_Z_NEIGHBOR(idx) (idx+z_stride)
+        #define Z_NEIGHBOR(idx, z) (idx+z*z_stride)
         #define K_STEP k*z_stride
         #include "kernels/hdiff-idxvar.cu"
         #include "kernels/hdiff-idxvar-kloop.cu"
+        #include "kernels/hdiff-idxvar-kloop-sliced.cu"
         #include "kernels/hdiff-idxvar-shared.cu"
 
         #undef NEIGHBOR
         #undef CHASING
-        #undef NEXT_Z_NEIGHBOR
+        #undef Z_NEIGHBOR
         #undef K_STEP
     }
 
@@ -90,6 +92,8 @@ class HdiffCudaUnstrBenchmark : public HdiffCudaBaseBenchmark<value_t> {
     int z_stride;
     int offs;
 
+    int k_per_thread = 8;
+
     typename UnstructuredGrid3D<value_t>::layout_t layout = UnstructuredGrid3D<value_t>::rowmajor;
 
 };
@@ -105,6 +109,8 @@ HdiffCudaBaseBenchmark<value_t>(size) {
         this->name = "hdiff-unstr-idxvar";
     } else if(variant == HdiffCudaUnstr::idxvar_kloop) {
         this->name = "hdiff-unstr-idxvar-kloop";
+    }  else if(variant == HdiffCudaUnstr::idxvar_kloop_sliced) {
+        this->name = "hdiff-unstr-idxvar-kloop-sliced";
     } else if(variant == HdiffCudaUnstr::idxvar_shared) {
         this->name = "hdiff-unstr-idxvar-shared";
     }
@@ -114,39 +120,54 @@ HdiffCudaBaseBenchmark<value_t>(size) {
 
 template<typename value_t>
 void HdiffCudaUnstrBenchmark<value_t>::run() {
-    auto kernel_fun = &HdiffCudaUnstr::NonChasing::hdiff_idxvar<value_t>;
-    if(this->pointer_chasing) {
-        kernel_fun = &HdiffCudaUnstr::Chasing::hdiff_idxvar<value_t>;
+    if(this->variant != HdiffCudaUnstr::idxvar_kloop_sliced) {
+        auto kernel_fun = &HdiffCudaUnstr::NonChasing::hdiff_idxvar<value_t>;
+        if(this->pointer_chasing) {
+            kernel_fun = &HdiffCudaUnstr::Chasing::hdiff_idxvar<value_t>;
+        }
+        int smem = 0;
+        if(this->variant == HdiffCudaUnstr::naive) {
+            if(this->pointer_chasing) {
+                kernel_fun = &HdiffCudaUnstr::Chasing::hdiff_naive<value_t>;
+            } else {
+                kernel_fun = &HdiffCudaUnstr::NonChasing::hdiff_naive<value_t>;
+            }
+        } else if(this->variant == HdiffCudaUnstr::idxvar_kloop) {
+            if(this->pointer_chasing) {
+                kernel_fun = &HdiffCudaUnstr::Chasing::hdiff_idxvar_kloop<value_t>;
+            } else {
+                kernel_fun = &HdiffCudaUnstr::NonChasing::hdiff_idxvar_kloop<value_t>;
+            }
+        } else if(this->variant == HdiffCudaUnstr::idxvar_shared) {
+            if(this->pointer_chasing) {
+                kernel_fun = &HdiffCudaUnstr::Chasing::hdiff_idxvar_shared<value_t>;
+            } else {
+                kernel_fun = &HdiffCudaUnstr::NonChasing::hdiff_idxvar_shared<value_t>;
+            }
+            dim3 numthreads = this->numthreads();
+            smem = HDIFF_IDXVAR_SHARED_SMEM_SZ_PER_THREAD*numthreads.x*numthreads.y*sizeof(int);
+        }
+        (*kernel_fun)<<<this->numblocks(), this->numthreads(), smem>>>(
+            this->inner_size,
+            this->neighborships, this->z_stride, this->offs,
+            this->input->data,
+            this->output->data,
+            this->coeff->data
+        );
+    } else {
+        auto kernel_fun = &HdiffCudaUnstr::NonChasing::hdiff_idxvar_kloop_sliced<value_t>;
+        if(this->pointer_chasing) {
+            kernel_fun = &HdiffCudaUnstr::Chasing::hdiff_idxvar_kloop_sliced<value_t>;
+        }
+        (*kernel_fun)<<<this->numblocks(), this->numthreads()>>>(
+            this->k_per_thread,
+            this->inner_size,
+            this->neighborships, this->z_stride, this->offs,
+            this->input->data,
+            this->output->data,
+            this->coeff->data
+        );
     }
-    int smem = 0;
-    if(this->variant == HdiffCudaUnstr::naive) {
-        if(this->pointer_chasing) {
-            kernel_fun = &HdiffCudaUnstr::Chasing::hdiff_naive<value_t>;
-        } else {
-            kernel_fun = &HdiffCudaUnstr::NonChasing::hdiff_naive<value_t>;
-        }
-    } else if(this->variant == HdiffCudaUnstr::idxvar_kloop) {
-        if(this->pointer_chasing) {
-            kernel_fun = &HdiffCudaUnstr::Chasing::hdiff_idxvar_kloop<value_t>;
-        } else {
-            kernel_fun = &HdiffCudaUnstr::NonChasing::hdiff_idxvar_kloop<value_t>;
-        }
-    } else if(this->variant == HdiffCudaUnstr::idxvar_shared) {
-        if(this->pointer_chasing) {
-            kernel_fun = &HdiffCudaUnstr::Chasing::hdiff_idxvar_shared<value_t>;
-        } else {
-            kernel_fun = &HdiffCudaUnstr::NonChasing::hdiff_idxvar_shared<value_t>;
-        }
-        dim3 numthreads = this->numthreads();
-        smem = numthreads.x*numthreads.y*12*sizeof(int);
-    }
-    (*kernel_fun)<<<this->numblocks(), this->numthreads(), smem>>>(
-        this->get_info(),
-        this->neighborships, this->z_stride, this->offs,
-        this->input->data,
-        this->output->data,
-        this->coeff->data
-    );
     CUDA_THROW_LAST();
     CUDA_THROW( cudaDeviceSynchronize() );
 }
@@ -157,6 +178,8 @@ dim3 HdiffCudaUnstrBenchmark<value_t>::numblocks(coord3 domain) {
     // For the vriants that use a k-loop inside the kernel, we only need one block in the k-direction
     if(this->variant == HdiffCudaUnstr::idxvar_kloop) {
         domain.z = 1;
+    } else if(this->variant == HdiffCudaUnstr::idxvar_kloop_sliced) {
+        domain.z = ((this->inner_size.z + this->k_per_thread - 1) / this->k_per_thread);
     }
     dim3 numblocks = this->Benchmark::numblocks(domain);
     return numblocks;
@@ -168,6 +191,8 @@ dim3 HdiffCudaUnstrBenchmark<value_t>::numthreads(coord3 domain) {
     // Variants with a k-loop: only one thread in the k-direction
     if(this->variant == HdiffCudaUnstr::idxvar_kloop) {
         domain.z = 1;
+    } else if(this->variant == HdiffCudaUnstr::idxvar_kloop_sliced) {
+        domain.z = ((this->inner_size.z + this->k_per_thread - 1) / this->k_per_thread);
     }
     dim3 numthreads = this->Benchmark::numthreads(domain);
     return numthreads;
@@ -219,6 +244,8 @@ void HdiffCudaUnstrBenchmark<value_t>::parse_args() {
             this->layout = CudaUnstructuredGrid3D<value_t>::random;
         } else if(arg == "--no-chase" || arg == "-c") {
             this->pointer_chasing = false;
+        } else if(this->variant == HdiffCudaUnstr::idxvar_kloop_sliced) {
+            sscanf(this->argv[i], "%d", &this->k_per_thread);
         } else {
             this->Benchmark::parse_args();
         }

@@ -1,21 +1,23 @@
+#define FASTWAVES_IDXVAR_SHARED_SMEM_SZ_PER_THREAD 3 // 3 is coprime to 32
+
 template<typename value_t>
 __global__
-void fastwaves_idxvar(const coord3 max_coord,
-                      GRID_ARGS
-                      const value_t *ppuv,
-                      const value_t *wgtfac,
-                      const value_t *hhl,
-                      const value_t *vin,
-                      const value_t *uin,
-                      const value_t *vtens,
-                      const value_t *utens, 
-                      const value_t *rho,
-                      const value_t *fx,
-                      const double edadlat,
-                      const double dt_small,
-                      const int c_flat_limit,
-                      value_t *uout,
-                      value_t *vout) {
+void fastwaves_idxvar_shared(const coord3 max_coord,
+                             GRID_ARGS
+                             const value_t *ppuv,
+                             const value_t *wgtfac,
+                             const value_t *hhl,
+                             const value_t *vin,
+                             const value_t *uin,
+                             const value_t *vtens,
+                             const value_t *utens, 
+                             const value_t *rho,
+                             const value_t *fx,
+                             const double edadlat,
+                             const double dt_small,
+                             const int c_flat_limit,
+                             value_t *uout,
+                             value_t *vout) {
     const int i = blockIdx.x*blockDim.x + threadIdx.x;
     const int j = blockIdx.y*blockDim.y + threadIdx.y;
     const int k = blockIdx.z*blockDim.z + threadIdx.z;
@@ -23,13 +25,30 @@ void fastwaves_idxvar(const coord3 max_coord,
         return;
     }
 
-    const int idx_0_0_n1  = INDEX(i, j, k-1);
+    extern __shared__ char smem[];
+    const int local_idx = (threadIdx.x + threadIdx.y*blockDim.x) * FASTWAVES_IDXVAR_SHARED_SMEM_SZ_PER_THREAD;
+    int * __restrict__ idxvars = &((int *)smem)[local_idx];
+    const bool is_first = threadIdx.z % blockDim.z == 0;
+    const int k_step = K_STEP;
+
+    int idx_0_0_n1 = INDEX(i, j, -1);
+    int idx_p1_0_n1, idx_0_p1_n1;
+    if(is_first) {
+        idx_p1_0_n1 = idxvars[0] = NEIGHBOR(idx_0_0_n1, +1, 0, 0);
+        idx_0_p1_n1 = idxvars[1] = NEIGHBOR(idx_0_0_n1, 0, +1, 0);
+    }
+    __syncthreads();
+    if(!is_first) {
+        idx_p1_0_n1 = idxvars[0];
+        idx_0_p1_n1 = idxvars[1];
+    }
+    idx_0_0_n1  += k_step;
+    idx_p1_0_n1 += k_step;
+    idx_0_p1_n1 += k_step;
     const int idx_0_0_0   = NEXT_Z_NEIGHBOR(idx_0_0_n1);
     const int idx_0_0_p1  = NEXT_Z_NEIGHBOR(idx_0_0_0);
-    const int idx_p1_0_n1 = NEIGHBOR(idx_0_0_n1, +1, 0, 0);
     const int idx_p1_0_0  = NEXT_Z_NEIGHBOR(idx_p1_0_n1);
     const int idx_p1_0_p1 = NEXT_Z_NEIGHBOR(idx_p1_0_0);
-    const int idx_0_p1_n1 = NEIGHBOR(idx_0_0_n1, 0, +1, 0);
     const int idx_0_p1_0  = NEXT_Z_NEIGHBOR(idx_0_p1_n1);
     const int idx_0_p1_p1 = NEXT_Z_NEIGHBOR(idx_0_p1_0);
 

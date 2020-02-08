@@ -2,7 +2,7 @@
  * advantages of the coalescing accesses in the j-loop variant. */
 template<typename value_t>
 __global__
-void hdiff_iloop(const HdiffCudaBase::Info info,
+void hdiff_iloop(const coord3 max_coord,
                  GRID_ARGS
                  const int i_per_thread,
                  const value_t *in,
@@ -19,8 +19,8 @@ void hdiff_iloop(const HdiffCudaBase::Info info,
     const int idx = INDEX(i_start, j, k);
 
     int i_stop = i_start + i_per_thread;
-    if(i_stop > info.max_coord.x) {
-        i_stop = info.max_coord.x;
+    if(i_stop > max_coord.x) {
+        i_stop = max_coord.x;
     }
     
     // first calculation outside of loop will be shifted into lap_imj / flx_imj on first iteration

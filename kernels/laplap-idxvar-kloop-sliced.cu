@@ -12,17 +12,28 @@ void laplap_idxvar_kloop_sliced(GRID_ARGS const int k_per_thread, const coord3 m
 
     int center        = INDEX(i, j, 0);
     int left          = NEIGHBOR(center, -1,  0, 0);
-    int leftleft      = DOUBLE_NEIGHBOR(center, -1,  0, 0, -1,  0,  0);
-    int topleft       = DOUBLE_NEIGHBOR(center,  0, -1, 0, -1,  0,  0);
-    int bottomleft    = DOUBLE_NEIGHBOR(center,  0, +1, 0, -1,  0,  0);
     int right         = NEIGHBOR(center, +1,  0, 0);
-    int topright      = DOUBLE_NEIGHBOR(center,  0, -1, 0, +1,  0,  0);
-    int rightright    = DOUBLE_NEIGHBOR(center, +1,  0, 0, +1,  0,  0);
-    int bottomright   = DOUBLE_NEIGHBOR(center,  0, +1, 0, +1,  0,  0);
     int top           = NEIGHBOR(center,  0, -1, 0);
-    int toptop        = DOUBLE_NEIGHBOR(center,  0, -1, 0,  0, -1,  0);
     int bottom        = NEIGHBOR(center,  0, +1, 0);
-    int bottombottom  = DOUBLE_NEIGHBOR(center,  0, +1, 0,  0, +1,  0);
+    #ifdef CHASING
+        int leftleft      = NEIGHBOR(left, -1,  0, 0);
+        int topleft       = NEIGHBOR(top,  -1,  0,  0);
+        int bottomleft    = NEIGHBOR(bottom, -1,  0,  0);
+        int topright      = NEIGHBOR(top,  +1,  0,  0);
+        int rightright    = NEIGHBOR(right, +1,  0,  0);
+        int bottomright   = NEIGHBOR(bottom, +1,  0,  0);
+        int toptop        = NEIGHBOR(top, 0, -1,  0);
+        int bottombottom  = NEIGHBOR(bottom, 0, +1,  0);
+    #else
+        int leftleft      = DOUBLE_NEIGHBOR(center, -1,  0, 0, -1,  0,  0);
+        int topleft       = DOUBLE_NEIGHBOR(center,  0, -1, 0, -1,  0,  0);
+        int bottomleft    = DOUBLE_NEIGHBOR(center,  0, +1, 0, -1,  0,  0);
+        int topright      = DOUBLE_NEIGHBOR(center,  0, -1, 0, +1,  0,  0);
+        int rightright    = DOUBLE_NEIGHBOR(center, +1,  0, 0, +1,  0,  0);
+        int bottomright   = DOUBLE_NEIGHBOR(center,  0, +1, 0, +1,  0,  0);
+        int toptop        = DOUBLE_NEIGHBOR(center,  0, -1, 0,  0, -1,  0);
+        int bottombottom  = DOUBLE_NEIGHBOR(center,  0, +1, 0,  0, +1,  0);
+    #endif
 
     center        = Z_NEIGHBOR(center, k_start);
     left          = Z_NEIGHBOR(left, k_start);

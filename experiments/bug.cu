@@ -1,3 +1,6 @@
+
+/** This is a bug in the nvcc compiler.
+ * Reported as #2748928 */
     struct Foo { 
         int a;
     };

@@ -12,24 +12,22 @@
  */
 template<typename value_t>
 __global__
-void hdiff_idxvar_kloop(const coord3 max_coord,
-                        GRID_ARGS
-                        const value_t *in,
-                        value_t *out,
-                        const value_t *coeff) {
+void hdiff_idxvar_kloop_sliced(const int k_per_thread,
+                               const coord3 max_coord,
+                               GRID_ARGS
+                               const value_t *in,
+                               value_t *out,
+                               const value_t *coeff) {
 
     const int i = threadIdx.x + blockIdx.x*blockDim.x;
     const int j = threadIdx.y + blockIdx.y*blockDim.y;
-    if(!(IS_IN_BOUNDS(i, j, 0))) {
+    const int k_start = (threadIdx.z + blockIdx.z*blockDim.z) * k_per_thread;
+    if(!(IS_IN_BOUNDS(i, j, k_start))) {
         return;
     }
 
-    /** Store index offsets for the current x and y coordinate, so we do
-    * not have to recalculate them in every k-iteration. Instead, with
-    * each iteration, the k-stride is simply added once -- thus making
-    * use of the regularity of the grid in z-direction. 
-    * idx of neighbor X Y Z = n_X_Y_Z with p for positive offset and 
-    * n for negative offset. */
+    const int k_stop = (k_start + k_per_thread < max_coord.z ? k_start + k_per_thread : max_coord.z); 
+
     int n_0_0_0       = INDEX(i, j, 0);
     int n_0_n1_0      = NEIGHBOR(n_0_0_0, 0, -1, 0); /* left */
     int n_n1_0_0      = NEIGHBOR(n_0_0_0, -1, 0, 0); /* top */
@@ -55,8 +53,22 @@ void hdiff_idxvar_kloop(const coord3 max_coord,
         int n_p1_n1_0     = DOUBLE_NEIGHBOR(n_0_0_0,  0, -1, 0, +1, 0, 0); /* top right */
     #endif
 
+    n_0_0_0      = Z_NEIGHBOR(n_0_0_0, k_start);
+    n_0_n1_0     = Z_NEIGHBOR(n_0_n1_0, k_start);
+    n_n1_0_0     = Z_NEIGHBOR(n_n1_0_0, k_start);
+    n_0_p1_0     = Z_NEIGHBOR(n_0_p1_0, k_start);
+    n_p1_0_0     = Z_NEIGHBOR(n_p1_0_0, k_start);
+    n_0_n2_0     = Z_NEIGHBOR(n_0_n2_0, k_start);
+    n_n1_n1_0    = Z_NEIGHBOR(n_n1_n1_0, k_start);
+    n_n2_0_0     = Z_NEIGHBOR(n_n2_0_0, k_start);
+    n_0_p2_0     = Z_NEIGHBOR(n_0_p2_0, k_start);
+    n_p1_p1_0    = Z_NEIGHBOR(n_p1_p1_0, k_start);
+    n_p2_0_0     = Z_NEIGHBOR(n_p2_0_0, k_start);
+    n_n1_p1_0    = Z_NEIGHBOR(n_n1_p1_0, k_start);
+    n_p1_n1_0    = Z_NEIGHBOR(n_p1_n1_0, k_start);
+
     #pragma unroll 4
-    for (int k = 0; k < max_coord.z; k++) {
+    for (int k = k_start; k < k_stop; k++) {
 
         const value_t lap_ij = 
             4 * in[n_0_0_0] 

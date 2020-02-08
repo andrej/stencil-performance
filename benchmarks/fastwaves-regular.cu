@@ -5,7 +5,7 @@
 
 namespace FastWavesRegularBenchmarkNamespace {
 
-    enum Variant { naive, idxvar, idxvar_kloop, kloop };
+    enum Variant { naive, idxvar, idxvar_kloop, idxvar_kloop_sliced, idxvar_shared, kloop };
 
     #define GRID_ARGS const int y_stride, const int z_stride, 
     #define INDEX(x, y, z) GRID_REGULAR_INDEX(y_stride, z_stride, x, y, z)
@@ -18,6 +18,8 @@ namespace FastWavesRegularBenchmarkNamespace {
     #include "kernels/fastwaves-naive.cu"
     #include "kernels/fastwaves-idxvar.cu"
     #include "kernels/fastwaves-idxvar-kloop.cu"
+    #include "kernels/fastwaves-idxvar-kloop-sliced.cu"
+    #include "kernels/fastwaves-idxvar-shared.cu"
     #include "kernels/fastwaves-kloop.cu"
 
     #undef GRID_ARGS
@@ -41,10 +43,14 @@ class FastWavesRegularBenchmark : public FastWavesBaseBenchmark<value_t> {
 
     void setup();
     void run();
+    void parse_args();
     dim3 numthreads(coord3 domain=coord3());
     dim3 numblocks(coord3 domain=coord3());
     
     coord3 strides;
+
+    int k_per_thread = 8;
+    int smem = 0;
 
     void (*kernel)(const coord3, const int, const int, const value_t *, const value_t *, const value_t *, const value_t *, const value_t *, const value_t *, const value_t *, const value_t *, const value_t *, const double, const double, const int, value_t *, value_t *);
 
@@ -60,6 +66,10 @@ variant(variant) {
         this->name = "fastwaves-regular-idxvar";
     } else if(this->variant == FastWavesRegularBenchmarkNamespace::idxvar_kloop) {
         this->name = "fastwaves-regular-idxvar-kloop";
+    } else if(this->variant == FastWavesRegularBenchmarkNamespace::idxvar_kloop_sliced) {
+        this->name = "fastwaves-regular-idxvar-kloop-sliced";
+    } else if(this->variant == FastWavesRegularBenchmarkNamespace::idxvar_shared) {
+        this->name = "fastwaves-regular-idxvar-shared";
     } else if(this->variant == FastWavesRegularBenchmarkNamespace::kloop) {
         this->name = "fastwaves-regular-kloop";
     }
@@ -100,6 +110,10 @@ void FastWavesRegularBenchmark<value_t>::setup() {
         this->kernel = &FastWavesRegularBenchmarkNamespace::fastwaves_idxvar<value_t>;
     } else if(this->variant == FastWavesRegularBenchmarkNamespace::idxvar_kloop) {
         this->kernel = &FastWavesRegularBenchmarkNamespace::fastwaves_idxvar_kloop<value_t>;
+    } else if(this->variant == FastWavesRegularBenchmarkNamespace::idxvar_shared) {
+        this->kernel = &FastWavesRegularBenchmarkNamespace::fastwaves_idxvar_shared<value_t>;
+        dim3 threads = this->threads;
+        this->smem = threads.x*threads.y*FASTWAVES_IDXVAR_SHARED_SMEM_SZ_PER_THREAD*sizeof(int);
     } else if(this->variant == FastWavesRegularBenchmarkNamespace::kloop) {
         this->kernel = &FastWavesRegularBenchmarkNamespace::fastwaves_kloop<value_t>;
     }
@@ -107,23 +121,45 @@ void FastWavesRegularBenchmark<value_t>::setup() {
 
 template<typename value_t>
 void FastWavesRegularBenchmark<value_t>::run() {
-    (*this->kernel)<<<this->blocks, this->threads>>>(
-        this->inner_size,
-        this->strides.y, this->strides.z,
-        this->ptr_ppuv,
-        this->ptr_wgtfac,
-        this->ptr_hhl,
-        this->ptr_v_in,
-        this->ptr_u_in,
-        this->ptr_v_tens,
-        this->ptr_u_tens,
-        this->ptr_rho,
-        this->ptr_fx,
-        this->edadlat,
-        this->dt_small,
-        this->c_flat_limit,
-        this->ptr_u_out,
-        this->ptr_v_out);
+    if(this->variant != FastWavesRegularBenchmarkNamespace::idxvar_kloop_sliced) {
+        (*this->kernel)<<<this->blocks, this->threads, this->smem>>>(
+            this->inner_size,
+            this->strides.y, this->strides.z,
+            this->ptr_ppuv,
+            this->ptr_wgtfac,
+            this->ptr_hhl,
+            this->ptr_v_in,
+            this->ptr_u_in,
+            this->ptr_v_tens,
+            this->ptr_u_tens,
+            this->ptr_rho,
+            this->ptr_fx,
+            this->edadlat,
+            this->dt_small,
+            this->c_flat_limit,
+            this->ptr_u_out,
+            this->ptr_v_out
+        );
+    } else {
+        FastWavesRegularBenchmarkNamespace::fastwaves_idxvar_kloop_sliced<<<this->blocks, this->threads>>>(
+            this->k_per_thread,
+            this->inner_size,
+            this->strides.y, this->strides.z,
+            this->ptr_ppuv,
+            this->ptr_wgtfac,
+            this->ptr_hhl,
+            this->ptr_v_in,
+            this->ptr_u_in,
+            this->ptr_v_tens,
+            this->ptr_u_tens,
+            this->ptr_rho,
+            this->ptr_fx,
+            this->edadlat,
+            this->dt_small,
+            this->c_flat_limit,
+            this->ptr_u_out,
+            this->ptr_v_out);
+    }
     CUDA_THROW_LAST();
     CUDA_THROW( cudaDeviceSynchronize() );
 }
@@ -135,6 +171,8 @@ dim3 FastWavesRegularBenchmark<value_t>::numthreads(coord3 domain) {
     if(this->variant == FastWavesRegularBenchmarkNamespace::kloop ||
        this->variant == FastWavesRegularBenchmarkNamespace::idxvar_kloop) {
         domain.z = 1;
+    } else if(this->variant == FastWavesRegularBenchmarkNamespace::idxvar_kloop_sliced) {
+        domain.z = ((this->inner_size.z + this->k_per_thread - 1) / this->k_per_thread);
     }
     dim3 numthreads = this->FastWavesBaseBenchmark<value_t>::numthreads(domain);
     return numthreads;
@@ -147,9 +185,20 @@ dim3 FastWavesRegularBenchmark<value_t>::numblocks(coord3 domain) {
     if(this->variant == FastWavesRegularBenchmarkNamespace::kloop ||
        this->variant == FastWavesRegularBenchmarkNamespace::idxvar_kloop) {
         domain.z = 1;
+    } else if(this->variant == FastWavesRegularBenchmarkNamespace::idxvar_kloop_sliced) {
+        domain.z = ((this->inner_size.z + this->k_per_thread - 1) / this->k_per_thread);
     }
     dim3 numblocks = this->FastWavesBaseBenchmark<value_t>::numblocks(domain);
     return numblocks;
+}
+
+template<typename value_t>
+void FastWavesRegularBenchmark<value_t>::parse_args() {
+    if(this->argc > 0 && this->variant == FastWavesRegularBenchmarkNamespace::idxvar_kloop_sliced) {
+        sscanf(this->argv[0], "%d", &this->k_per_thread);
+    } else {
+        this->Benchmark::parse_args();
+    }
 }
 
 #endif

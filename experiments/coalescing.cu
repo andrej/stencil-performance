@@ -1,3 +1,9 @@
+/** Coalescing of data with a halo / Alignment
+ * This experiment investigates how data needs to be aligned such that all memory accesses coalesce.
+ * The issue is with the bounds checks. 32-byte loads coalesce into one vector instruction. If the
+ * halo is aligned, but not the inner values, then these accesses do not coalesce well: part of the
+ * vector load instruction is then wasted on predicated-off threads (in the halo).
+ */
 #include <stdio.h>
 
 __global__

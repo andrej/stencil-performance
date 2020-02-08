@@ -1,6 +1,6 @@
 template<typename value_t>
 __global__
-void hdiff_kloop(const HdiffCudaBase::Info info,
+void hdiff_kloop(const coord3 max_coord,
                  GRID_ARGS
                  const value_t *in,
                  value_t *out,
@@ -12,25 +12,25 @@ void hdiff_kloop(const HdiffCudaBase::Info info,
         return;
     }
     
-    for(int k = 0; k < info.max_coord.z; k++) {
+    for(int k = 0; k < max_coord.z; k++) {
         int idx = INDEX(i, j, k);
-        value_t lap_ij = 
+        const value_t lap_ij = 
             4 * in[NEIGHBOR(idx, 0, 0, 0)] 
             - in[NEIGHBOR(idx, -1, 0, 0)] - in[NEIGHBOR(idx, +1, 0, 0)]
             - in[NEIGHBOR(idx, 0, -1, 0)] - in[NEIGHBOR(idx, 0, +1, 0)];
-        value_t lap_imj = 
+        const value_t lap_imj = 
             4 * in[NEIGHBOR(idx, -1, 0, 0)]
             - in[NEIGHBOR(idx, -2, 0, 0)] - in[NEIGHBOR(idx, 0, 0, 0)]
             - in[NEIGHBOR(idx, -1, -1, 0)] - in[NEIGHBOR(idx, -1, +1, 0)];
-        value_t lap_ipj =
+        const value_t lap_ipj =
             4 * in[NEIGHBOR(idx, +1, 0, 0)]
             - in[NEIGHBOR(idx, 0, 0, 0)] - in[NEIGHBOR(idx, +2, 0, 0)]
             - in[NEIGHBOR(idx, +1, -1, 0)] - in[NEIGHBOR(idx, +1, +1, 0)];
-        value_t lap_ijm =
+        const value_t lap_ijm =
             4 * in[NEIGHBOR(idx, 0, -1, 0)]
             - in[NEIGHBOR(idx, -1, -1, 0)] - in[NEIGHBOR(idx, +1, -1, 0)]
             - in[NEIGHBOR(idx, 0, -2, 0)] - in[NEIGHBOR(idx, 0, 0, 0)];
-        value_t lap_ijp =
+        const value_t lap_ijp =
             4 * in[NEIGHBOR(idx, 0, +1, 0)]
             - in[NEIGHBOR(idx, -1, +1, 0)] - in[NEIGHBOR(idx, +1, +1, 0)]
             - in[NEIGHBOR(idx, 0, 0, 0)] - in[NEIGHBOR(idx, 0, +2, 0)];

@@ -1,3 +1,14 @@
+/** Unified Memory Experiment
+ * Compare manual memory management + explicit copy operations with managed/unfied memory
+ *
+ * Results:
+ *  - Copying data into unified memory from host to device is done when kernel is launched and this data is required
+ *    -> Increases runtime of kernel
+ *  - Prefetching both ways (host->device and device->host) removes this effect
+ *    -> Same as explicityl copying memory
+ *  - Only prefetching in one direction (onto device) does not remove the problem completely! need both directions
+ */
+
 #include <chrono>
 #include <stdio.h>
 

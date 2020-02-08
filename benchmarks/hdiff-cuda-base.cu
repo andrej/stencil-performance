@@ -9,14 +9,6 @@
 #include "grids/regular.cu"
 #include "grids/unstructured.cu"
 
-namespace HdiffCudaBase {
-    /** Information about this benchmark for use in the kernels. */
-    struct Info {
-        /** Maximum coordinates, i.e. inner_size.x+halo.x, etc. */
-        coord3 max_coord;
-    };
-}
-
 /** Base class for horizontal diffusion benchmarks. Provides verification
  * against reference benchmark and "halo" functionality, i.e. padding the
  * coordinate space on its sides to prevent out of bounds accesses. */
@@ -57,10 +49,6 @@ class HdiffCudaBaseBenchmark :  public Benchmark {
     // halo around the input data, padding that is not touched
     coord3 halo;
     coord3 inner_size; // size w.o. 2* halo
-
-    // return information for the use inside the kernels
-    HdiffCudaBase::Info get_info();
-
 
 };
 
@@ -126,12 +114,6 @@ void HdiffCudaBaseBenchmark<value_t>::teardown() {
     // This is ugly but not important enough to fix right now. If the memory 
     // leak becomes an issue, simply run gridbenchmark with --no-verify option.
     this->Benchmark::teardown();
-}
-
-template<typename value_t>
-HdiffCudaBase::Info HdiffCudaBaseBenchmark<value_t>::get_info() {
-    coord3 inner_size = this->inner_size;
-    return { .max_coord = inner_size };
 }
 
 template<typename value_t>

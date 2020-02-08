@@ -16,7 +16,6 @@ namespace LapLapRegular {
     #define IS_IN_BOUNDS(i, j, k) (i < max_coord.x && j < max_coord.y && k < max_coord.z)
     #define NEIGHBOR(idx, x_, y_, z_) GRID_REGULAR_NEIGHBOR(y_stride, z_stride, idx, x_, y_, z_)
     #define DOUBLE_NEIGHBOR(idx, x1, y1, z1, x2, y2, z2) NEIGHBOR(idx, (x1+x2), (y1+y2), (z1+z2))
-    #define NEXT_Z_NEIGHBOR(idx) (idx+z_stride)
     #define Z_NEIGHBOR(idx, z) (idx+z*z_stride)
     #define K_STEP k*z_stride
 
@@ -36,7 +35,6 @@ namespace LapLapRegular {
     #undef IS_IN_BOUNDS
     #undef NEIGHBOR
     #undef DOUBLE_NEIGHBOR
-    #undef NEXT_Z_NEIGHBOR
     #undef K_STEP
     #undef SMEM_GRID_ARGS
     #undef SMEM_INDEX

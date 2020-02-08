@@ -10,7 +10,7 @@
  * - SMEM_NEIGHBOR */
 template<typename value_t>
 __global__
-void hdiff_shared(const HdiffCudaBase::Info info,
+void hdiff_shared(const coord3 max_coord,
                   GRID_ARGS
                   SMEM_GRID_ARGS
                   const value_t *in,
@@ -48,7 +48,7 @@ void hdiff_shared(const HdiffCudaBase::Info info,
     __syncthreads();
 
     value_t lap_ipj;
-    if(threadIdx.x == blockDim.x-1 || i == info.max_coord.x-1) {
+    if(threadIdx.x == blockDim.x-1 || i == max_coord.x-1) {
         // rightmost in block, need to compute right dependency ourselves
         lap_ipj = 4 * in[NEIGHBOR(idx, +1, 0, 0)]
             - in[NEIGHBOR(idx, 0, 0, 0)] - in[NEIGHBOR(idx, +2, 0, 0)]
@@ -58,7 +58,7 @@ void hdiff_shared(const HdiffCudaBase::Info info,
     }
 
     value_t lap_ijp;
-    if(threadIdx.y == blockDim.y-1 || j == info.max_coord.y-1) {
+    if(threadIdx.y == blockDim.y-1 || j == max_coord.y-1) {
         lap_ijp = 4 * in[NEIGHBOR(idx, 0, +1, 0)]
             - in[NEIGHBOR(idx, -1, +1, 0)] - in[NEIGHBOR(idx, +1, +1, 0)]
             - in[NEIGHBOR(idx, 0, 0, 0)] - in[NEIGHBOR(idx, 0, +2, 0)];
