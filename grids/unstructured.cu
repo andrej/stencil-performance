@@ -14,6 +14,8 @@
 
 #define DEFAULT_Z_CURVE_WIDTH 4
 
+enum layout_t { rowmajor, zcurve, random_layout };
+
 /** Unstructured Grid in 2 coords, structured in one Y-coordinate
  *
  * Cell grids can still be accessed by coordinates, but it is up to the user of
@@ -46,7 +48,7 @@
  * in the constructor. In that case, no memory is allocated for a neighborship
  * table. This can be useful for multiple grids sharing identical neighborships.
  */
-template<typename value_t>
+template<typename value_t, typename neigh_ptr_t = int>
 class UnstructuredGrid3D : 
 virtual public Coord3BaseGrid<value_t> {
 
@@ -58,17 +60,16 @@ virtual public Coord3BaseGrid<value_t> {
      * stored in memory, i.e. for neighbor_store_depth=2, pointers to
      * neighbors and pointers to neighbors of neighbors are stored. */
     UnstructuredGrid3D() {};
-    UnstructuredGrid3D(coord3 dimensions, coord3 halo=coord3(0, 0, 0), int neighbor_store_depth=1, int *neighborships=NULL);
+    UnstructuredGrid3D(coord3 dimensions, coord3 halo=coord3(0, 0, 0), int neighbor_store_depth=1, neigh_ptr_t *neighborships=NULL, bool use_prototypes=false);
 
     virtual void init();
     
     public: 
     
-    static UnstructuredGrid3D<value_t> *create(coord3 dimensions, coord3 halo=coord3(0, 0, 0), int neighbor_store_depth=1, int *neighborships=NULL);
+    static UnstructuredGrid3D<value_t, neigh_ptr_t> *create(coord3 dimensions, coord3 halo=coord3(0, 0, 0), int neighbor_store_depth=1, neigh_ptr_t *neighborships=NULL, bool use_prototypes = false);
     
     /** Return a new grid with regular neighborship relations. */
-    enum layout_t { rowmajor, zcurve, random };
-    static UnstructuredGrid3D<value_t> *create_regular(coord3 dims, coord3 halo=coord3(0, 0, 0), layout_t layout=rowmajor, int neighbor_store_depth=1, unsigned char z_curve_width = DEFAULT_Z_CURVE_WIDTH);
+    static UnstructuredGrid3D<value_t, neigh_ptr_t> *create_regular(coord3 dims, coord3 halo=coord3(0, 0, 0), layout_t layout=rowmajor, int neighbor_store_depth=1, unsigned char z_curve_width = DEFAULT_Z_CURVE_WIDTH, bool use_prototypes = false);
 
     int index(coord3 coord);
     coord3 coordinate(int index);
@@ -82,16 +83,26 @@ virtual public Coord3BaseGrid<value_t> {
 
     /** Pointer to the neighbor memory block, where pointers to values of 
      * neighbors are stored. */
-    int *neighborships;
+    neigh_ptr_t *neighborships;
     int neighbor_store_depth=1;
 
     /** Mapping from X-Y-coordinates to indices. */
     std::map<coord3, int> indices;
     std::map<int, coord3> coordinates;
 
+    /** As an optimization, the neighborships table can be compressed. In that
+     * case, all nodes which share the same relative neighborship offsets
+     * (i.e. would be all in a regular grid) request the same pointer in this
+     * prototype array that stores the typical neighbor offsets.
+     */
+    bool use_prototypes = false;
+    neigh_ptr_t *prototypes = NULL;
+    int n_prototypes = 0;
+    void compress();
+
     /** Add a node to the grid. As this is an unstructured grid, there is not
      * necessarily a node for every coordinate within the dimensions range. */
-    void add_node(coord3 coord, value_t value = 0, int new_index = -1);
+    void add_node(coord3 coord, int new_index = -1);
     void del_node(coord3 coord);
 
     /** Set B as the neighbor of A at offset (seen from A) offs. This also
@@ -123,7 +134,9 @@ virtual public Coord3BaseGrid<value_t> {
     /** Grid is regular in Z-dimension. Halo is at the beginning of data. The 
      * following functions return relevant numbers. */
     int z_stride();
+    int neigh_stride(); // give stride between separate neighborship tables (top, left, ...)
     int halo_size();
+    int n_stored_neighbors();
     bool is_index_in_halo(int index);
     bool is_coordinate_in_halo(coord3 coord);
 
@@ -132,38 +145,41 @@ virtual public Coord3BaseGrid<value_t> {
     virtual int values_start();
     virtual int values_stop();
 
+    /** For debugging */
+    void print_neighborships();
+    void print_prototypes();
+
 };
 
 // IMPLEMENTATIONS
 
-template<typename value_t>
-UnstructuredGrid3D<value_t>::UnstructuredGrid3D(coord3 dimensions, coord3 halo, int neighbor_store_depth, int *neighborships) :
+template<typename value_t, typename neigh_ptr_t>
+UnstructuredGrid3D<value_t, neigh_ptr_t>::UnstructuredGrid3D(coord3 dimensions, coord3 halo, int neighbor_store_depth, neigh_ptr_t *neighborships, bool use_prototypes) :
 neighborships(neighborships),
-neighbor_store_depth(neighbor_store_depth) {
+neighbor_store_depth(neighbor_store_depth),
+use_prototypes(use_prototypes) {
     this->dimensions = dimensions;
     this->halo = halo;
     coord3 outer = dimensions + 2 * halo; 
-    const int stored_neighbors_per_node = 
-        (neighborships == NULL ? 
-            2 * neighbor_store_depth * (neighbor_store_depth + 1) : 
-            0); /* https://oeis.org/A046092 */
+    const int stored_neighbors_per_node = (neighborships == NULL ? this->n_stored_neighbors() : 0);
     int sz = (  sizeof(value_t) * this->values_stop() /* for the values */
-              + sizeof(int) * stored_neighbors_per_node * outer.x * outer.y ); /* for the ptrs */
+              + sizeof(neigh_ptr_t) * stored_neighbors_per_node * outer.x * outer.y /* for the ptrs */
+              + (use_prototypes ? sizeof(neigh_ptr_t) * outer.x * outer.y : 0) ); /* for the prototypes */
 
     this->size = sz;
 }
 
-template<typename value_t>
-UnstructuredGrid3D<value_t> *UnstructuredGrid3D<value_t>::create(coord3 dims, coord3 ha, int nsd, int *neigh) {
-    UnstructuredGrid3D<value_t> *obj = new UnstructuredGrid3D<value_t>(dims, ha, nsd, neigh);
+template<typename value_t, typename neigh_ptr_t>
+UnstructuredGrid3D<value_t, neigh_ptr_t> *UnstructuredGrid3D<value_t, neigh_ptr_t>::create(coord3 dims, coord3 ha, int nsd, neigh_ptr_t *neigh, bool use_prototypes) {
+    UnstructuredGrid3D<value_t, neigh_ptr_t> *obj = new UnstructuredGrid3D<value_t, neigh_ptr_t>(dims, ha, nsd, neigh, use_prototypes);
     obj->init();
     return obj;
 }
 
 /* Simulate regular grid with neighbor lookup overhead */
-template<typename value_t>
-UnstructuredGrid3D<value_t> *UnstructuredGrid3D<value_t>::create_regular(coord3 dims, coord3 halo, layout_t layout, int neighbor_store_depth, unsigned char z_curve_width) {
-    UnstructuredGrid3D<value_t> *obj = new UnstructuredGrid3D<value_t>(dims, halo, neighbor_store_depth);
+template<typename value_t, typename neigh_ptr_t>
+UnstructuredGrid3D<value_t, neigh_ptr_t> *UnstructuredGrid3D<value_t, neigh_ptr_t>::create_regular(coord3 dims, coord3 halo, layout_t layout, int neighbor_store_depth, unsigned char z_curve_width, bool use_prototypes) {
+    UnstructuredGrid3D<value_t, neigh_ptr_t> *obj = new UnstructuredGrid3D<value_t, neigh_ptr_t>(dims, halo, neighbor_store_depth, use_prototypes);
     obj->init();
     obj->add_regular_nodes(layout, z_curve_width);
     obj->add_regular_neighbors();
@@ -171,47 +187,70 @@ UnstructuredGrid3D<value_t> *UnstructuredGrid3D<value_t>::create_regular(coord3 
 }
 
 /* Initialization */
-template<typename value_t>
-void UnstructuredGrid3D<value_t>::init(){
+template<typename value_t, typename neigh_ptr_t>
+void UnstructuredGrid3D<value_t, neigh_ptr_t>::init(){
     this->Grid<value_t, coord3>::init(); // this allocates this->data
     int outer_sz = this->values_stop();
+    coord3 outer = this->dimensions + 2*this->halo;
+    this->n_prototypes = outer.x*outer.y;
     this->values = this->data; // values are in the first part of our data block
     // initialize empty neighborship pointers
     if(this->neighborships == NULL) {
-        this->neighborships = (int*) &this->data[outer_sz];
-        int *end = (int *) ((char *)this->data + this->size);
-        for(int *ptr = this->neighborships; ptr < end; ptr++) {
+        this->neighborships = (neigh_ptr_t *) &this->data[outer_sz];
+        neigh_ptr_t *end = (neigh_ptr_t *) ((char *)this->data + this->size);
+        for(neigh_ptr_t *ptr = this->neighborships; ptr < end; ptr++) {
             *ptr = 0; // offset=0 <=> pointing to itself means no neighbor set
+        }
+    }
+    if(this->use_prototypes && this->prototypes == NULL) {
+        coord3 outer = this->dimensions + 2 * this->halo;
+        int offs = (2 * this->neighbor_store_depth * (this->neighbor_store_depth + 1)) * outer.x * outer.y;
+        this->prototypes = (neigh_ptr_t *) &this->neighborships[offs];
+        for(int i = 0; i < outer.x*outer.y; i++) {
+            this->prototypes[i] = i; // Default: just point to itself in neighborship table
         }
     }
 }
 
-template<typename value_t>
-int UnstructuredGrid3D<value_t>::z_stride() {
+template<typename value_t, typename neigh_ptr_t>
+int UnstructuredGrid3D<value_t, neigh_ptr_t>::z_stride() {
     return (this->dimensions.x + 2*this->halo.x) * (this->dimensions.y + 2*this->halo.y);
 }
 
-template<typename value_t>
-int UnstructuredGrid3D<value_t>::halo_size() {
+template<typename value_t, typename neigh_ptr_t>
+int UnstructuredGrid3D<value_t, neigh_ptr_t>::neigh_stride() {
+    // in case no compression is used, n_prototypes == z_stride()
+    return this->n_prototypes;
+}
+
+template<typename value_t, typename neigh_ptr_t>
+int UnstructuredGrid3D<value_t, neigh_ptr_t>::n_stored_neighbors() {
+    int n_stored_neighbors  = 2 * this->neighbor_store_depth * (this->neighbor_store_depth + 1);
+    /* https://oeis.org/A046092 */
+    return n_stored_neighbors;
+}
+
+template<typename value_t, typename neigh_ptr_t>
+int UnstructuredGrid3D<value_t, neigh_ptr_t>::halo_size() {
     return    4 * this->halo.x * this->halo.y  /* outer corners */
             + 2 * this->dimensions.x * this->halo.y /* inner top/bottom edges */
             + 2 * this->dimensions.y * this->halo.x /* inner left/right edges */;
 }
 
-template<typename value_t>
-bool UnstructuredGrid3D<value_t>::is_index_in_halo(int index) {
+template<typename value_t, typename neigh_ptr_t>
+bool UnstructuredGrid3D<value_t, neigh_ptr_t>::is_index_in_halo(int index) {
     return (index % this->z_stride()) < this->halo_size();
 }
 
-template<typename value_t>
-bool UnstructuredGrid3D<value_t>::is_coordinate_in_halo(coord3 coord) {
+template<typename value_t, typename neigh_ptr_t>
+bool UnstructuredGrid3D<value_t, neigh_ptr_t>::is_coordinate_in_halo(coord3 coord) {
     return ! ( 0 <= coord.x && coord.x < this->dimensions.x &&
                0 <= coord.y && coord.y < this->dimensions.y );
 }
 
 /* Index */
-template<typename value_t>
-int UnstructuredGrid3D<value_t>::index(coord3 coord) {
+template<typename value_t, typename neigh_ptr_t>
+int UnstructuredGrid3D<value_t, neigh_ptr_t>::index(coord3 coord) {
     coord3 coord_2d(coord.x, coord.y, 0);
     if(this->indices.count(coord_2d) != 1) {
         char msg[100];
@@ -225,8 +264,8 @@ int UnstructuredGrid3D<value_t>::index(coord3 coord) {
 }
 
 /* Coordinates */
-template<typename value_t>
-coord3 UnstructuredGrid3D<value_t>::coordinate(int index) {
+template<typename value_t, typename neigh_ptr_t>
+coord3 UnstructuredGrid3D<value_t, neigh_ptr_t>::coordinate(int index) {
     const int z_stride = this->z_stride();
     int index_2d = index % z_stride;
     if(this->coordinates.count(index_2d) != 1) {
@@ -242,8 +281,8 @@ coord3 UnstructuredGrid3D<value_t>::coordinate(int index) {
  * x * ( -2 * (x<0) + 1 ) * 2 - (x<0): maps negative numbers to odd positions, positive to even
  * TODO: nice interleaving of offsets automatically, not hardcoded for depth=2 like now
  */
-#define GRID_UNSTR_2D_NEIGHBOR_PTR(z_stride, index, x, y) /* 2D for case Z=0 */ \
-        ( (index) + (z_stride) * (   0 * ((x) == -1 && (y) == 0)\
+#define GRID_UNSTR_2D_NEIGHBOR_PTR(neigh_stride, index, x, y) /* 2D for case Z=0 */ \
+        ( (index) + (neigh_stride) * (   0 * ((x) == -1 && (y) == 0)\
                                    + 1 * ((x) ==  0 && (y) == -1) \
                                    + 2 * ((x) == +1 && (y) == 0 ) \
                                    + 3 * ((x) ==  0 && (y) == +1) \
@@ -255,34 +294,54 @@ coord3 UnstructuredGrid3D<value_t>::coordinate(int index) {
                                    + 9 * ((x) == -2 && (y) == 0) \
                                    +10 * ((x) ==  0 && (y) == -2) \
                                    +11 * ((x) ==  0 && (y) == +2)) )
-#define GRID_UNSTR_NEIGHBOR_PTR(z_stride, index, x, y) /* Cases Z>=0 */ \
-        GRID_UNSTR_2D_NEIGHBOR_PTR(z_stride, (index) % (z_stride), x, y)
-template<typename value_t>
-int UnstructuredGrid3D<value_t>::neighbor_pointer(int index, coord3 offs) {
+#define GRID_UNSTR_NEIGHBOR_PTR(z_stride, neigh_stride, index, x, y) /* Cases Z>=0 */ \
+        GRID_UNSTR_2D_NEIGHBOR_PTR(neigh_stride, (index) % (z_stride), x, y)
+template<typename value_t, typename neigh_ptr_t>
+int UnstructuredGrid3D<value_t, neigh_ptr_t>::neighbor_pointer(int index, coord3 offs) {
     assert(offs.z == 0);
     assert(abs(offs.x) + abs(offs.y) <= this->neighbor_store_depth);
-    return GRID_UNSTR_NEIGHBOR_PTR(this->z_stride(), index, offs.x, offs.y);
+    int z_stride = this->z_stride();
+    int neigh_stride = this->neigh_stride();
+    if(this->use_prototypes) {
+        index = this->prototypes[index];
+    }
+    return GRID_UNSTR_NEIGHBOR_PTR(z_stride, neigh_stride, index, offs.x, offs.y);
 }
 
 /** Gives the index of the desired neighbor */
 // Using 2D neighbor saves expensive modulus operation -> must ensure Z=0!
-#define GRID_UNSTR_2D_NEIGHBOR(neighborships, z_stride, index, x, y) /* 2D for case Z=0 */ \
+#define GRID_UNSTR_2D_NEIGHBOR_(neighborships, neigh_stride, index, proto_index, x, y) /* 2D for case Z=0 */ \
      ( (index) \
-       + (x!=0 || y!=0 ? neighborships[GRID_UNSTR_2D_NEIGHBOR_PTR(z_stride, index, x, y)] : 0 ) )
+       + (x!=0 || y!=0 ? (int)neighborships[GRID_UNSTR_2D_NEIGHBOR_PTR(neigh_stride, proto_index, x, y)] : 0 ) )
+#define GRID_UNSTR_2D_NEIGHBOR(neighborships, neigh_stride, index, x, y) \
+        GRID_UNSTR_2D_NEIGHBOR_(neighborships, neigh_stride, index, index, x, y)
+#define GRID_UNSTR_PROTO_2D_NEIGHBOR(prototypes, neighborships, neigh_stride, index, x, y) \
+        GRID_UNSTR_2D_NEIGHBOR_(neighborships, neigh_stride, index, prototypes[index], x, y)
 // General purpose macro that also works for indices with Z>0
-#define GRID_UNSTR_NEIGHBOR(neighborships, z_stride, index, x, y, z) /* Cases Z>=0 */ \
+#define GRID_UNSTR_NEIGHBOR_(neighborships, z_stride, neigh_stride, index, proto_index, x, y, z) /* Cases Z>=0 */ \
      ( (index) \
-       + (x!=0 || y!=0 ? neighborships[GRID_UNSTR_NEIGHBOR_PTR(z_stride, index, x, y)] : 0) \
+       + (x!=0 || y!=0 ? neighborships[GRID_UNSTR_NEIGHBOR_PTR(z_stride, neigh_stride, proto_index, x, y)] : 0) \
        + (z) * (z_stride) )
-template<typename value_t>
-int UnstructuredGrid3D<value_t>::neighbor(int index, coord3 offs) {
+#define GRID_UNSTR_NEIGHBOR(neighborships, z_stride, index, x, y, z) /* for grids not using compression neigh_stride = z_stride */ \
+        GRID_UNSTR_NEIGHBOR_(neighborships, z_stride, z_stride, index, index, x, y, z)
+#define GRID_UNSTR_PROTO_NEIGHBOR(prototypes, neighborships, z_stride, neigh_stride, index, x, y, z) \
+        GRID_UNSTR_NEIGHBOR_(neighborships, z_stride, neigh_stride, index, prototypes[index % z_stride], x, y, z)
+
+template<typename value_t, typename neigh_ptr_t>
+int UnstructuredGrid3D<value_t, neigh_ptr_t>::neighbor(int index, coord3 offs) {
     assert(offs.z == 0 || (offs.x == 0 && offs.y == 0)); // only one neighbor at a time, no diagonals
-    return GRID_UNSTR_NEIGHBOR(this->neighborships, this->z_stride(),
+    int z_stride = this->z_stride();
+    int neigh_stride = this->neigh_stride();
+    if(this->use_prototypes) {
+        return GRID_UNSTR_PROTO_NEIGHBOR(this->prototypes, this->neighborships, z_stride, neigh_stride,
+                                         index, offs.x, offs.y, offs.z);
+    }
+    return GRID_UNSTR_NEIGHBOR(this->neighborships, z_stride,
                                index, offs.x, offs.y, offs.z);
 }
 
-template<typename value_t>
-bool UnstructuredGrid3D<value_t>::has_neighbor(int A, coord3 offs) {
+template<typename value_t, typename neigh_ptr_t>
+bool UnstructuredGrid3D<value_t, neigh_ptr_t>::has_neighbor(int A, coord3 offs) {
     coord3 coord = this->coordinate(A);
     int neigh_ptr = this->neighbor_pointer(A, offs);
     return 0 < neigh_ptr
@@ -291,8 +350,8 @@ bool UnstructuredGrid3D<value_t>::has_neighbor(int A, coord3 offs) {
 }
 
 /* Add node */
-template<typename value_t>
-void UnstructuredGrid3D<value_t>::add_node(coord3 coord, value_t value, int new_index) {
+template<typename value_t, typename neigh_ptr_t>
+void UnstructuredGrid3D<value_t, neigh_ptr_t>::add_node(coord3 coord, int new_index) {
     assert(coord.z == 0); // enforce regularity in Z-dimension
     if(new_index == -1) {
         new_index = this->indices.size();
@@ -318,26 +377,26 @@ void UnstructuredGrid3D<value_t>::add_node(coord3 coord, value_t value, int new_
 }
 
 /* Delete node */
-template<typename value_t>
-void UnstructuredGrid3D<value_t>::del_node(coord3 coord) {
+template<typename value_t, typename neigh_ptr_t>
+void UnstructuredGrid3D<value_t, neigh_ptr_t>::del_node(coord3 coord) {
     int index = this->index(coord);
     this->indices.erase(coord);
     this->coordinates.erase(index);
 }
 
 /* Add neighbor */
-template<typename value_t>
-void UnstructuredGrid3D<value_t>::add_neighbor(coord3 A, coord3 B, coord3 offs) {
+template<typename value_t, typename neigh_ptr_t>
+void UnstructuredGrid3D<value_t, neigh_ptr_t>::add_neighbor(coord3 A, coord3 B, coord3 offs) {
     return this->add_neighbor(this->index(A), this->index(B), offs);
 }
 
-template<typename value_t>
-void UnstructuredGrid3D<value_t>::add_neighbor(int A, int B, coord3 offs) {
+template<typename value_t, typename neigh_ptr_t>
+void UnstructuredGrid3D<value_t, neigh_ptr_t>::add_neighbor(int A, int B, coord3 offs) {
     this->add_neighbor(A, B, offs, this->neighbor_store_depth);
 }
 
-template<typename value_t>
-void UnstructuredGrid3D<value_t>::add_neighbor(int A, int B, coord3 offs, int depth) {
+template<typename value_t, typename neigh_ptr_t>
+void UnstructuredGrid3D<value_t, neigh_ptr_t>::add_neighbor(int A, int B, coord3 offs, int depth) {
     assert(offs.z == 0);
     if(offs.x == 0 && offs.y == 0 || depth <= 0) {
         return;
@@ -372,12 +431,76 @@ void UnstructuredGrid3D<value_t>::add_neighbor(int A, int B, coord3 offs, int de
             }
         }
     }
+}
 
+/* Compress using prototypes */
+template<typename value_t, typename neigh_ptr_t>
+void UnstructuredGrid3D<value_t, neigh_ptr_t>::compress() {
+    if(!this->use_prototypes || !this->prototypes || !this->neighborships) {
+        return;
+    }
+
+    coord3 outer = this->dimensions + 2*this->halo;
+    int n_stored_neighbors  = this->n_stored_neighbors();
+    int z_stride = this->z_stride();
+    int neigh_stride = this->neigh_stride();
+
+    std::vector<std::vector<int>> new_protos; // vector of all various neighborship relations; inner vector contains relative neighbor offsets for that prototype
+    std::map<int, std::vector<int>> cells_of_prototype; // protoype idx in above vector -> list of cells of that type
+    for(int i = 0; i < z_stride; i++) { // iterate over all cells in XY plane
+        int idx = this->prototypes[i]; // in case we are already operating on compressed data
+        auto match = new_protos.end();
+        for(auto it = new_protos.begin(); it != new_protos.end(); ++it) { // check for a matching prototype
+            bool does_match = true;
+            for(int k = 0; k < n_stored_neighbors; k++) {
+                if(this->neighborships[idx + k*neigh_stride] != it->at(k)) {
+                    does_match = false;
+                    break;
+                }
+            }
+            if(does_match) {
+                match = it;
+                break;
+            }
+        }
+        if(match != new_protos.end()) { // found a match
+            int proto = match - new_protos.begin();
+            cells_of_prototype[proto].push_back(i);
+        } else { // no match -> add this cells neighborship relations as new prototype
+            std::vector<int> new_proto;
+            for(int k = 0; k < n_stored_neighbors; k++) {
+                new_proto.push_back(this->neighborships[i + k*neigh_stride]);
+            }
+            new_protos.push_back(new_proto);
+            int new_proto_idx = new_protos.size() - 1;
+            cells_of_prototype[new_proto_idx] = std::vector<int>();
+            cells_of_prototype[new_proto_idx].push_back(i);
+        }
+    }
+
+    this->n_prototypes = new_protos.size(); // determines new neigh_stride!
+    neigh_stride = this->neigh_stride();
+
+    // store new compact neighborship relations & new prototype pointers
+    int i = 0;
+    for(auto proto = new_protos.begin(); proto != new_protos.end(); ++proto, ++i) {
+        // store neighbor pointers for this prototype at next consecutive slot i
+        for(auto neigh = proto->begin(); neigh != proto->end(); ++neigh) {
+            int k = neigh - proto->begin();
+            this->neighborships[i + k*neigh_stride] = *neigh;
+        }
+        // update prototype pointers for all cells that are of this proto type
+        std::vector<int> cells_of_proto = cells_of_prototype[proto - new_protos.begin()];
+        for(auto cell = cells_of_proto.begin(); cell != cells_of_proto.end(); ++cell) {
+            this->prototypes[*cell] = i;
+        }
+    }
+    
 }
 
 /* Add all the nodes of a regular grid */
-template<typename value_t>
-void UnstructuredGrid3D<value_t>::add_regular_nodes(layout_t layout, unsigned char z_curve_width) {
+template<typename value_t, typename neigh_ptr_t>
+void UnstructuredGrid3D<value_t, neigh_ptr_t>::add_regular_nodes(layout_t layout, unsigned char z_curve_width) {
     // Add the halo nodes with their seperate layout, first of everything else
     this->add_regular_halo();
 
@@ -397,7 +520,7 @@ void UnstructuredGrid3D<value_t>::add_regular_nodes(layout_t layout, unsigned ch
     if(layout == zcurve) {
         StretchedZCurveComparator comp(z_curve_width);
         std::sort(coord_sequence.begin(), coord_sequence.end(), comp);
-    } else if(layout == random) {
+    } else if(layout == random_layout) {
         // The first (0, 0, 0) element should not be shuffled as pointer to (0, 0, 0) is used as
         // pointer to the start of the inner data!
         std::random_shuffle(coord_sequence.begin()+1, coord_sequence.end());
@@ -408,13 +531,13 @@ void UnstructuredGrid3D<value_t>::add_regular_nodes(layout_t layout, unsigned ch
     // Actually add the nodes
     int new_index = this->halo_size();
     for(auto it = coord_sequence.begin(); it != coord_sequence.end(); ++it) {
-        this->add_node(*it, 0, new_index);
+        this->add_node(*it, new_index);
         new_index++;
     }
 }
 
-template<typename value_t>
-void UnstructuredGrid3D<value_t>::add_regular_halo() {
+template<typename value_t, typename neigh_ptr_t>
+void UnstructuredGrid3D<value_t, neigh_ptr_t>::add_regular_halo() {
     coord3 halo = this->halo;
     coord3 inner = this->dimensions;
     /* The halo is added at the very beginning of each X-Y-plane memory slice.
@@ -430,18 +553,18 @@ void UnstructuredGrid3D<value_t>::add_regular_halo() {
         /* Top/bottom edge of enclosing halo rectangle. */
         if(dst <= halo.x) {
             for(int x = -dst; x < inner.x+dst; x++) {
-                this->add_node(coord3(x, -dst, z), 0, new_index);
+                this->add_node(coord3(x, -dst, z), new_index);
                 new_index++;
-                this->add_node(coord3(x, inner.y+dst-1, z), 0, new_index);
+                this->add_node(coord3(x, inner.y+dst-1, z), new_index);
                 new_index++;
             }
         }
         /* Left/right edge of enclosing halo rectangle. */
         if(dst <= halo.y) {
             for(int y = -dst+1; y < inner.y+dst-1; y++) {
-                this->add_node(coord3(-dst, y, z), 0, new_index);
+                this->add_node(coord3(-dst, y, z), new_index);
                 new_index++;
-                this->add_node(coord3(inner.x+dst-1, y, z), 0, new_index);
+                this->add_node(coord3(inner.x+dst-1, y, z), new_index);
                 new_index++;
             }
         }
@@ -450,8 +573,8 @@ void UnstructuredGrid3D<value_t>::add_regular_halo() {
 }
 
 /* Add same neighbors as in a regular grid */
-template<typename value_t>
-void UnstructuredGrid3D<value_t>::add_regular_neighbors() {
+template<typename value_t, typename neigh_ptr_t>
+void UnstructuredGrid3D<value_t, neigh_ptr_t>::add_regular_neighbors() {
     coord3 dims = this->dimensions;
     coord3 halo = this->halo;
     int z = 0; // neighborship relations are the same across all Z levels
@@ -469,15 +592,40 @@ void UnstructuredGrid3D<value_t>::add_regular_neighbors() {
     }
 }
 
-template<typename value_t>
-int UnstructuredGrid3D<value_t>::values_start() {
+template<typename value_t, typename neigh_ptr_t>
+int UnstructuredGrid3D<value_t, neigh_ptr_t>::values_start() {
     return 0;
 }
 
-template<typename value_t>
-int UnstructuredGrid3D<value_t>::values_stop() {
+template<typename value_t, typename neigh_ptr_t>
+int UnstructuredGrid3D<value_t, neigh_ptr_t>::values_stop() {
     coord3 outer = this->dimensions + 2 * this->halo;
     return outer.x * outer.y * outer.z;
+}
+
+template<typename value_t, typename neigh_ptr_t>
+void UnstructuredGrid3D<value_t, neigh_ptr_t>::print_neighborships() {
+    int z_stride = this->z_stride();
+    int neigh_stride = this->neigh_stride();
+    int n_stored_neighbors = this->n_stored_neighbors();
+    fprintf(stderr, "Index       | Coordinate | Prototype  | Relative Neigh. Offs (Absolute, Coord)\n");
+    for(int i = 0; i < z_stride; i++) {
+        coord3 coord = this->coordinate(i);
+        neigh_ptr_t proto = this->prototypes[i];
+        fprintf(stderr, "%11d |%3d,%3d,%3d |%11d |", i, coord.x, coord.y, coord.z, proto);
+        for(int k = 0; k < n_stored_neighbors; k++) {
+            int neigh_offs = this->neighborships[proto + k*neigh_stride];
+            int neigh_idx = i + neigh_offs;
+            coord3 neigh_coord = this->coordinate(neigh_idx);
+            fprintf(stderr, "%4d (%4d, (%3d,%3d,%3d)), ", neigh_offs, neigh_idx, neigh_coord.x, neigh_coord.y, neigh_coord.z);
+        }
+        fprintf(stderr, "\n");
+    }
+}
+
+template<typename value_t, typename neigh_ptr_t>
+void UnstructuredGrid3D<value_t, neigh_ptr_t>::print_prototypes() {
+    return;
 }
 
 #endif

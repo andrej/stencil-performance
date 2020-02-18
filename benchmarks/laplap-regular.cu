@@ -12,6 +12,7 @@ namespace LapLapRegular {
     enum Variant { naive, idxvar, idxvar_kloop, idxvar_kloop_sliced, idxvar_shared, shared };
 
     #define GRID_ARGS const int y_stride, const int z_stride, 
+    #define PROTO(x)
     #define INDEX(x, y, z) GRID_REGULAR_INDEX(y_stride, z_stride, x, y, z)
     #define IS_IN_BOUNDS(i, j, k) (i < max_coord.x && j < max_coord.y && k < max_coord.z)
     #define NEIGHBOR(idx, x_, y_, z_) GRID_REGULAR_NEIGHBOR(y_stride, z_stride, idx, x_, y_, z_)
@@ -31,6 +32,7 @@ namespace LapLapRegular {
     #include "kernels/laplap-shared.cu"
 
     #undef GRID_ARGS
+    #undef PROTO
     #undef INDEX
     #undef IS_IN_BOUNDS
     #undef NEIGHBOR

@@ -177,13 +177,27 @@ int Grid<value_t, coord_t>::neighbor(int index, coord_t offs) {
 
 template<typename value_t, typename coord_t>
 void Grid<value_t, coord_t>::fill(value_t v) {
+    memset(this->data, 0, this->size);
+}
+
+template<>
+void Grid<double, coord3>::fill(double v) {
+    memset(this->data, v, this->size);
+}
+
+template<>
+void Grid<float, coord3>::fill(float v) {
     memset(this->data, v, this->size);
 }
 
 template<typename value_t, typename coord_t>
 void Grid<value_t, coord_t>::fill_random() {
+}
+
+template<>
+void Grid<double, coord3>::fill_random() {
     std::default_random_engine gen;
-    std::uniform_real_distribution<value_t> dist(-1.0, +1.0);
+    std::uniform_real_distribution<double> dist(-1.0, +1.0);
     const int values_start = this->values_start();
     const int values_stop = this->values_stop();
     for(int i = values_start; i < values_stop; i++) {

@@ -54,6 +54,7 @@ typedef enum {all_benchs,
               fastwaves_unstr_idxvar_kloop_sliced,
               fastwaves_unstr_idxvar_shared,
               fastwaves_unstr_kloop,
+              fastwaves_unstr_aos_idxvar,
 
               // Laplace-of-laplace
               laplap_regular_naive,
@@ -67,6 +68,11 @@ typedef enum {all_benchs,
               laplap_unstr_idxvar_kloop,
               laplap_unstr_idxvar_kloop_sliced,
               laplap_unstr_idxvar_shared,
+              laplap_unstr_naive_int16,
+              laplap_unstr_idxvar_int16,
+              laplap_unstr_idxvar_kloop_int16,
+              laplap_unstr_idxvar_kloop_sliced_int16,
+              laplap_unstr_idxvar_shared_int16,
 
               unspecified
               } 
@@ -388,6 +394,13 @@ Benchmark *create_benchmark(benchmark_params_t param_bench, coord3 size,
             (Benchmark *) new FastWavesUnstrBenchmark<float>(size, FastWavesUnstrBenchmarkNamespace::kloop) :
             (Benchmark *) new FastWavesUnstrBenchmark<double>(size, FastWavesUnstrBenchmarkNamespace::kloop) );
         break;
+        case fastwaves_unstr_aos_idxvar:
+        ret = (precision == single_prec ?
+            (Benchmark *) new FastWavesUnstrBenchmark<float>(size, FastWavesUnstrBenchmarkNamespace::aos_idxvar) :
+            (Benchmark *) new FastWavesUnstrBenchmark<double>(size, FastWavesUnstrBenchmarkNamespace::aos_idxvar) );
+        break;
+
+        // Laplace-of-Laplace
         case laplap_regular_naive:
         ret = (precision == single_prec ?
             (Benchmark *) new LapLapRegularBenchmark<float>(size, LapLapRegular::naive) :
@@ -442,6 +455,36 @@ Benchmark *create_benchmark(benchmark_params_t param_bench, coord3 size,
         ret = (precision == single_prec ?
             (Benchmark *) new LapLapUnstrBenchmark<float>(size, LapLapUnstr::idxvar_shared) :
             (Benchmark *) new LapLapUnstrBenchmark<double>(size, LapLapUnstr::idxvar_shared) );
+        break;
+        case laplap_unstr_naive_int16:
+        ret = (precision == single_prec ?
+            (Benchmark *) new LapLapUnstrBenchmark<float, int16_t>(size, LapLapUnstr::naive) :
+            (Benchmark *) new LapLapUnstrBenchmark<double, int16_t>(size, LapLapUnstr::naive) );
+        ret->name.append("-int16");
+        break;
+        case laplap_unstr_idxvar_int16:
+        ret = (precision == single_prec ?
+            (Benchmark *) new LapLapUnstrBenchmark<float, int16_t>(size, LapLapUnstr::idxvar) :
+            (Benchmark *) new LapLapUnstrBenchmark<double, int16_t>(size, LapLapUnstr::idxvar) );
+        ret->name.append("-int16");
+        break;
+        case laplap_unstr_idxvar_kloop_int16:
+        ret = (precision == single_prec ?
+            (Benchmark *) new LapLapUnstrBenchmark<float, int16_t>(size, LapLapUnstr::idxvar_kloop) :
+            (Benchmark *) new LapLapUnstrBenchmark<double, int16_t>(size, LapLapUnstr::idxvar_kloop) );
+        ret->name.append("-int16");
+        break;
+        case laplap_unstr_idxvar_kloop_sliced_int16:
+        ret = (precision == single_prec ?
+            (Benchmark *) new LapLapUnstrBenchmark<float, int16_t>(size, LapLapUnstr::idxvar_kloop_sliced) :
+            (Benchmark *) new LapLapUnstrBenchmark<double, int16_t>(size, LapLapUnstr::idxvar_kloop_sliced) );
+        ret->name.append("-int16");
+        break;
+        case laplap_unstr_idxvar_shared_int16:
+        ret = (precision == single_prec ?
+            (Benchmark *) new LapLapUnstrBenchmark<float, int16_t>(size, LapLapUnstr::idxvar_shared) :
+            (Benchmark *) new LapLapUnstrBenchmark<double, int16_t>(size, LapLapUnstr::idxvar_shared) );
+        ret->name.append("-int16");
         break;
         default:
         return NULL;
@@ -535,10 +578,6 @@ benchmark_list_t *create_benchmarks(args_t args) {
 /** Create the benchmark described in bench_info, execute it and then return
  * its performance metrics. */
 void run_benchmark(Benchmark *bench, bool quiet) {
-    if(!quiet) {
-        dim3 numblocks = bench->numblocks();
-        dim3 numthreads = bench->numthreads();
-    }
     try {
         bench->execute();
     } catch (std::runtime_error e) {
