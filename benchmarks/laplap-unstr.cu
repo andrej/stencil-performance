@@ -2,6 +2,9 @@
 #define LAPLAP_UNSTR_BENCHMARK_H
 #include <stdio.h>
 #include <stdexcept>
+#include <type_traits>
+#include <cstdint>
+#include <functional>
 #include "benchmarks/laplap-base.cu"
 #include "grids/cuda-unstructured.cu"
  
@@ -11,58 +14,20 @@ namespace LapLapUnstr {
 
     enum Variant { naive, idxvar, idxvar_kloop, idxvar_kloop_sliced, idxvar_shared };
 
-    #define GRID_ARGS const int * __restrict__ neighborships, const int z_stride, const int offs,
-    #define INDEX(x_, y_, z_) (x_) + (y_)*blockDim.x*gridDim.x + offs + (z_)*z_stride
-    #define IS_IN_BOUNDS(i, j, k) (i + j*blockDim.x*gridDim.x < (z_stride-offs) && k < max_coord.z)
-    #define Z_NEIGHBOR(idx, z) (idx+z*z_stride)
-    #define K_STEP k*z_stride
+    #define neigh_ptr_t int
+    #include "laplap-kernels.cu"
+    #undef neigh_ptr_t
 
-    namespace NonChasing {
-        #define NEIGHBOR(idx, x_, y_, z_) GRID_UNSTR_NEIGHBOR(neighborships, z_stride, idx, x_, y_, z_)
-        #define DOUBLE_NEIGHBOR(idx, x1, y1, z1, x2, y2, z2) NEIGHBOR(idx, (x1)+(x2), (y1)+(y2), (z1)+(z2))
-        #include "kernels/laplap-naive.cu"
-        #undef NEIGHBOR
-        #undef DOUBLE_NEIGHBOR
-
-        #define NEIGHBOR(idx, x_, y_, z_) GRID_UNSTR_2D_NEIGHBOR(neighborships, z_stride, idx, x_, y_)
-        #define DOUBLE_NEIGHBOR(idx, x1, y1, z1, x2, y2, z2) NEIGHBOR(idx, (x1)+(x2), (y1)+(y2), (z1)+(z2))
-        #include "kernels/laplap-idxvar.cu"
-        #include "kernels/laplap-idxvar-kloop.cu"
-        #include "kernels/laplap-idxvar-kloop-sliced.cu"
-        #include "kernels/laplap-idxvar-shared.cu"
-        #undef DOUBLE_NEIGHBOR
-        #undef NEIGHBOR
+    namespace Int16 {
+        #define neigh_ptr_t int16_t
+        #include "laplap-kernels.cu"
+        #undef neigh_ptr_t
     };
-
-    namespace Chasing {
-        #define CHASING
-
-        #define NEIGHBOR(idx, x_, y_, z_) GRID_UNSTR_NEIGHBOR(neighborships, z_stride, idx, x_, y_, z_)
-        #define DOUBLE_NEIGHBOR(idx, x1, y1, z1, x2, y2, z2) NEIGHBOR(NEIGHBOR(idx, x1, y1, z1), x2, y2, z2)
-        #include "kernels/laplap-naive.cu"
-        #undef NEIGHBOR
-        #undef DOUBLE_NEIGHBOR
-
-        #define NEIGHBOR(idx, x_, y_, z_) GRID_UNSTR_2D_NEIGHBOR(neighborships, z_stride, idx, x_, y_)
-        #define DOUBLE_NEIGHBOR(idx, x1, y1, z1, x2, y2, z2) NEIGHBOR(NEIGHBOR(idx, x1, y1, z1), x2, y2, z2)
-        #include "kernels/laplap-idxvar.cu"
-        #include "kernels/laplap-idxvar-kloop.cu"
-        #include "kernels/laplap-idxvar-kloop-sliced.cu"
-        #include "kernels/laplap-idxvar-shared.cu"
-        #undef NEIGHOBR
-        #undef DOUBLE_NEIGHBOR
-
-        #undef CHASING
-    };
-
-    #undef GRID_ARGS
-    #undef INDEX
-    #undef IS_IN_BOUNDS
 
 };
 
 
-template<typename value_t>
+template<typename value_t, typename neigh_ptr_t = int>
 class LapLapUnstrBenchmark : public LapLapBaseBenchmark<value_t> {
 
     public:
@@ -81,27 +46,33 @@ class LapLapUnstrBenchmark : public LapLapBaseBenchmark<value_t> {
     int k_per_thread = 16;
     bool pointer_chasing = true;
     
-    int z_stride;
-    int offs;
-    int *neighborships;
-
-    typename UnstructuredGrid3D<value_t>::layout_t layout = UnstructuredGrid3D<value_t>::rowmajor;
+    layout_t layout = rowmajor;
     int z_curve_width = 4;
+    bool use_compression = false;
 
     int smem = 0;
+    neigh_ptr_t *neighborships;
+    neigh_ptr_t *prototypes;
+    int offs;
+    int z_stride;
+    int neigh_stride;
+
     dim3 blocks;
     dim3 threads;
     value_t *input_ptr;
     value_t *output_ptr;
-    void (*kernel_kloop_sliced)(const int *, const int, const int, const int, const coord3, const value_t *, value_t *);
-    void (*kernel)(const int *, const int, const int, const coord3, const value_t *, value_t *);
+    void set_kernel_fun(int x);
+    void set_kernel_fun(int16_t x);
+    void (*kernel_kloop_sliced)(const neigh_ptr_t *, const int, const int, const int, const coord3, const value_t *, value_t *);
+    void (*kernel)(const neigh_ptr_t *, const int, const int, const coord3, const value_t *, value_t *);
+    void (*kernel_comp)(neigh_ptr_t *, neigh_ptr_t *, const int, const int, const int, const coord3, const value_t *, value_t *);
 
 };
 
 // IMPLEMENTATIONS
 
-template<typename value_t>
-LapLapUnstrBenchmark<value_t>::LapLapUnstrBenchmark(coord3 size, LapLapUnstr::Variant variant) :
+template<typename value_t, typename neigh_ptr_t>
+LapLapUnstrBenchmark<value_t, neigh_ptr_t>::LapLapUnstrBenchmark(coord3 size, LapLapUnstr::Variant variant) :
 LapLapBaseBenchmark<value_t>(size),
 variant(variant) {
     this->variant = variant;
@@ -118,27 +89,35 @@ variant(variant) {
     }
 }
 
-template<typename value_t>
-void LapLapUnstrBenchmark<value_t>::setup() {
+template<typename value_t, typename neigh_ptr_t>
+void LapLapUnstrBenchmark<value_t, neigh_ptr_t>::setup() {
     coord3 halo2(2, 2, 0);
     int neighbor_store_depth = (this->pointer_chasing ? 1 : 2);
-    CudaUnstructuredGrid3D<value_t> *input = CudaUnstructuredGrid3D<value_t>::create_regular(this->inner_size, halo2, this->layout, neighbor_store_depth, this->z_curve_width);
+    CudaUnstructuredGrid3D<value_t, neigh_ptr_t> *input = CudaUnstructuredGrid3D<value_t, neigh_ptr_t>::create_regular(this->inner_size, halo2, this->layout, neighbor_store_depth, this->z_curve_width, this->use_compression);
     this->input = input;
-    this->output = CudaUnstructuredGrid3D<value_t>::clone(*input);
+    this->output = CudaUnstructuredGrid3D<value_t, neigh_ptr_t>::clone(*input);
     if(this->variant == LapLapUnstr::idxvar_shared) {
         this->input->setSmemBankSize(sizeof(int));
     }
-    this->neighborships = input->neighborships;
+    if(this->use_compression) {
+        input->compress();
+    }
     this->z_stride = input->z_stride();
+    this->neigh_stride = input->neigh_stride();
+    this->neighborships = input->neighborships;
+    this->prototypes = input->prototypes;
     this->offs = this->input->index(coord3(0, 0, 0));
     this->LapLapBaseBenchmark<value_t>::setup();
-
     this->input_ptr = this->input->data;
     this->output_ptr = this->output->data;
     this->threads = this->numthreads();
     this->blocks = this->numblocks();
-
     smem = 0;
+    this->set_kernel_fun(this->neighborships[0]);
+}
+
+template<typename value_t, typename neigh_ptr_t>
+void LapLapUnstrBenchmark<value_t, neigh_ptr_t>::set_kernel_fun(int x) {
     kernel = &LapLapUnstr::NonChasing::laplap_naive<value_t>;
     if(this->variant == LapLapUnstr::naive && this->pointer_chasing) {
         kernel = &LapLapUnstr::Chasing::laplap_naive<value_t>;
@@ -166,13 +145,45 @@ void LapLapUnstrBenchmark<value_t>::setup() {
     if(!this->pointer_chasing) {
         kernel_kloop_sliced = &LapLapUnstr::NonChasing::laplap_idxvar_kloop_sliced<value_t>;
     }
+    kernel_comp = &LapLapUnstr::Compressed::laplap_idxvar<value_t>;
 }
 
-template<typename value_t>
-void LapLapUnstrBenchmark<value_t>::run() {
+template<typename value_t, typename neigh_ptr_t>
+void LapLapUnstrBenchmark<value_t, neigh_ptr_t>::set_kernel_fun(int16_t x) {
+    kernel = &LapLapUnstr::Int16::NonChasing::laplap_naive<value_t>;
+    if(this->variant == LapLapUnstr::naive && this->pointer_chasing) {
+        kernel = &LapLapUnstr::Int16::Chasing::laplap_naive<value_t>;
+    } else if(this->variant == LapLapUnstr::idxvar) {
+        if(this->pointer_chasing) {
+            kernel = &LapLapUnstr::Int16::Chasing::laplap_idxvar<value_t>;
+        } else {
+            kernel = &LapLapUnstr::Int16::NonChasing::laplap_idxvar<value_t>;
+        }
+    } else if(this->variant == LapLapUnstr::idxvar_kloop) {
+        if(this->pointer_chasing) {
+            kernel = &LapLapUnstr::Int16::Chasing::laplap_idxvar_kloop<value_t>;
+        } else {
+            kernel = &LapLapUnstr::Int16::NonChasing::laplap_idxvar_kloop<value_t>;
+        }
+    } else if(this->variant == LapLapUnstr::idxvar_shared) {
+        smem = threads.x*threads.y*13*sizeof(int);
+        if(this->pointer_chasing) {
+            kernel = &LapLapUnstr::Int16::Chasing::laplap_idxvar_shared<value_t>;
+        } else {
+            kernel = &LapLapUnstr::Int16::NonChasing::laplap_idxvar_shared<value_t>;
+        }
+    }
+    kernel_kloop_sliced = &LapLapUnstr::Int16::Chasing::laplap_idxvar_kloop_sliced<value_t>;
+    if(!this->pointer_chasing) {
+        kernel_kloop_sliced = &LapLapUnstr::Int16::NonChasing::laplap_idxvar_kloop_sliced<value_t>;
+    }
+}
+
+template<typename value_t, typename neigh_ptr_t>
+void LapLapUnstrBenchmark<value_t, neigh_ptr_t>::run() {
     if(this->variant == LapLapUnstr::idxvar_kloop_sliced) {
         (*kernel_kloop_sliced)<<<blocks, threads>>>(
-            neighborships,
+            this->neighborships,
             this->z_stride,
             this->offs,
             this->k_per_thread,
@@ -180,9 +191,20 @@ void LapLapUnstrBenchmark<value_t>::run() {
             this->input->data,
             this->output->data
         );
+    } else if(this->use_compression) {
+        (*kernel_comp)<<<blocks, threads, smem>>>(
+            this->prototypes,
+            this->neighborships,
+            this->z_stride,
+            this->neigh_stride,
+            this->offs,
+            this->inner_size,
+            this->input->data,
+            this->output->data
+        );
     } else {
         (*kernel)<<<blocks, threads, smem>>>(
-            neighborships,
+            this->neighborships,
             this->z_stride,
             this->offs,
             this->inner_size,
@@ -194,8 +216,8 @@ void LapLapUnstrBenchmark<value_t>::run() {
     CUDA_THROW( cudaDeviceSynchronize() );
 }
 
-template<typename value_t>
-dim3 LapLapUnstrBenchmark<value_t>::numthreads(coord3 domain) {
+template<typename value_t, typename neigh_ptr_t>
+dim3 LapLapUnstrBenchmark<value_t, neigh_ptr_t>::numthreads(coord3 domain) {
     domain = this->inner_size;
     if(this->variant == LapLapUnstr::idxvar_kloop) {
         domain.z = 1;
@@ -204,8 +226,8 @@ dim3 LapLapUnstrBenchmark<value_t>::numthreads(coord3 domain) {
     return numthreads;
 }
 
-template<typename value_t>
-dim3 LapLapUnstrBenchmark<value_t>::numblocks(coord3 domain) {
+template<typename value_t, typename neigh_ptr_t>
+dim3 LapLapUnstrBenchmark<value_t, neigh_ptr_t>::numblocks(coord3 domain) {
     domain = this->inner_size;
     if(this->variant == LapLapUnstr::idxvar_kloop) {
         domain.z = 1;
@@ -217,16 +239,18 @@ dim3 LapLapUnstrBenchmark<value_t>::numblocks(coord3 domain) {
 }
 
 
-template<typename value_t>
-void LapLapUnstrBenchmark<value_t>::parse_args() {
+template<typename value_t, typename neigh_ptr_t>
+void LapLapUnstrBenchmark<value_t, neigh_ptr_t>::parse_args() {
     for(int i = 0; i < this->argc; i++) {
         std::string arg = std::string(this->argv[i]);
         if(arg == "--z-curves" || arg == "-z") {
-            this->layout = CudaUnstructuredGrid3D<value_t>::zcurve;
+            this->layout = zcurve;
         } else if(arg == "--random" || arg == "-r") {
-            this->layout = CudaUnstructuredGrid3D<value_t>::random;
-        } else if(arg == "--no-chase" || arg == "-c") {
+            this->layout = random_layout;
+        } else if(arg == "--no-chase" || arg == "-n") {
             this->pointer_chasing = false;
+        } else if(arg == "--compress" || arg == "-c") {
+            this->use_compression = true;
         } else if(arg == "--z-curve-width" && this->argc > i+1) {
             sscanf(this->argv[i+1], "%d", &this->z_curve_width);
             ++i;
@@ -236,13 +260,16 @@ void LapLapUnstrBenchmark<value_t>::parse_args() {
             this->Benchmark::parse_args();
         }
     }
+    if(this->use_compression) {
+        this->name.append("-comp");
+    }
     if(!this->pointer_chasing) {
         this->name.append("-no-chase");
     }
-    if(this->layout == CudaUnstructuredGrid3D<value_t>::zcurve) {
+    if(this->layout == zcurve) {
         this->name.append("-z-curves");
     }
-    if(this->layout == CudaUnstructuredGrid3D<value_t>::random) {
+    if(this->layout == random_layout) {
         this->name.append("-random");
     }
 }

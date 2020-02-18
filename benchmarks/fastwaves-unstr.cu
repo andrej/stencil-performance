@@ -5,7 +5,7 @@
 
 namespace FastWavesUnstrBenchmarkNamespace {
 
-    enum Variant { naive, idxvar, idxvar_kloop, idxvar_kloop_sliced, idxvar_shared, kloop };
+    enum Variant { naive, idxvar, idxvar_kloop, idxvar_kloop_sliced, idxvar_shared, kloop, aos_idxvar };
 
     #define GRID_ARGS const int * __restrict__ neighborships, const int z_stride, const int offs, const int xysize,
     #define INDEX(x_, y_, z_) (x_) + (y_)*blockDim.x*gridDim.x + offs + (z_)*z_stride
@@ -21,6 +21,7 @@ namespace FastWavesUnstrBenchmarkNamespace {
     #include "kernels/fastwaves-idxvar-kloop-sliced.cu"
     #include "kernels/fastwaves-idxvar-shared.cu"
     #include "kernels/fastwaves-kloop.cu"
+    #include "kernels/fastwaves-aos-idxvar.cu"
 
     #undef GRID_ARGS
     #undef INDEX
@@ -55,7 +56,7 @@ class FastWavesUnstrBenchmark : public FastWavesBaseBenchmark<value_t> {
     int k_per_thread = 8;
     int smem = 0;
 
-    typename UnstructuredGrid3D<value_t>::layout_t layout = UnstructuredGrid3D<value_t>::rowmajor;
+    layout_t layout = rowmajor;
 
     void (*kernel)(const coord3, const int *, const int, const int, const int, const value_t *, const value_t *, const value_t *, const value_t *, const value_t *, const value_t *, const value_t *, const value_t *, const value_t *, const double, const double, const int, value_t *, value_t *);
 
@@ -77,41 +78,61 @@ variant(variant) {
         this->name = "fastwaves-unstr-idxvar-shared";
     } else if(this->variant == FastWavesUnstrBenchmarkNamespace::kloop) {
         this->name = "fastwaves-unstr-kloop";
+    } else if(this->variant == FastWavesUnstrBenchmarkNamespace::aos_idxvar) {
+        this->name = "fastwaves-unstr-aos-idxvar";
     }
 }
 
 template<typename value_t>
 void FastWavesUnstrBenchmark<value_t>::setup() {
-    CudaUnstructuredGrid3D<value_t> *u_in = CudaUnstructuredGrid3D<value_t>::create_regular(this->inner_size, this->halo, this->layout);
-    this->u_in = u_in;
-    this->v_in = CudaUnstructuredGrid3D<value_t>::clone(*u_in);
-    this->u_tens = CudaUnstructuredGrid3D<value_t>::clone(*u_in);
-    this->v_tens = CudaUnstructuredGrid3D<value_t>::clone(*u_in);
-    this->rho = CudaUnstructuredGrid3D<value_t>::clone(*u_in);
-    this->ppuv = CudaUnstructuredGrid3D<value_t>::clone(*u_in);
-    this->fx = CudaUnstructuredGrid3D<value_t>::clone(*u_in);
-    this->wgtfac = CudaUnstructuredGrid3D<value_t>::clone(*u_in);
-    this->hhl = CudaUnstructuredGrid3D<value_t>::clone(*u_in);
-    this->u_out = CudaUnstructuredGrid3D<value_t>::clone(*u_in);
-    this->v_out = CudaUnstructuredGrid3D<value_t>::clone(*u_in);
+    if(this->variant != FastWavesUnstrBenchmarkNamespace::aos_idxvar) {
+        CudaUnstructuredGrid3D<value_t> *u_in = CudaUnstructuredGrid3D<value_t>::create_regular(this->inner_size, this->halo, this->layout);
+        this->u_in = u_in;
+        this->v_in = CudaUnstructuredGrid3D<value_t>::clone(*u_in);
+        this->u_tens = CudaUnstructuredGrid3D<value_t>::clone(*u_in);
+        this->v_tens = CudaUnstructuredGrid3D<value_t>::clone(*u_in);
+        this->rho = CudaUnstructuredGrid3D<value_t>::clone(*u_in);
+        this->ppuv = CudaUnstructuredGrid3D<value_t>::clone(*u_in);
+        this->fx = CudaUnstructuredGrid3D<value_t>::clone(*u_in);
+        this->wgtfac = CudaUnstructuredGrid3D<value_t>::clone(*u_in);
+        this->hhl = CudaUnstructuredGrid3D<value_t>::clone(*u_in);
+        this->u_out = CudaUnstructuredGrid3D<value_t>::clone(*u_in);
+        this->v_out = CudaUnstructuredGrid3D<value_t>::clone(*u_in);
 
-    this->neighborships = u_in->neighborships;
-    this->z_stride = u_in->z_stride();
-    this->offs = u_in->index(coord3(0, 0, 0)),
-    this->xysize = u_in->dimensions.x*u_in->dimensions.y;
+        this->neighborships = u_in->neighborships;
+        this->z_stride = u_in->z_stride();
+        this->offs = u_in->index(coord3(0, 0, 0)),
+        this->xysize = u_in->dimensions.x*u_in->dimensions.y;
+
+        this->ptr_ppuv = this->ppuv->data;
+        this->ptr_wgtfac = this->wgtfac->data;
+        this->ptr_hhl = this->hhl->data;
+        this->ptr_v_in = this->v_in->data;
+        this->ptr_u_in = this->u_in->data;
+        this->ptr_v_tens = this->v_tens->data;
+        this->ptr_u_tens = this->u_tens->data;
+        this->ptr_rho = this->rho->data;
+        this->ptr_fx = this->fx->data;
+        this->ptr_u_out = this->u_out->data;
+        this->ptr_v_out = this->v_out->data;
+    } else {
+        this->aos = true;
+        CudaUnstructuredGrid3D<fastwaves_aos_val<value_t>> *ins = CudaUnstructuredGrid3D<fastwaves_aos_val<value_t>>::create_regular(this->inner_size, this->halo, this->layout);
+        this->inputs = ins;
+        CudaUnstructuredGrid3D<value_t> *u_out = CudaUnstructuredGrid3D<value_t>::create(this->inner_size, this->halo, 1, ins->neighborships);
+        u_out->indices = ins->indices;
+        u_out->coordinates = ins->coordinates;
+        this->u_out = u_out;
+        this->v_out = CudaUnstructuredGrid3D<value_t>::clone(*u_out);
+        this->ptr_u_out = this->u_out->data;
+        this->ptr_v_out = this->v_out->data;
+        this->neighborships = ins->neighborships;
+        this->z_stride = ins->z_stride();
+        this->offs = ins->index(coord3(0, 0, 0)),
+        this->xysize = ins->dimensions.x*ins->dimensions.y;
+    }
+
     this->FastWavesBaseBenchmark<value_t>::setup(); // set initial values
-
-    this->ptr_ppuv = this->ppuv->data;
-    this->ptr_wgtfac = this->wgtfac->data;
-    this->ptr_hhl = this->hhl->data;
-    this->ptr_v_in = this->v_in->data;
-    this->ptr_u_in = this->u_in->data;
-    this->ptr_v_tens = this->v_tens->data;
-    this->ptr_u_tens = this->u_tens->data;
-    this->ptr_rho = this->rho->data;
-    this->ptr_fx = this->fx->data;
-    this->ptr_u_out = this->u_out->data;
-    this->ptr_v_out = this->v_out->data;
 
     this->blocks = this->numblocks();
     this->threads = this->numthreads();
@@ -132,7 +153,8 @@ void FastWavesUnstrBenchmark<value_t>::setup() {
 
 template<typename value_t>
 void FastWavesUnstrBenchmark<value_t>::run() {
-    if(this->variant != FastWavesUnstrBenchmarkNamespace::idxvar_kloop_sliced) {
+    if(this->variant != FastWavesUnstrBenchmarkNamespace::idxvar_kloop_sliced &&
+       this->variant != FastWavesUnstrBenchmarkNamespace::aos_idxvar) {
         (*this->kernel)<<<this->blocks, this->threads, this->smem>>>(
             this->inner_size,
             this->neighborships, this->z_stride, this->offs, this->xysize,
@@ -150,7 +172,7 @@ void FastWavesUnstrBenchmark<value_t>::run() {
             this->c_flat_limit,
             this->ptr_u_out,
             this->ptr_v_out);
-    } else {
+    } else if(this->variant == FastWavesUnstrBenchmarkNamespace::idxvar_kloop_sliced) {
         FastWavesUnstrBenchmarkNamespace::fastwaves_idxvar_kloop_sliced<<<this->blocks, this->threads>>>(
             this->k_per_thread,
             this->inner_size,
@@ -164,6 +186,16 @@ void FastWavesUnstrBenchmark<value_t>::run() {
             this->ptr_u_tens,
             this->ptr_rho,
             this->ptr_fx,
+            this->edadlat,
+            this->dt_small,
+            this->c_flat_limit,
+            this->ptr_u_out,
+            this->ptr_v_out);
+    } else if(this->variant == FastWavesUnstrBenchmarkNamespace::aos_idxvar) {
+        FastWavesUnstrBenchmarkNamespace::fastwaves_aos_idxvar<<<this->blocks, this->threads>>>(
+            this->inner_size,
+            this->neighborships, this->z_stride, this->offs, this->xysize,
+            this->inputs->data,
             this->edadlat,
             this->dt_small,
             this->c_flat_limit,
@@ -207,17 +239,17 @@ void FastWavesUnstrBenchmark<value_t>::parse_args() {
     for(int i = 0; i < this->argc; i++) {
         std::string arg = std::string(this->argv[i]);
         if(arg == "--z-curves" || arg == "-z") {
-            this->layout = CudaUnstructuredGrid3D<value_t>::zcurve;
+            this->layout = zcurve;
         } else if(arg == "--random" || arg == "-r") {
-            this->layout = CudaUnstructuredGrid3D<value_t>::random;
+            this->layout = random_layout;
         } else if(this->variant == FastWavesUnstrBenchmarkNamespace::idxvar_kloop_sliced) {
             sscanf(this->argv[i], "%d", &this->k_per_thread);
         }
     }
-    if(this->layout == CudaUnstructuredGrid3D<value_t>::zcurve) {
+    if(this->layout == zcurve) {
         this->name.append("-z-curves");
     }
-    if(this->layout == CudaUnstructuredGrid3D<value_t>::random) {
+    if(this->layout == random_layout) {
         this->name.append("-random");
     }
 }

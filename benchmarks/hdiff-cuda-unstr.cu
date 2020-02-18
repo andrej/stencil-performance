@@ -94,7 +94,7 @@ class HdiffCudaUnstrBenchmark : public HdiffCudaBaseBenchmark<value_t> {
 
     int k_per_thread = 8;
 
-    typename UnstructuredGrid3D<value_t>::layout_t layout = UnstructuredGrid3D<value_t>::rowmajor;
+    layout_t layout = rowmajor;
 
 };
 
@@ -239,9 +239,9 @@ void HdiffCudaUnstrBenchmark<value_t>::parse_args() {
     for(int i = 0; i < this->argc; i++) {
         std::string arg = std::string(this->argv[i]);
         if(arg == "--z-curves" || arg == "-z") {
-            this->layout = CudaUnstructuredGrid3D<value_t>::zcurve;
+            this->layout = zcurve;
         } else if(arg == "--random" || arg == "-r") {
-            this->layout = CudaUnstructuredGrid3D<value_t>::random;
+            this->layout = random_layout;
         } else if(arg == "--no-chase" || arg == "-c") {
             this->pointer_chasing = false;
         } else if(this->variant == HdiffCudaUnstr::idxvar_kloop_sliced) {
@@ -253,10 +253,10 @@ void HdiffCudaUnstrBenchmark<value_t>::parse_args() {
     if(!this->pointer_chasing) {
         this->name.append("-no-chase");
     }
-    if(this->layout == CudaUnstructuredGrid3D<value_t>::zcurve) {
+    if(this->layout == zcurve) {
         this->name.append("-z-curves");
     }
-    if(this->layout == CudaUnstructuredGrid3D<value_t>::random) {
+    if(this->layout == random_layout) {
         this->name.append("-random");
     }
 }

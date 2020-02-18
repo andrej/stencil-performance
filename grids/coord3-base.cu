@@ -52,7 +52,10 @@ void Coord3BaseGrid<value_t>::import(Grid<value_t, coord3> *other) {
 }
 
 template<typename value_t>
-void Coord3BaseGrid<value_t>::print() {
+void Coord3BaseGrid<value_t>::print() {}
+
+template<>
+void Coord3BaseGrid<double>::print() {
     for(int y = -this->halo.y; y < this->dimensions.y+this->halo.y; y++) {
         for(int x = -this->halo.x; x < this->dimensions.x+this->halo.x; x++) {
             fprintf(stderr, "[");
@@ -67,13 +70,36 @@ void Coord3BaseGrid<value_t>::print() {
 
 template<typename value_t>
 bool Coord3BaseGrid<value_t>::compare(Grid<value_t, coord3> *other, double tol) {
+    return false;
+}
+
+template<>
+bool Coord3BaseGrid<double>::compare(Grid<double, coord3> *other, double tol) {
     if(this->dimensions != other->dimensions) {
         return false;
     }
     for(int x=0; x<other->dimensions.x; x++) {
         for(int y=0; y<other->dimensions.y; y++) {
             for(int z=0; z<other->dimensions.z; z++) {
-                value_t diff = (*other)[coord3(x, y, z)] - (*this)[coord3(x, y, z)];
+                double diff = (*other)[coord3(x, y, z)] - (*this)[coord3(x, y, z)];
+                if(isnan(diff) || abs(diff) > tol) {
+                    return false;
+                }
+            }
+        }
+    }
+    return true;
+}
+
+template<>
+bool Coord3BaseGrid<float>::compare(Grid<float, coord3> *other, double tol) {
+    if(this->dimensions != other->dimensions) {
+        return false;
+    }
+    for(int x=0; x<other->dimensions.x; x++) {
+        for(int y=0; y<other->dimensions.y; y++) {
+            for(int z=0; z<other->dimensions.z; z++) {
+                double diff = (*other)[coord3(x, y, z)] - (*this)[coord3(x, y, z)];
                 if(isnan(diff) || abs(diff) > tol) {
                     return false;
                 }

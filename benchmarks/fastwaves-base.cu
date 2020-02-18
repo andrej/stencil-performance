@@ -4,6 +4,35 @@
 #include "benchmarks/benchmark.cu"
 #include "benchmarks/fastwaves-ref.cu"
 
+/** Values stored in *one* grid, used for array of structs implementations. */
+template<typename value_t>
+struct fastwaves_aos_val {
+    value_t u_in = 0;
+    value_t v_in = 0;
+    value_t u_tens = 0;
+    value_t v_tens = 0;
+    value_t rho = 0;
+    value_t ppuv = 0;
+    value_t fx = 0;
+    value_t wgtfac = 0;
+    value_t hhl = 0;
+};
+
+/** Values stored in *one* grid, used for array of struct of arrays implementations.
+ * Combines cache locality with AoS + coalescing of 32bit instructions (8 byte double * 4 = 32 bits). */
+template<typename value_t>
+struct fastwaves_aosoa_val {
+    value_t u_in[4];
+    value_t v_in[4];
+    value_t u_tens[4];
+    value_t v_tens[4];
+    value_t rho[4];
+    value_t ppuv[4];
+    value_t fx[4];
+    value_t wgtfac[4];
+    value_t hhl[4];
+};
+
 /** Base Class for Fastwaves benchmarks */
 template<typename value_t>
 class FastWavesBaseBenchmark : public Benchmark {
@@ -14,6 +43,9 @@ class FastWavesBaseBenchmark : public Benchmark {
     
     coord3 halo;
     coord3 inner_size;
+
+    bool aos = false; // Use array of structs instead of struct of arrays (better cache locality)
+    bool aosoa = false;
 
     const int c_flat_limit;
     const int dt_small;
@@ -29,6 +61,10 @@ class FastWavesBaseBenchmark : public Benchmark {
     CudaBaseGrid<value_t, coord3> *fx = NULL;
     CudaBaseGrid<value_t, coord3> *wgtfac = NULL;
     CudaBaseGrid<value_t, coord3> *hhl = NULL;
+
+    // Alternatively to the above, for AoS
+    CudaBaseGrid<fastwaves_aos_val<value_t>, coord3> *inputs = NULL;
+
 
     // Outputs
     CudaBaseGrid<value_t, coord3> *u_out = NULL;
@@ -76,7 +112,7 @@ edadlat(1) {
 
 template<typename value_t>
 void FastWavesBaseBenchmark<value_t>::setup() {
-    if(!this->reference_benchmark && this->do_verify) {
+    if(!this->reference_benchmark && this->do_verify || this->aos || this->aosoa) {
         this->reference_benchmark = new FastWavesRefBenchmark<value_t>(this->size);
         this->reference_benchmark->c_flat_limit = this->c_flat_limit;
         this->reference_benchmark->dt_small = this->dt_small;
@@ -84,30 +120,52 @@ void FastWavesBaseBenchmark<value_t>::setup() {
         this->reference_benchmark->setup();
     }
 
-    // Reset/ Import values
-    // Inputs / Constants
-    if(this->do_verify) {
-        this->u_in->import(this->reference_benchmark->u_pos);
-        this->v_in->import(this->reference_benchmark->v_pos);
-        this->u_tens->import(this->reference_benchmark->u_tens);
-        this->v_tens->import(this->reference_benchmark->v_tens);
-        this->rho->import(this->reference_benchmark->rho);
-        this->ppuv->import(this->reference_benchmark->ppuv);
-        this->fx->import(this->reference_benchmark->fx);
-        this->wgtfac->import(this->reference_benchmark->wgtfac);
-        this->hhl->import(this->reference_benchmark->hhl);
+    if(this->aos) {
+        for(int z = -this->halo.z; z < this->inner_size.z + this->halo.z; z++) {
+            for(int y = -this->halo.y; y < this->inner_size.y + this->halo.y; y++) {
+                for(int x = -this->halo.x; x < this->inner_size.x + this->halo.x; x++) {
+                    coord3 pos(x, y, z);
+                    struct fastwaves_aos_val<value_t> v = {
+                        .u_in = (*this->reference_benchmark->u_pos)[pos],
+                        .v_in = (*this->reference_benchmark->v_pos)[pos],
+                        .u_tens = (*this->reference_benchmark->u_tens)[pos],
+                        .v_tens = (*this->reference_benchmark->v_tens)[pos],
+                        .rho = (*this->reference_benchmark->rho)[pos],
+                        .ppuv = (*this->reference_benchmark->ppuv)[pos],
+                        .fx = (*this->reference_benchmark->fx)[pos],
+                        .wgtfac = (*this->reference_benchmark->wgtfac)[pos],
+                        .hhl = (*this->reference_benchmark->hhl)[pos]
+                    };
+                    this->inputs->set(pos, v);
+                }
+            }
+        }
     } else {
-        // Importing is expensive. If we do not verify, simply create some random values
-        // they need not be the same as some reference grid, as there is no reference
-        this->u_in->fill_random();
-        this->v_in->fill_random();
-        this->u_tens->fill_random();
-        this->v_tens->fill_random();
-        this->rho->fill_random();
-        this->ppuv->fill_random();
-        this->fx->fill_random();
-        this->wgtfac->fill_random();
-        this->hhl->fill_random();
+        // Reset/ Import values
+        // Inputs / Constants
+        if(this->do_verify) {
+            this->u_in->import(this->reference_benchmark->u_pos);
+            this->v_in->import(this->reference_benchmark->v_pos);
+            this->u_tens->import(this->reference_benchmark->u_tens);
+            this->v_tens->import(this->reference_benchmark->v_tens);
+            this->rho->import(this->reference_benchmark->rho);
+            this->ppuv->import(this->reference_benchmark->ppuv);
+            this->fx->import(this->reference_benchmark->fx);
+            this->wgtfac->import(this->reference_benchmark->wgtfac);
+            this->hhl->import(this->reference_benchmark->hhl);
+        } else {
+            // Importing is expensive. If we do not verify, simply create some random values
+            // they need not be the same as some reference grid, as there is no reference
+            this->u_in->fill_random();
+            this->v_in->fill_random();
+            this->u_tens->fill_random();
+            this->v_tens->fill_random();
+            this->rho->fill_random();
+            this->ppuv->fill_random();
+            this->fx->fill_random();
+            this->wgtfac->fill_random();
+            this->hhl->fill_random();
+        }
     }
 
     // Reset Outputs
@@ -139,15 +197,19 @@ void FastWavesBaseBenchmark<value_t>::teardown() {
 template<typename value_t>
 void FastWavesBaseBenchmark<value_t>::pre() {
     // Inputs / Constants
-    this->u_in->prefetchToDevice();
-    this->v_in->prefetchToDevice();
-    this->u_tens->prefetchToDevice();
-    this->v_tens->prefetchToDevice();
-    this->rho->prefetchToDevice();
-    this->ppuv->prefetchToDevice();
-    this->fx->prefetchToDevice();
-    this->wgtfac->prefetchToDevice();
-    this->hhl->prefetchToDevice();
+    if(!this->aos) {
+        this->u_in->prefetchToDevice();
+        this->v_in->prefetchToDevice();
+        this->u_tens->prefetchToDevice();
+        this->v_tens->prefetchToDevice();
+        this->rho->prefetchToDevice();
+        this->ppuv->prefetchToDevice();
+        this->fx->prefetchToDevice();
+        this->wgtfac->prefetchToDevice();
+        this->hhl->prefetchToDevice();
+    } else {
+        this->inputs->prefetchToDevice();
+    }
 
     // Outputs
     this->u_out->prefetchToDevice();
