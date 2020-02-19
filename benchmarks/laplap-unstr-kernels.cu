@@ -48,23 +48,41 @@ namespace Chasing {
 #define PROTO(idx) int idx ## _proto = prototypes[idx]
 
 namespace Compressed {
-    #define CHASING
-    #define CHASING
-    //#define NEIGHBOR(idx, x_, y_, _z) GRID_UNSTR_PROTO_NEIGHBOR(prototypes, neighborships, z_stride, neigh_stride, idx, x_, y_, z_)
-    //#define DOUBLE_NEIGHBOR(idx, x1, y1, z1, x2, y2, z2) NEIGHBOR(NEIGHBOR(idx, x1, y1, z1), x2, y2, z2)
-    //#include "kernels/laplap-naive.cu"
-    #undef NEIGHBOR
-    //#undef DOUBLE_NEIGHBOR
 
-    #define NEIGHBOR(idx, x_, y_, z_) GRID_UNSTR_2D_NEIGHBOR_(neighborships, neigh_stride, idx, idx ## _proto, x_, y_)
-    //#define DOUBLE_NEIGHBOR(idx, x1, y1, z1, x2, y2, z2) NEIGHBOR(NEIGHBOR(idx, x1, y1, z1), x2, y2, z2)
-    #include "kernels/laplap-idxvar.cu"
-    //#include "kernels/laplap-idxvar-kloop.cu"
-    //#include "kernels/laplap-idxvar-kloop-sliced.cu"
-    //#include "kernels/laplap-idxvar-shared.cu"
-    #undef NEIGHBOR
-    #undef DOUBLE_NEIGHBOR
-    #undef CHASING
+    namespace NonChasing {
+        #define NEIGHBOR(idx, x_, y_, z_) GRID_UNSTR_PROTO_NEIGHBOR(prototypes, neighborships, z_stride, neigh_stride, idx, x_, y_, z_)
+        #define DOUBLE_NEIGHBOR(idx, x1, y1, z1, x2, y2, z2) NEIGHBOR(idx, (x1)+(x2), (y1)+(y2), (z1)+(z2))
+        #include "kernels/laplap-naive.cu"
+        #undef NEIGHBOR
+        #undef DOUBLE_NEIGHBOR
+    
+        #define NEIGHBOR(idx, x_, y_, z_) GRID_UNSTR_2D_NEIGHBOR_(neighborships, neigh_stride, idx, idx ## _proto, x_, y_)
+        #define DOUBLE_NEIGHBOR(idx, x1, y1, z1, x2, y2, z2) NEIGHBOR(idx, (x1)+(x2), (y1)+(y2), (z1)+(z2))
+        #include "kernels/laplap-idxvar.cu"
+        #include "kernels/laplap-idxvar-kloop.cu"
+        #include "kernels/laplap-idxvar-kloop-sliced.cu"
+        #include "kernels/laplap-idxvar-shared.cu"
+        #undef DOUBLE_NEIGHBOR
+        #undef NEIGHBOR
+    };
+    
+    namespace Chasing {
+        #define CHASING
+        #define CHASING
+        #define NEIGHBOR(idx, x_, y_, z_) GRID_UNSTR_PROTO_NEIGHBOR(prototypes, neighborships, z_stride, neigh_stride, idx, x_, y_, z_)
+        #define DOUBLE_NEIGHBOR(idx, x1, y1, z1, x2, y2, z2) NEIGHBOR(NEIGHBOR(idx, x1, y1, z1), x2, y2, z2)
+        #include "kernels/laplap-naive.cu"
+        #undef NEIGHBOR
+        #undef DOUBLE_NEIGHBOR
+    
+        #define NEIGHBOR(idx, x_, y_, z_) GRID_UNSTR_2D_NEIGHBOR_(neighborships, neigh_stride, idx, idx ## _proto, x_, y_)
+        #include "kernels/laplap-idxvar.cu"
+        #include "kernels/laplap-idxvar-kloop.cu"
+        #include "kernels/laplap-idxvar-kloop-sliced.cu"
+        #include "kernels/laplap-idxvar-shared.cu"
+        #undef NEIGHBOR
+        #undef CHASING
+    };
 };
 
 #undef GRID_ARGS

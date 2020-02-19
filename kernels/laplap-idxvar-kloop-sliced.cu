@@ -11,11 +11,13 @@ void laplap_idxvar_kloop_sliced(GRID_ARGS const int k_per_thread, const coord3 m
     const int k_stop = (k_start + k_per_thread < max_coord.z ? k_start + k_per_thread : max_coord.z); 
 
     int center        = INDEX(i, j, 0);
+    PROTO(center);
     int left          = NEIGHBOR(center, -1,  0, 0);
     int right         = NEIGHBOR(center, +1,  0, 0);
     int top           = NEIGHBOR(center,  0, -1, 0);
     int bottom        = NEIGHBOR(center,  0, +1, 0);
     #ifdef CHASING
+        PROTO(left);    PROTO(top);     PROTO(bottom);      PROTO(right);
         int leftleft      = NEIGHBOR(left, -1,  0, 0);
         int topleft       = NEIGHBOR(top,  -1,  0,  0);
         int bottomleft    = NEIGHBOR(bottom, -1,  0,  0);

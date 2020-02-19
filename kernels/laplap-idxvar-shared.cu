@@ -17,11 +17,13 @@ void laplap_idxvar_shared(GRID_ARGS const coord3 max_coord, const value_t *in, v
     int center, left, leftleft, topleft, bottomleft, right, topright, rightright, bottomright, top, toptop, bottom, bottombottom;
     if(is_first) {
         center        = idxvars[0] = INDEX(i, j, 0);
+        PROTO(center);
         left          = idxvars[1] = NEIGHBOR(center, -1,  0, 0);
         right         = idxvars[5] = NEIGHBOR(center, +1,  0, 0);
         top           = idxvars[9] = NEIGHBOR(center,  0, -1, 0);
         bottom        = idxvars[11] = NEIGHBOR(center,  0, +1, 0);
         #ifdef CHASING
+            PROTO(left);    PROTO(top);     PROTO(bottom);      PROTO(right);
             leftleft      = idxvars[2] = NEIGHBOR(left, -1,  0,  0);
             topleft       = idxvars[3] = NEIGHBOR(top,  -1,  0,  0);
             bottomleft    = idxvars[4] = NEIGHBOR(bottom, -1,  0,  0);

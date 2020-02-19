@@ -8,11 +8,13 @@ void laplap_idxvar_kloop(GRID_ARGS const coord3 max_coord, const value_t *in, va
     }
 
     int center        = INDEX(i, j, 0);
+    PROTO(center);
     int left          = NEIGHBOR(center, -1,  0, 0);
     int right         = NEIGHBOR(center, +1,  0, 0);
     int top           = NEIGHBOR(center,  0, -1, 0);
     int bottom        = NEIGHBOR(center,  0, +1, 0);
     #ifdef CHASING
+        PROTO(left);    PROTO(top);     PROTO(bottom);      PROTO(right);
         int leftleft      = NEIGHBOR(left, -1,  0, 0);
         int topleft       = NEIGHBOR(top,  -1,  0,  0);
         int bottomleft    = NEIGHBOR(bottom, -1,  0,  0);

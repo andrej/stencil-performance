@@ -68,11 +68,6 @@ typedef enum {all_benchs,
               laplap_unstr_idxvar_kloop,
               laplap_unstr_idxvar_kloop_sliced,
               laplap_unstr_idxvar_shared,
-              laplap_unstr_naive_int16,
-              laplap_unstr_idxvar_int16,
-              laplap_unstr_idxvar_kloop_int16,
-              laplap_unstr_idxvar_kloop_sliced_int16,
-              laplap_unstr_idxvar_shared_int16,
 
               unspecified
               } 
@@ -455,36 +450,6 @@ Benchmark *create_benchmark(benchmark_params_t param_bench, coord3 size,
         ret = (precision == single_prec ?
             (Benchmark *) new LapLapUnstrBenchmark<float>(size, LapLapUnstr::idxvar_shared) :
             (Benchmark *) new LapLapUnstrBenchmark<double>(size, LapLapUnstr::idxvar_shared) );
-        break;
-        case laplap_unstr_naive_int16:
-        ret = (precision == single_prec ?
-            (Benchmark *) new LapLapUnstrBenchmark<float, int16_t>(size, LapLapUnstr::naive) :
-            (Benchmark *) new LapLapUnstrBenchmark<double, int16_t>(size, LapLapUnstr::naive) );
-        ret->name.append("-int16");
-        break;
-        case laplap_unstr_idxvar_int16:
-        ret = (precision == single_prec ?
-            (Benchmark *) new LapLapUnstrBenchmark<float, int16_t>(size, LapLapUnstr::idxvar) :
-            (Benchmark *) new LapLapUnstrBenchmark<double, int16_t>(size, LapLapUnstr::idxvar) );
-        ret->name.append("-int16");
-        break;
-        case laplap_unstr_idxvar_kloop_int16:
-        ret = (precision == single_prec ?
-            (Benchmark *) new LapLapUnstrBenchmark<float, int16_t>(size, LapLapUnstr::idxvar_kloop) :
-            (Benchmark *) new LapLapUnstrBenchmark<double, int16_t>(size, LapLapUnstr::idxvar_kloop) );
-        ret->name.append("-int16");
-        break;
-        case laplap_unstr_idxvar_kloop_sliced_int16:
-        ret = (precision == single_prec ?
-            (Benchmark *) new LapLapUnstrBenchmark<float, int16_t>(size, LapLapUnstr::idxvar_kloop_sliced) :
-            (Benchmark *) new LapLapUnstrBenchmark<double, int16_t>(size, LapLapUnstr::idxvar_kloop_sliced) );
-        ret->name.append("-int16");
-        break;
-        case laplap_unstr_idxvar_shared_int16:
-        ret = (precision == single_prec ?
-            (Benchmark *) new LapLapUnstrBenchmark<float, int16_t>(size, LapLapUnstr::idxvar_shared) :
-            (Benchmark *) new LapLapUnstrBenchmark<double, int16_t>(size, LapLapUnstr::idxvar_shared) );
-        ret->name.append("-int16");
         break;
         default:
         return NULL;

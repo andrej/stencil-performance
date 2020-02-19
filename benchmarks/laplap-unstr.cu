@@ -15,14 +15,8 @@ namespace LapLapUnstr {
     enum Variant { naive, idxvar, idxvar_kloop, idxvar_kloop_sliced, idxvar_shared };
 
     #define neigh_ptr_t int
-    #include "laplap-kernels.cu"
+    #include "laplap-unstr-kernels.cu"
     #undef neigh_ptr_t
-
-    namespace Int16 {
-        #define neigh_ptr_t int16_t
-        #include "laplap-kernels.cu"
-        #undef neigh_ptr_t
-    };
 
 };
 
@@ -61,12 +55,11 @@ class LapLapUnstrBenchmark : public LapLapBaseBenchmark<value_t> {
     dim3 threads;
     value_t *input_ptr;
     value_t *output_ptr;
-    void set_kernel_fun(int x);
-    void set_kernel_fun(int16_t x);
-    void (*kernel_kloop_sliced)(const neigh_ptr_t *, const int, const int, const int, const coord3, const value_t *, value_t *);
+    void set_kernel_fun();
     void (*kernel)(const neigh_ptr_t *, const int, const int, const coord3, const value_t *, value_t *);
+    void (*kernel_kloop_sliced)(const neigh_ptr_t *, const int, const int, const int, const coord3, const value_t *, value_t *);
     void (*kernel_comp)(neigh_ptr_t *, neigh_ptr_t *, const int, const int, const int, const coord3, const value_t *, value_t *);
-
+    void (*kernel_kloop_sliced_comp)(neigh_ptr_t *, neigh_ptr_t *, const int, const int, const int, const int, const coord3, const value_t *, value_t *);
 };
 
 // IMPLEMENTATIONS
@@ -113,104 +106,98 @@ void LapLapUnstrBenchmark<value_t, neigh_ptr_t>::setup() {
     this->threads = this->numthreads();
     this->blocks = this->numblocks();
     smem = 0;
-    this->set_kernel_fun(this->neighborships[0]);
+    this->set_kernel_fun();
 }
 
 template<typename value_t, typename neigh_ptr_t>
-void LapLapUnstrBenchmark<value_t, neigh_ptr_t>::set_kernel_fun(int x) {
+void LapLapUnstrBenchmark<value_t, neigh_ptr_t>::set_kernel_fun() {
     kernel = &LapLapUnstr::NonChasing::laplap_naive<value_t>;
+    kernel_comp = &LapLapUnstr::Compressed::NonChasing::laplap_naive<value_t>;
     if(this->variant == LapLapUnstr::naive && this->pointer_chasing) {
         kernel = &LapLapUnstr::Chasing::laplap_naive<value_t>;
+        kernel_comp = &LapLapUnstr::Compressed::Chasing::laplap_naive<value_t>;
     } else if(this->variant == LapLapUnstr::idxvar) {
         if(this->pointer_chasing) {
             kernel = &LapLapUnstr::Chasing::laplap_idxvar<value_t>;
+            kernel_comp = &LapLapUnstr::Compressed::Chasing::laplap_idxvar<value_t>;
         } else {
             kernel = &LapLapUnstr::NonChasing::laplap_idxvar<value_t>;
+            kernel_comp = &LapLapUnstr::Compressed::NonChasing::laplap_idxvar<value_t>;
         }
     } else if(this->variant == LapLapUnstr::idxvar_kloop) {
         if(this->pointer_chasing) {
             kernel = &LapLapUnstr::Chasing::laplap_idxvar_kloop<value_t>;
+            kernel_comp = &LapLapUnstr::Compressed::Chasing::laplap_idxvar_kloop<value_t>;
         } else {
             kernel = &LapLapUnstr::NonChasing::laplap_idxvar_kloop<value_t>;
+            kernel_comp = &LapLapUnstr::Compressed::NonChasing::laplap_idxvar_kloop<value_t>;
         }
     } else if(this->variant == LapLapUnstr::idxvar_shared) {
         smem = threads.x*threads.y*13*sizeof(int);
         if(this->pointer_chasing) {
             kernel = &LapLapUnstr::Chasing::laplap_idxvar_shared<value_t>;
+            kernel_comp = &LapLapUnstr::Compressed::Chasing::laplap_idxvar_shared<value_t>;
         } else {
             kernel = &LapLapUnstr::NonChasing::laplap_idxvar_shared<value_t>;
+            kernel_comp = &LapLapUnstr::Compressed::NonChasing::laplap_idxvar_shared<value_t>;
         }
     }
     kernel_kloop_sliced = &LapLapUnstr::Chasing::laplap_idxvar_kloop_sliced<value_t>;
+    kernel_kloop_sliced_comp = &LapLapUnstr::Compressed::Chasing::laplap_idxvar_kloop_sliced<value_t>;
     if(!this->pointer_chasing) {
         kernel_kloop_sliced = &LapLapUnstr::NonChasing::laplap_idxvar_kloop_sliced<value_t>;
-    }
-    kernel_comp = &LapLapUnstr::Compressed::laplap_idxvar<value_t>;
-}
-
-template<typename value_t, typename neigh_ptr_t>
-void LapLapUnstrBenchmark<value_t, neigh_ptr_t>::set_kernel_fun(int16_t x) {
-    kernel = &LapLapUnstr::Int16::NonChasing::laplap_naive<value_t>;
-    if(this->variant == LapLapUnstr::naive && this->pointer_chasing) {
-        kernel = &LapLapUnstr::Int16::Chasing::laplap_naive<value_t>;
-    } else if(this->variant == LapLapUnstr::idxvar) {
-        if(this->pointer_chasing) {
-            kernel = &LapLapUnstr::Int16::Chasing::laplap_idxvar<value_t>;
-        } else {
-            kernel = &LapLapUnstr::Int16::NonChasing::laplap_idxvar<value_t>;
-        }
-    } else if(this->variant == LapLapUnstr::idxvar_kloop) {
-        if(this->pointer_chasing) {
-            kernel = &LapLapUnstr::Int16::Chasing::laplap_idxvar_kloop<value_t>;
-        } else {
-            kernel = &LapLapUnstr::Int16::NonChasing::laplap_idxvar_kloop<value_t>;
-        }
-    } else if(this->variant == LapLapUnstr::idxvar_shared) {
-        smem = threads.x*threads.y*13*sizeof(int);
-        if(this->pointer_chasing) {
-            kernel = &LapLapUnstr::Int16::Chasing::laplap_idxvar_shared<value_t>;
-        } else {
-            kernel = &LapLapUnstr::Int16::NonChasing::laplap_idxvar_shared<value_t>;
-        }
-    }
-    kernel_kloop_sliced = &LapLapUnstr::Int16::Chasing::laplap_idxvar_kloop_sliced<value_t>;
-    if(!this->pointer_chasing) {
-        kernel_kloop_sliced = &LapLapUnstr::Int16::NonChasing::laplap_idxvar_kloop_sliced<value_t>;
+        kernel_kloop_sliced_comp = &LapLapUnstr::Compressed::NonChasing::laplap_idxvar_kloop_sliced<value_t>;
     }
 }
 
 template<typename value_t, typename neigh_ptr_t>
 void LapLapUnstrBenchmark<value_t, neigh_ptr_t>::run() {
     if(this->variant == LapLapUnstr::idxvar_kloop_sliced) {
-        (*kernel_kloop_sliced)<<<blocks, threads>>>(
-            this->neighborships,
-            this->z_stride,
-            this->offs,
-            this->k_per_thread,
-            this->inner_size,
-            this->input->data,
-            this->output->data
-        );
-    } else if(this->use_compression) {
-        (*kernel_comp)<<<blocks, threads, smem>>>(
-            this->prototypes,
-            this->neighborships,
-            this->z_stride,
-            this->neigh_stride,
-            this->offs,
-            this->inner_size,
-            this->input->data,
-            this->output->data
-        );
+        if(this->use_compression) {
+            (*kernel_kloop_sliced_comp)<<<blocks, threads, smem>>>(
+                this->prototypes,
+                this->neighborships,
+                this->z_stride,
+                this->neigh_stride,
+                this->offs,
+                this->k_per_thread,
+                this->inner_size,
+                this->input->data,
+                this->output->data
+            );
+        } else {
+            (*kernel_kloop_sliced)<<<blocks, threads>>>(
+                this->neighborships,
+                this->z_stride,
+                this->offs,
+                this->k_per_thread,
+                this->inner_size,
+                this->input->data,
+                this->output->data
+            );
+        } 
     } else {
-        (*kernel)<<<blocks, threads, smem>>>(
-            this->neighborships,
-            this->z_stride,
-            this->offs,
-            this->inner_size,
-            this->input->data,
-            this->output->data
-        );
+        if(this->use_compression) {
+            (*kernel_comp)<<<blocks, threads, smem>>>(
+                this->prototypes,
+                this->neighborships,
+                this->z_stride,
+                this->neigh_stride,
+                this->offs,
+                this->inner_size,
+                this->input->data,
+                this->output->data
+            );
+        } else {
+            (*kernel)<<<blocks, threads, smem>>>(
+                this->neighborships,
+                this->z_stride,
+                this->offs,
+                this->inner_size,
+                this->input->data,
+                this->output->data
+            );
+        }
     }
     CUDA_THROW_LAST();
     CUDA_THROW( cudaDeviceSynchronize() );
