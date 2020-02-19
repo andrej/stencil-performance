@@ -43,6 +43,7 @@ class LapLapUnstrBenchmark : public LapLapBaseBenchmark<value_t> {
     layout_t layout = rowmajor;
     int z_curve_width = 4;
     bool use_compression = false;
+    bool print_comp_info = false;
 
     int smem = 0;
     neigh_ptr_t *neighborships;
@@ -94,6 +95,10 @@ void LapLapUnstrBenchmark<value_t, neigh_ptr_t>::setup() {
     }
     if(this->use_compression) {
         input->compress();
+        if(this->print_comp_info) {
+            fprintf(stderr, "XY-cells: %d. Prototypes: %d. Ratio: %4.2f%%.\n", input->z_stride(), input->neigh_stride(), input->neigh_stride()/(double)input->z_stride()*100);
+            input->print_prototypes();
+        }
     }
     this->z_stride = input->z_stride();
     this->neigh_stride = input->neigh_stride();
@@ -238,6 +243,8 @@ void LapLapUnstrBenchmark<value_t, neigh_ptr_t>::parse_args() {
             this->pointer_chasing = false;
         } else if(arg == "--compress" || arg == "-c") {
             this->use_compression = true;
+        } else if(arg == "--print-comp-info") {
+            this->print_comp_info = true;
         } else if(arg == "--z-curve-width" && this->argc > i+1) {
             sscanf(this->argv[i+1], "%d", &this->z_curve_width);
             ++i;

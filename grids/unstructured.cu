@@ -15,6 +15,7 @@
 #define DEFAULT_Z_CURVE_WIDTH 4
 
 enum layout_t { rowmajor, zcurve, random_layout };
+enum halo_layout_t { halo_layout_spiral, halo_layout_rowmajor };
 
 /** Unstructured Grid in 2 coords, structured in one Y-coordinate
  *
@@ -128,7 +129,7 @@ virtual public Coord3BaseGrid<value_t> {
      * regular grid would have, i.e. add top, left, right, bottom, front and
      * back neighbors as in a regular grid. */
     void add_regular_nodes(layout_t layout=rowmajor, unsigned char z_curve_width = DEFAULT_Z_CURVE_WIDTH);
-    void add_regular_halo();
+    void add_regular_halo(halo_layout_t halo_layout=halo_layout_rowmajor);
     void add_regular_neighbors();
 
     /** Grid is regular in Z-dimension. Halo is at the beginning of data. The 
@@ -445,15 +446,18 @@ void UnstructuredGrid3D<value_t, neigh_ptr_t>::compress() {
     int z_stride = this->z_stride();
     int neigh_stride = this->neigh_stride();
 
-    std::vector<std::vector<int>> new_protos; // vector of all various neighborship relations; inner vector contains relative neighbor offsets for that prototype
-    std::map<int, std::vector<int>> cells_of_prototype; // protoype idx in above vector -> list of cells of that type
+    struct new_proto_t {
+        std::vector<int> neigh_offs;
+        std::vector<int> cells;
+    };
+    std::vector<new_proto_t> new_protos;
     for(int i = 0; i < z_stride; i++) { // iterate over all cells in XY plane
         int idx = this->prototypes[i]; // in case we are already operating on compressed data
         auto match = new_protos.end();
         for(auto it = new_protos.begin(); it != new_protos.end(); ++it) { // check for a matching prototype
             bool does_match = true;
             for(int k = 0; k < n_stored_neighbors; k++) {
-                if(this->neighborships[idx + k*neigh_stride] != it->at(k)) {
+                if(this->neighborships[idx + k*neigh_stride] != it->neigh_offs.at(k)) {
                     does_match = false;
                     break;
                 }
@@ -464,34 +468,33 @@ void UnstructuredGrid3D<value_t, neigh_ptr_t>::compress() {
             }
         }
         if(match != new_protos.end()) { // found a match
-            int proto = match - new_protos.begin();
-            cells_of_prototype[proto].push_back(i);
+            match->cells.push_back(i);
         } else { // no match -> add this cells neighborship relations as new prototype
-            std::vector<int> new_proto;
+            new_proto_t new_proto;
             for(int k = 0; k < n_stored_neighbors; k++) {
-                new_proto.push_back(this->neighborships[i + k*neigh_stride]);
+                new_proto.neigh_offs.push_back(this->neighborships[i + k*neigh_stride]);
             }
+            new_proto.cells.push_back(i);
             new_protos.push_back(new_proto);
-            int new_proto_idx = new_protos.size() - 1;
-            cells_of_prototype[new_proto_idx] = std::vector<int>();
-            cells_of_prototype[new_proto_idx].push_back(i);
         }
     }
 
     this->n_prototypes = new_protos.size(); // determines new neigh_stride!
     neigh_stride = this->neigh_stride();
 
+    // sort prototypes by frequency of use
+    auto comparer = [](auto a, auto b) { return a.cells.size() < b.cells.size(); };
+    std::sort(new_protos.begin(), new_protos.end(), comparer);
+
     // store new compact neighborship relations & new prototype pointers
     int i = 0;
     for(auto proto = new_protos.begin(); proto != new_protos.end(); ++proto, ++i) {
         // store neighbor pointers for this prototype at next consecutive slot i
-        for(auto neigh = proto->begin(); neigh != proto->end(); ++neigh) {
-            int k = neigh - proto->begin();
-            this->neighborships[i + k*neigh_stride] = *neigh;
+        for(int k = 0; k < n_stored_neighbors; k++) {
+            this->neighborships[i + k*neigh_stride] = proto->neigh_offs.at(k);
         }
         // update prototype pointers for all cells that are of this proto type
-        std::vector<int> cells_of_proto = cells_of_prototype[proto - new_protos.begin()];
-        for(auto cell = cells_of_proto.begin(); cell != cells_of_proto.end(); ++cell) {
+        for(auto cell = proto->cells.begin(); cell != proto->cells.end(); ++cell) {
             this->prototypes[*cell] = i;
         }
     }
@@ -537,7 +540,7 @@ void UnstructuredGrid3D<value_t, neigh_ptr_t>::add_regular_nodes(layout_t layout
 }
 
 template<typename value_t, typename neigh_ptr_t>
-void UnstructuredGrid3D<value_t, neigh_ptr_t>::add_regular_halo() {
+void UnstructuredGrid3D<value_t, neigh_ptr_t>::add_regular_halo(halo_layout_t halo_layout) {
     coord3 halo = this->halo;
     coord3 inner = this->dimensions;
     /* The halo is added at the very beginning of each X-Y-plane memory slice.
@@ -545,26 +548,38 @@ void UnstructuredGrid3D<value_t, neigh_ptr_t>::add_regular_halo() {
      * (dimensions.x-1, dimensions.y-1, z), no halo cell is ever touched. */
     int z = 0; // grid is regular in Z-coord
     int new_index = 0;
-    /* The halo is allocated in memory from the outward in. This means that if we
-     * run through memory from e.g. postion (-1, -1, 0) we will never iterate over
-     * a cell that is farther out (e.g. (-2, -1, 0)). 
-     * The Z-halo is not handled specially in any way. */
-    for(int dst = std::max(halo.x, halo.y); dst > 0; dst--) { // dst is the max distance into the halo
-        /* Top/bottom edge of enclosing halo rectangle. */
-        if(dst <= halo.x) {
-            for(int x = -dst; x < inner.x+dst; x++) {
-                this->add_node(coord3(x, -dst, z), new_index);
-                new_index++;
-                this->add_node(coord3(x, inner.y+dst-1, z), new_index);
-                new_index++;
+    if(halo_layout == halo_layout_spiral) {
+        /* The halo is allocated in memory from the outward in. This means that if we
+        * run through memory from e.g. postion (-1, -1, 0) we will never iterate over
+        * a cell that is farther out (e.g. (-2, -1, 0)). 
+        * The Z-halo is not handled specially in any way. */
+        for(int dst = std::max(halo.x, halo.y); dst > 0; dst--) { // dst is the max distance into the halo
+            /* Top/bottom edge of enclosing halo rectangle. */
+            if(dst <= halo.x) {
+                for(int x = -dst; x < inner.x+dst; x++) {
+                    this->add_node(coord3(x, -dst, z), new_index);
+                    new_index++;
+                    this->add_node(coord3(x, inner.y+dst-1, z), new_index);
+                    new_index++;
+                }
+            }
+            /* Left/right edge of enclosing halo rectangle. */
+            if(dst <= halo.y) {
+                for(int y = -dst+1; y < inner.y+dst-1; y++) {
+                    this->add_node(coord3(-dst, y, z), new_index);
+                    new_index++;
+                    this->add_node(coord3(inner.x+dst-1, y, z), new_index);
+                    new_index++;
+                }
             }
         }
-        /* Left/right edge of enclosing halo rectangle. */
-        if(dst <= halo.y) {
-            for(int y = -dst+1; y < inner.y+dst-1; y++) {
-                this->add_node(coord3(-dst, y, z), new_index);
-                new_index++;
-                this->add_node(coord3(inner.x+dst-1, y, z), new_index);
+    } else if(halo_layout == halo_layout_rowmajor) {
+        for(int y = -halo.y; y < inner.y + halo.y; y++) {
+            for(int x = -halo.x; x < inner.x + halo.x; x++) {
+                if(0 <= x  && x < inner.x && 0 <= y && y < inner.y) {
+                    continue;
+                }
+                this->add_node(coord3(x, y, z), new_index);
                 new_index++;
             }
         }
@@ -625,7 +640,23 @@ void UnstructuredGrid3D<value_t, neigh_ptr_t>::print_neighborships() {
 
 template<typename value_t, typename neigh_ptr_t>
 void UnstructuredGrid3D<value_t, neigh_ptr_t>::print_prototypes() {
-    return;
+    int z_stride = this->z_stride();
+    int neigh_stride = this->neigh_stride();
+    int n_stored_neighbors = this->n_stored_neighbors();
+    int protoype_frequencies[neigh_stride] = {0};
+    for(int i = 0; i < z_stride; i++) {
+        protoype_frequencies[this->prototypes[i]]++;
+    }
+    fprintf(stderr, "Prototype   | Frequency  | Relative Neigh. Offs\n");
+    for(int i = 0; i < neigh_stride; i++) {
+        int freq = protoype_frequencies[i];
+        double rel = freq / (double)z_stride * 100;
+        fprintf(stderr, "%11d | %3d (%3f%%) | ", i, freq, rel);
+        for(int k = 0; k < n_stored_neighbors; k++) {
+            fprintf(stderr, "%+4d, ", this->neighborships[i + k*neigh_stride]);
+        }
+        fprintf(stderr, "\n");
+    }
 }
 
 #endif
