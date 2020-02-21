@@ -1,8 +1,6 @@
 #ifndef COORD3_H
 #define COORD3_H
 
-#include <cstdint>
-
 /** Signed three dimensional coordinates.
  *
  * If the constructor is supplied with only X and Y coordinates, Z is set to
@@ -17,12 +15,15 @@ struct _coord3 {
     _coord3(T x, T y);
     __host__ __device__
     _coord3(T x, T y, T z);
+    template<class Archive>
+    void serialize(Archive &ar, unsigned int version);
     void operator=(const _coord3<T> other);
     bool operator==(const _coord3<T> other) const;
     bool operator!=(const _coord3<T> other) const;
 };
 
 // IMPLEMENTATIONS
+
 
 /**
  * Constructors
@@ -40,6 +41,17 @@ template<typename T>
 _coord3<T>::_coord3() :
     x(0), y(0), z(0) {}
 
+
+/**
+ * Serialization
+ */
+template<typename T>
+template<class Archive>
+void _coord3<T>::serialize(Archive &ar, unsigned int version) {
+    ar & this->x;
+    ar & this->y;
+    ar & this->z;
+}
 
 /**
  * Operators
@@ -87,40 +99,40 @@ bool operator<(const _coord3<T> A, const _coord3<T> B) {
     // This gives the default ordering as if ordered by indices of a row-major
     // layout: x changing fastest, z slowest
     return A.z < B.z || 
-           (A.z == B.z && A.y < B.y) ||
-           (A.z == B.z && A.y == B.y && A.x < B.x);
+        (A.z == B.z && A.y < B.y) ||
+        (A.z == B.z && A.y == B.y && A.x < B.x);
 }
 
 template<typename T>
 __device__ __host__
 _coord3<T> operator+(_coord3<T> A, _coord3<T> B) {
     return _coord3<T>(A.x + B.x,
-                      A.y + B.y,
-                      A.z + B.z);
+                    A.y + B.y,
+                    A.z + B.z);
 }
 
 template<typename T>
 __device__ __host__
 _coord3<T> operator-(_coord3<T> A, _coord3<T> B) {
     return _coord3<T>(A.x - B.x,
-                      A.y - B.y,
-                      A.z - B.z);
+                    A.y - B.y,
+                    A.z - B.z);
 }
 
 template<typename T>
 __device__ __host__
 _coord3<T> operator-(_coord3<T> A) {
     return _coord3<T>(-A.x,
-                      -A.y,
-                      -A.z);
+                    -A.y,
+                    -A.z);
 }
 
 template<typename T>
 __device__ __host__
 _coord3<T> operator*(_coord3<T> A, int b) {
     return _coord3<T>(A.x * b,
-                      A.y * b,
-                      A.z * b);
+                    A.y * b,
+                    A.z * b);
 }
 
 template<typename T>

@@ -4,7 +4,9 @@
 #include <memory>
 #include <algorithm>
 #include "grid.cu"
+#include "coord3.cu"
 #include "coord3-base.cu"
+#include "../util.cu"
 
 /** A regular cartesian grid of squares.
  * 

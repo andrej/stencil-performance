@@ -4,6 +4,10 @@
 #include <assert.h>
 #include <memory>
 #include <random>
+#include <iostream>
+#include <boost/serialization/binary_object.hpp>
+#include <boost/serialization/split_member.hpp>
+#include "coord3.cu"
 
 /** Grid
  * 
@@ -25,6 +29,8 @@
  */
 template<typename value_t, typename coord_t>
 class Grid {
+
+    friend class boost::serialization::access;
 
     protected:
     // Subclasses 
@@ -106,6 +112,11 @@ class Grid {
      * may be within this range. */
     virtual int values_start();
     virtual int values_stop();
+
+    /** Serialize grid and put into / take out of stream, i.e. for storing to files. */
+    BOOST_SERIALIZATION_SPLIT_MEMBER();
+    template<class Archive> void save(Archive &ar, const unsigned int version) const;
+    template<class Archive> void load(Archive &ar, const unsigned int version);
 
 };
 
@@ -215,4 +226,24 @@ int Grid<value_t, coord_t>::values_stop() {
     return this->size / sizeof(value_t);
 }
 
+template<typename value_t, typename coord_t>
+template<class Archive>
+void Grid<value_t, coord_t>::save(Archive &ar, const unsigned int version) const {
+    ar << this->size;
+    ar << this->dimensions;
+    ar << this->halo;
+    ar << boost::serialization::make_binary_object(this->data, this->size);
+}
+
+template<typename value_t, typename coord_t>
+template<class Archive>
+void Grid<value_t, coord_t>::load(Archive &ar, const unsigned int version) {
+    ar >> this->size;
+    ar >> this->dimensions;
+    ar >> this->halo;
+    this->deallocate(); // new data -> free previous
+    this->init(); // new data might be larger/smaller, allocate anew
+    // init also does other things in subclasses so all members are set up right
+    ar >> boost::serialization::make_binary_object((char *)this->data, this->size);
+}
 #endif

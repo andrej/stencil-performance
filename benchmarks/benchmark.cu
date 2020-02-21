@@ -13,7 +13,6 @@
 #include <cuda_profiler_api.h>
 #endif
 #include "coord3.cu"
-#include "grids/coord3-base.cu"
 #include "util.cu"
 
 using clk = std::chrono::high_resolution_clock;
@@ -46,7 +45,7 @@ class Benchmark {
     coord3 size;
     dim3 _numblocks;
     dim3 _numthreads;
-	std::string name;
+    std::string name;
 	bool error = false;
     benchmark_result_t results;
     bool quiet = true;
@@ -93,6 +92,15 @@ class Benchmark {
 	// threads and blocks to launch the kernel in
 	virtual dim3 numthreads(coord3 domain=coord3());
     virtual dim3 numblocks(coord3 domain=coord3());
+
+    /* Benchmarks may use cache files to store their grids across runs so they
+     * do not have to be recalculated. In order to do so, they must implement the
+     * "serialize(Archive & ar, const unsigned int version)" method according to 
+     * the Boost::serialize specifications. They will then get serialized and
+     * stored to disk, then reloaded on next invocation. */
+    bool use_cache = true;
+    std::string cache_dir = ".grid-cache/";
+    std::string cache_file();
 
 };
 
@@ -223,6 +231,12 @@ void Benchmark::parse_args() {
         snprintf(msg, 100, "Unrecognized arguments for benchmark %s.", this->name.c_str());
         throw std::runtime_error(msg);
     }
+}
+
+std::string Benchmark::cache_file() {
+    char filename[256];
+    snprintf(filename, 256, "%s-%d-%d-%d.dat", this->name.c_str(), this->size.x, this->size.y, this->size.z);
+    return this->cache_dir + std::string(filename);
 }
 
 #endif

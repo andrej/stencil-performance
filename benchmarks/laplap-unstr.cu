@@ -5,6 +5,13 @@
 #include <type_traits>
 #include <cstdint>
 #include <functional>
+#include <boost/serialization/base_object.hpp>
+#include <boost/serialization/export.hpp>
+#include <fstream>
+#include <boost/archive/archive_exception.hpp>
+#include <boost/archive/binary_iarchive.hpp>
+#include <boost/archive/binary_oarchive.hpp>
+
 #include "benchmarks/laplap-base.cu"
 #include "grids/cuda-unstructured.cu"
  
@@ -25,8 +32,8 @@ template<typename value_t, typename neigh_ptr_t = int>
 class LapLapUnstrBenchmark : public LapLapBaseBenchmark<value_t> {
 
     public:
-
-    LapLapUnstrBenchmark(coord3 size, LapLapUnstr::Variant variant = LapLapUnstr::naive);
+    
+    LapLapUnstrBenchmark(coord3 size = coord3(1, 1, 1), LapLapUnstr::Variant variant = LapLapUnstr::naive);
 
     LapLapUnstr::Variant variant;
 
@@ -39,11 +46,14 @@ class LapLapUnstrBenchmark : public LapLapBaseBenchmark<value_t> {
     void parse_args();
     int k_per_thread = 16;
     bool pointer_chasing = true;
-    
+
     layout_t layout = rowmajor;
     int z_curve_width = 4;
     bool use_compression = false;
     bool print_comp_info = false;
+
+    bool setup_from_cache();
+    void store_to_cache();
 
     int smem = 0;
     neigh_ptr_t *neighborships;
@@ -62,6 +72,9 @@ class LapLapUnstrBenchmark : public LapLapBaseBenchmark<value_t> {
     void (*kernel_comp)(neigh_ptr_t *, neigh_ptr_t *, const int, const int, const int, const coord3, const value_t *, value_t *);
     void (*kernel_kloop_sliced_comp)(neigh_ptr_t *, neigh_ptr_t *, const int, const int, const int, const int, const coord3, const value_t *, value_t *);
 };
+
+// Class Ids for serialization
+//BOOST_CLASS_EXPORT(LapLapUnstrBenchmark<double>)
 
 // IMPLEMENTATIONS
 
@@ -85,33 +98,71 @@ variant(variant) {
 
 template<typename value_t, typename neigh_ptr_t>
 void LapLapUnstrBenchmark<value_t, neigh_ptr_t>::setup() {
-    coord3 halo2(2, 2, 0);
-    int neighbor_store_depth = (this->pointer_chasing ? 1 : 2);
-    CudaUnstructuredGrid3D<value_t, neigh_ptr_t> *input = CudaUnstructuredGrid3D<value_t, neigh_ptr_t>::create_regular(this->inner_size, halo2, this->layout, neighbor_store_depth, this->z_curve_width, this->use_compression);
-    this->input = input;
-    this->output = CudaUnstructuredGrid3D<value_t, neigh_ptr_t>::clone(*input);
+    CudaUnstructuredGrid3D<value_t, neigh_ptr_t> *input = NULL;
+    if(!this->setup_from_cache()) {
+        coord3 halo2(2, 2, 0);
+        int neighbor_store_depth = (this->pointer_chasing ? 1 : 2);
+        input = CudaUnstructuredGrid3D<value_t, neigh_ptr_t>::create_regular(this->inner_size, halo2, this->layout, neighbor_store_depth, this->z_curve_width, this->use_compression);
+        this->input = input;
+        input->fill_random();
+        if(this->use_compression) {
+            input->compress();
+            if(this->print_comp_info) {
+                fprintf(stderr, "XY-cells: %d. Prototypes: %d. Ratio: %4.2f%%.\n", input->z_stride(), input->neigh_stride(), input->neigh_stride()/(double)input->z_stride()*100);
+                input->print_prototypes();
+            }
+        }
+        this->store_to_cache();
+    } else {
+        input = dynamic_cast<CudaUnstructuredGrid3D<value_t, neigh_ptr_t> *>(this->input);
+    }
+    //this->input = input;
+    CudaUnstructuredGrid3D<value_t, neigh_ptr_t> *output = CudaUnstructuredGrid3D<value_t, neigh_ptr_t>::clone(*input);
+    this->output = output;
     if(this->variant == LapLapUnstr::idxvar_shared) {
         this->input->setSmemBankSize(sizeof(int));
-    }
-    if(this->use_compression) {
-        input->compress();
-        if(this->print_comp_info) {
-            fprintf(stderr, "XY-cells: %d. Prototypes: %d. Ratio: %4.2f%%.\n", input->z_stride(), input->neigh_stride(), input->neigh_stride()/(double)input->z_stride()*100);
-            input->print_prototypes();
-        }
     }
     this->z_stride = input->z_stride();
     this->neigh_stride = input->neigh_stride();
     this->neighborships = input->neighborships;
     this->prototypes = input->prototypes;
     this->offs = this->input->index(coord3(0, 0, 0));
-    this->LapLapBaseBenchmark<value_t>::setup();
     this->input_ptr = this->input->data;
     this->output_ptr = this->output->data;
     this->threads = this->numthreads();
     this->blocks = this->numblocks();
     smem = 0;
     this->set_kernel_fun();
+}
+
+template<typename value_t, typename neigh_ptr_t>
+bool LapLapUnstrBenchmark<value_t, neigh_ptr_t>::setup_from_cache() {
+    if(!this->use_cache) {
+        return false;
+    }
+    std::ifstream ifs(this->cache_file(), std::ios::binary);
+    try {
+        boost::archive::binary_iarchive ia(ifs);
+        CudaUnstructuredGrid3D<value_t, neigh_ptr_t> *input = new CudaUnstructuredGrid3D<value_t, neigh_ptr_t>();
+        ia >> *input;
+        this->input = input;
+    } catch(boost::archive::archive_exception e) {
+        return false;
+    }
+    return true;
+}
+
+template<typename value_t, typename neigh_ptr_t>
+void LapLapUnstrBenchmark<value_t, neigh_ptr_t>::store_to_cache() {
+    if(!this->use_cache) {
+        return;
+    }
+    std::ofstream ofs(this->cache_file());
+    try {
+        boost::archive::binary_oarchive oa(ofs, std::ios::binary);
+        CudaUnstructuredGrid3D<value_t, neigh_ptr_t> *input = dynamic_cast<CudaUnstructuredGrid3D<value_t, neigh_ptr_t> *>(this->input);
+        oa << *input;
+    } catch(boost::archive::archive_exception e) {}
 }
 
 template<typename value_t, typename neigh_ptr_t>

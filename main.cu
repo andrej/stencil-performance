@@ -104,12 +104,13 @@ struct args_t {
     bool no_verify = false; // skip verification
     bool print_runs = false; // print runtime of each run
     std::vector<precision_t> precisions;
+    bool use_cache = true;
 };
 
 void get_benchmark_identifiers(std::map<std::string, benchmark_type_t> *ret);
 int scan_coord3(char **strs, int n, std::vector<coord3> *ret);
 args_t parse_args(int argc, char** argv);
-Benchmark *create_benchmark(benchmark_params_t type, coord3 size, coord3 numthreads, coord3 numblocks, int runs, bool quiet, bool no_verify);
+Benchmark *create_benchmark(benchmark_params_t type, coord3 size, coord3 numthreads, coord3 numblocks, int runs, bool quiet, bool no_verify, bool use_cache);
 benchmark_list_t *create_benchmarks(args_t args);
 void run_benchmark(Benchmark *bench, bool quiet = false);
 void prettyprint(benchmark_t *benchmark, bool skip_errors=false);
@@ -129,7 +130,7 @@ void get_benchmark_identifiers(std::map<std::string, benchmark_type_t> *ret) {
         } else {
             // create benchmark simply to ask for its name
             benchmark_params_t param_bench = { .type = type };
-            Benchmark *bench = create_benchmark(param_bench, coord3(1, 1, 1), coord3(1, 1, 1), coord3(1, 1, 1), 1, true, true);
+            Benchmark *bench = create_benchmark(param_bench, coord3(1, 1, 1), coord3(1, 1, 1), coord3(1, 1, 1), 1, true, true, true);
             name = bench->name;
             delete bench;
         }
@@ -207,9 +208,11 @@ args_t parse_args(int argc, char** argv) {
                 ret.precisions.push_back(double_prec);
             } else if(arg == "--print-runs") {
                 ret.print_runs = true;
+            } else if(arg == "--no-cache") {
+                ret.use_cache = false;
             } else {
-                    fprintf(stderr, "Unrecognized or incomplete argument %s.\n", arg.c_str());
-                    exit(1);
+                fprintf(stderr, "Unrecognized or incomplete argument %s.\n", arg.c_str());
+                exit(1);
             }
         } else {
             current_bench.argc++;
@@ -246,7 +249,7 @@ args_t parse_args(int argc, char** argv) {
 /** Create the benchmark class for one of the available types. */
 Benchmark *create_benchmark(benchmark_params_t param_bench, coord3 size,
                             coord3 numthreads, coord3 numblocks, int runs,
-                            bool quiet, bool no_verify) {
+                            bool quiet, bool no_verify, bool use_cache) {
     Benchmark *ret = NULL;
     precision_t precision = param_bench.precision;
     switch(param_bench.type) {
@@ -459,6 +462,7 @@ Benchmark *create_benchmark(benchmark_params_t param_bench, coord3 size,
     ret->runs = runs;
     ret->quiet = quiet;
     ret->do_verify = !no_verify;
+    ret->use_cache = use_cache;
     ret->argc = param_bench.argc;
     ret->argv = param_bench.argv;
     ret->parse_args();
@@ -505,7 +509,7 @@ benchmark_list_t *create_benchmarks(args_t args) {
 
                         Benchmark *bench = create_benchmark(params, size, numthreads,
                                                             numblocks, args.runs,
-                                                            !args.print, args.no_verify);
+                                                            !args.print, args.no_verify, args.use_cache);
                         // Skip if creation somehow failed
                         if(!bench) {
                             continue;
@@ -529,7 +533,7 @@ benchmark_list_t *create_benchmarks(args_t args) {
                     Benchmark *bench = create_benchmark(params, size,
                                                         args.numthreads[0], args.numblocks[0],
                                                         args.runs, !args.print,
-                                                        args.no_verify);
+                                                        args.no_verify, args.use_cache);
                     benchmark_t add = {.obj = bench, .params = params};
                     ret->push_back(add);
                 }

@@ -2,7 +2,9 @@
 #define CUDA_BASE_H
 
 #include <stdexcept>
+#include "grid.cu"
 #include "util.cu"
+#include "coord3.cu"
 
 /** Cuda Base Grid
  *

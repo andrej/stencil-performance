@@ -8,9 +8,12 @@
 #include <functional>
 #include <algorithm>
 #include <vector>
+#include <boost/serialization/base_object.hpp>
+#include <boost/serialization/map.hpp>
 #include "grids/grid.cu"
 #include "grids/coord3-base.cu"
 #include "grids/zcurve-util.cu"
+#include "coord3.cu"
 
 #define DEFAULT_Z_CURVE_WIDTH 4
 
@@ -53,7 +56,8 @@ template<typename value_t, typename neigh_ptr_t = int>
 class UnstructuredGrid3D : 
 virtual public Coord3BaseGrid<value_t> {
 
-    protected:
+    public:
+
     /** Neighborship data pointers can be reused from a different grid. In this
      * case, pass in a pointer as neighborships.
      *
@@ -64,8 +68,6 @@ virtual public Coord3BaseGrid<value_t> {
     UnstructuredGrid3D(coord3 dimensions, coord3 halo=coord3(0, 0, 0), int neighbor_store_depth=1, neigh_ptr_t *neighborships=NULL, bool use_prototypes=false);
 
     virtual void init();
-    
-    public: 
     
     static UnstructuredGrid3D<value_t, neigh_ptr_t> *create(coord3 dimensions, coord3 halo=coord3(0, 0, 0), int neighbor_store_depth=1, neigh_ptr_t *neighborships=NULL, bool use_prototypes = false);
     
@@ -150,6 +152,9 @@ virtual public Coord3BaseGrid<value_t> {
     void print_neighborships();
     void print_prototypes();
 
+    /** Serialize the additional fields this class needs to operate when serializing. */
+    template<class Archive> void serialize(Archive &ar, const unsigned int version);
+
 };
 
 // IMPLEMENTATIONS
@@ -166,7 +171,6 @@ use_prototypes(use_prototypes) {
     int sz = (  sizeof(value_t) * this->values_stop() /* for the values */
               + sizeof(neigh_ptr_t) * stored_neighbors_per_node * outer.x * outer.y /* for the ptrs */
               + (use_prototypes ? sizeof(neigh_ptr_t) * outer.x * outer.y : 0) ); /* for the prototypes */
-
     this->size = sz;
 }
 
@@ -191,22 +195,31 @@ UnstructuredGrid3D<value_t, neigh_ptr_t> *UnstructuredGrid3D<value_t, neigh_ptr_
 template<typename value_t, typename neigh_ptr_t>
 void UnstructuredGrid3D<value_t, neigh_ptr_t>::init(){
     this->Grid<value_t, coord3>::init(); // this allocates this->data
-    int outer_sz = this->values_stop();
     coord3 outer = this->dimensions + 2*this->halo;
-    this->n_prototypes = outer.x*outer.y;
     this->values = this->data; // values are in the first part of our data block
     // initialize empty neighborship pointers
     if(this->neighborships == NULL) {
-        this->neighborships = (neigh_ptr_t *) &this->data[outer_sz];
+        this->neighborships = (neigh_ptr_t *) &this->data[this->values_stop()];
+        /* We do not do zero initialization here because if this was loaded from
+         * serialized data the neighborships might already be set. This should
+         * be zeroed out on allocation either way!
         neigh_ptr_t *end = (neigh_ptr_t *) ((char *)this->data + this->size);
         for(neigh_ptr_t *ptr = this->neighborships; ptr < end; ptr++) {
             *ptr = 0; // offset=0 <=> pointing to itself means no neighbor set
-        }
+        }*/
     }
-    if(this->use_prototypes && this->prototypes == NULL) {
+    bool clear_protos = false;
+    if(this->prototypes == NULL) {
+        clear_protos = true;
+    }
+    if(!this->n_prototypes) {
+        // in case of load after serialization, this will be already set
+        this->n_prototypes = outer.x*outer.y;
+    }
+    int offs = outer.x*outer.y * this->n_stored_neighbors();
+    this->prototypes = (neigh_ptr_t *) &this->neighborships[offs];
+    if(this->use_prototypes && clear_protos) {
         coord3 outer = this->dimensions + 2 * this->halo;
-        int offs = (2 * this->neighbor_store_depth * (this->neighbor_store_depth + 1)) * outer.x * outer.y;
-        this->prototypes = (neigh_ptr_t *) &this->neighborships[offs];
         for(int i = 0; i < outer.x*outer.y; i++) {
             this->prototypes[i] = i; // Default: just point to itself in neighborship table
         }
@@ -657,6 +670,19 @@ void UnstructuredGrid3D<value_t, neigh_ptr_t>::print_prototypes() {
         }
         fprintf(stderr, "\n");
     }
+}
+
+template<typename value_t, typename neigh_ptr_t>
+template<class Archive>
+void UnstructuredGrid3D<value_t, neigh_ptr_t>::serialize(Archive &ar, unsigned int version) {
+    ar & this->indices;
+    ar & this->coordinates;
+    ar & this->neighbor_store_depth;
+    ar & this->use_prototypes;
+    ar & this->n_prototypes;
+    // the call to base class serialize also calls init() on load!
+    // therefore, it must be called last (after prototypes etc are set), otherwise those values in data will get overriden by initializer
+    ar & boost::serialization::base_object<Coord3BaseGrid<value_t>>(*this); 
 }
 
 #endif

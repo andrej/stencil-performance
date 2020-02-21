@@ -1,6 +1,7 @@
 #ifndef CUDA_REGULAR_GRID_H
 #define CUDA_REGULAR_GRID_H
 #include "grid.cu"
+#include "coord3.cu"
 #include "cuda-base.cu"
 #include "coord3-base.cu"
 #include "regular.cu"

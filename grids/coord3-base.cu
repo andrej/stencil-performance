@@ -32,7 +32,7 @@ virtual public Grid<value_t, coord3> {
 
 };
 
-//  IMPLEMENTATIONS
+// IMPLEMENTATIONS
 
 template<typename value_t>
 Coord3BaseGrid<value_t>::Coord3BaseGrid() {}

@@ -9,7 +9,7 @@ void laplap_idxvar(GRID_ARGS const coord3 max_coord, const value_t *in, value_t 
     }
 
     int center        = INDEX(i, j, 0);
-    
+
     PROTO(center);
     int left          = NEIGHBOR(center, -1,  0, 0);
     int right         = NEIGHBOR(center, +1,  0, 0);
