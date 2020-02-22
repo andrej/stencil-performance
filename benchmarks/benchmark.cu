@@ -12,6 +12,10 @@
 #ifdef CUDA_PROFILER
 #include <cuda_profiler_api.h>
 #endif
+#include <fstream>
+#include <boost/archive/archive_exception.hpp>
+#include <boost/archive/binary_iarchive.hpp>
+#include <boost/archive/binary_oarchive.hpp>
 #include "coord3.cu"
 #include "util.cu"
 
@@ -98,9 +102,17 @@ class Benchmark {
      * "serialize(Archive & ar, const unsigned int version)" method according to 
      * the Boost::serialize specifications. They will then get serialized and
      * stored to disk, then reloaded on next invocation. */
-    bool use_cache = true;
+    bool use_cache = false;
     std::string cache_dir = ".grid-cache/";
-    std::string cache_file();
+    std::string cache_file_path();
+    virtual std::string cache_file_name();
+    typedef boost::archive::binary_iarchive cache_iarchive;
+    typedef boost::archive::binary_oarchive cache_oarchive;
+
+    bool setup_from_cache();
+    void store_to_cache();
+    virtual void setup_from_archive(Benchmark::cache_iarchive &ar) {};
+    virtual void store_to_archive(Benchmark::cache_oarchive &ar) {};
 
 };
 
@@ -233,10 +245,39 @@ void Benchmark::parse_args() {
     }
 }
 
-std::string Benchmark::cache_file() {
+std::string Benchmark::cache_file_name() {
+    return this->name;
+}
+
+std::string Benchmark::cache_file_path() {
     char filename[256];
-    snprintf(filename, 256, "%s-%d-%d-%d.dat", this->name.c_str(), this->size.x, this->size.y, this->size.z);
+    snprintf(filename, 256, "%s-%d-%d-%d.dat", this->cache_file_name().c_str(), this->size.x, this->size.y, this->size.z);
     return this->cache_dir + std::string(filename);
+}
+
+bool Benchmark::setup_from_cache() {
+    if(!this->use_cache) {
+        return false;
+    }
+    std::ifstream ifs(this->cache_file_path(), std::ios::binary);
+    try {
+        Benchmark::cache_iarchive ia(ifs);
+        this->setup_from_archive(ia); // sublcasses load their grids here
+    } catch(boost::archive::archive_exception e) {
+        return false;
+    }
+    return true;
+}
+
+void Benchmark::store_to_cache() {
+    if(!this->use_cache) {
+        return;
+    }
+    std::ofstream ofs(this->cache_file_path());
+    try {
+        Benchmark::cache_oarchive oa(ofs, std::ios::binary);
+        this->store_to_archive(oa);
+    } catch(boost::archive::archive_exception e) {}
 }
 
 #endif

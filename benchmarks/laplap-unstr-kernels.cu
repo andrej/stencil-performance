@@ -68,7 +68,6 @@ namespace Compressed {
     
     namespace Chasing {
         #define CHASING
-        #define CHASING
         #define NEIGHBOR(idx, x_, y_, z_) GRID_UNSTR_PROTO_NEIGHBOR(prototypes, neighborships, z_stride, neigh_stride, idx, x_, y_, z_)
         #define DOUBLE_NEIGHBOR(idx, x1, y1, z1, x2, y2, z2) NEIGHBOR(NEIGHBOR(idx, x1, y1, z1), x2, y2, z2)
         #include "kernels/laplap-naive.cu"

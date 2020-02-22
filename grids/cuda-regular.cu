@@ -16,10 +16,8 @@ class CudaRegularGrid3D :
 virtual public RegularGrid3D<value_t>,
 virtual public CudaBaseGrid<value_t, coord3>
 {
-    protected:
-    using RegularGrid3D<value_t>::RegularGrid3D;
-
     public:
+    using RegularGrid3D<value_t>::RegularGrid3D;
     static CudaRegularGrid3D<value_t> *create(coord3 dimensions, coord3 halo=coord3(0, 0, 0));
 
 };

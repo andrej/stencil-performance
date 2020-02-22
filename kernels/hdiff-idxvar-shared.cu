@@ -31,6 +31,7 @@ void hdiff_idxvar_shared(const coord3 max_coord,
     const int k_step = K_STEP;
     int n_0_0_0, n_0_n1_0, n_0_n2_0, n_n1_0_0, n_n1_n1_0, n_n2_0_0, n_0_p1_0, n_0_p2_0, n_p1_0_0, n_p1_p1_0, n_p2_0_0, n_n1_p1_0, n_p1_n1_0; 
     n_0_0_0 = INDEX(i, j, 0);
+    PROTO(n_0_0_0);
     if(is_first) {
         // We are the thread responsible for looking up neighbor info
         /*  0 -1 */ n_0_n1_0 =  idxvars[0] = NEIGHBOR(n_0_0_0, 0, -1, 0);
@@ -38,6 +39,7 @@ void hdiff_idxvar_shared(const coord3 max_coord,
         /*  0 +1 */ n_0_p1_0 =  idxvars[2] = NEIGHBOR(n_0_0_0, 0, +1, 0);
         /* +1  0 */ n_p1_0_0 =  idxvars[3] = NEIGHBOR(n_0_0_0, +1, 0, 0);
         #ifdef CHASING
+            PROTO(n_0_n1_0);     PROTO(n_n1_0_0);    PROTO(n_0_p1_0);    PROTO(n_p1_0_0);
             /*  0 -2 */ n_0_n2_0 =  idxvars[4] = NEIGHBOR(n_0_n1_0, 0, -1, 0);
             /* -1 -1 */ n_n1_n1_0 = idxvars[5] = NEIGHBOR(n_n1_0_0, 0, -1, 0);
             /* -2  0 */ n_n2_0_0 =  idxvars[6] = NEIGHBOR(n_n1_0_0, -1, 0, 0);

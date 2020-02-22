@@ -21,6 +21,7 @@ namespace HdiffCudaRegular {
     #define DOUBLE_NEIGHBOR(idx, x1, y1, z1, x2, y2, z2) NEIGHBOR(idx, (x1+x2), (y1+y2), (z1+z2))
     #define Z_NEIGHBOR(idx, z) (idx+z*z_stride)
     #define K_STEP k*z_stride
+    #define PROTO(x)
 
     #include "kernels/hdiff-naive.cu"
     #include "kernels/hdiff-iloop.cu"
@@ -47,6 +48,7 @@ namespace HdiffCudaRegular {
     #undef SMEM_GRID_ARGS
     #undef SMEM_INDEX
     #undef SMEM_NEIGHBOR
+    #undef PROTO
 
 };
 
@@ -65,6 +67,9 @@ class HdiffCudaRegularBenchmark : public HdiffCudaBaseBenchmark<value_t> {
     virtual void setup();
     virtual void teardown();
     virtual void post();
+    virtual void setup_from_archive(Benchmark::cache_iarchive &ar);
+    virtual void store_to_archive(Benchmark::cache_oarchive &ar);
+    virtual std::string cache_file_name();
 
     dim3 numthreads(coord3 domain=coord3());
     dim3 numblocks(coord3 domain=coord3());
@@ -204,7 +209,30 @@ void HdiffCudaRegularBenchmark<value_t>::setup() {
         this->input->setSmemBankSize(sizeof(int));
     }
     this->strides = (dynamic_cast<CudaRegularGrid3D<value_t>*>(this->input))->get_strides();
-    this->HdiffCudaBaseBenchmark<value_t>::setup();
+    this->HdiffCudaBaseBenchmark<value_t>::setup(); // takes care of archive setup
+}
+
+template<typename value_t>
+void HdiffCudaRegularBenchmark<value_t>::setup_from_archive(Benchmark::cache_iarchive &ar) {
+    auto input = dynamic_cast<CudaRegularGrid3D<value_t> *>(this->input);
+    auto coeff = dynamic_cast<CudaRegularGrid3D<value_t> *>(this->coeff);
+    ar >> *input;
+    ar >> *coeff;
+    this->input = input;
+    this->coeff = coeff;
+}
+
+template<typename value_t>
+void HdiffCudaRegularBenchmark<value_t>::store_to_archive(Benchmark::cache_oarchive &ar) {
+    auto input = dynamic_cast<CudaRegularGrid3D<value_t> *>(this->input);
+    auto coeff = dynamic_cast<CudaRegularGrid3D<value_t> *>(this->coeff);
+    ar << *input;
+    ar << *coeff;
+}
+
+template<typename value_t>
+std::string HdiffCudaRegularBenchmark<value_t>::cache_file_name() {
+    return "hdiff-regular";
 }
 
 template<typename value_t>

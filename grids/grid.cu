@@ -62,7 +62,7 @@ class Grid {
      * this is not necessarily the item at index (0, 0, 0) -- the
      * implementations may chose to lay out the first element in memory
      * somewhere else. Use index() to get the memory location.*/
-    value_t* __restrict__ data;
+    value_t* __restrict__ data = NULL;
 
     /** Return the offset (as number of sizeof(value_t)-sized steps from the 
      * beginning of the data block of a particular cell of the grid, i.e. the 
@@ -172,6 +172,9 @@ void Grid<value_t, coord_t>::allocate() {
 
 template<typename value_t, typename coord_t>
 void Grid<value_t, coord_t>::deallocate() {
+    if(!this->data) {
+        return;
+    }
     free(this->data);
     this->data = NULL;
 }

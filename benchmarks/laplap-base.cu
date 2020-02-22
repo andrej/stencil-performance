@@ -38,7 +38,6 @@ Benchmark(size) {
 
 template<typename value_t>
 void LapLapBaseBenchmark<value_t>::setup() {
-    this->input->fill_random();
     this->Benchmark::setup();
 }
 

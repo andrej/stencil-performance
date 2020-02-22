@@ -24,11 +24,17 @@ void hdiff_idxvar(const coord3 max_coord,
     }
     
     int n_0_0_0       = INDEX(i, j, 0);
+    PROTO(n_0_0_0);
     int n_0_n1_0      = NEIGHBOR(n_0_0_0, 0, -1, 0); /* left */
     int n_n1_0_0      = NEIGHBOR(n_0_0_0, -1, 0, 0); /* top */
     int n_0_p1_0      = NEIGHBOR(n_0_0_0, 0, +1, 0); /* right */
     int n_p1_0_0      = NEIGHBOR(n_0_0_0, +1, 0, 0); /* bottom */
+    out[n_0_0_0] = 0.1*i + j + 10*k;
+    out[n_0_n1_0] = 0.1*i + j + 10*k - 7;
+    return;
+
     #ifdef CHASING
+        PROTO(n_0_n1_0);     PROTO(n_n1_0_0);    PROTO(n_0_p1_0);    PROTO(n_p1_0_0);
         int n_0_n2_0      = NEIGHBOR(n_0_n1_0, 0, -1, 0); /* 2 top */
         int n_n1_n1_0     = NEIGHBOR(n_n1_0_0, 0, -1, 0); /* top left */
         int n_n2_0_0      = NEIGHBOR(n_n1_0_0, -1, 0, 0); /* 2 left */

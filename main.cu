@@ -104,7 +104,7 @@ struct args_t {
     bool no_verify = false; // skip verification
     bool print_runs = false; // print runtime of each run
     std::vector<precision_t> precisions;
-    bool use_cache = true;
+    bool use_cache = false;
 };
 
 void get_benchmark_identifiers(std::map<std::string, benchmark_type_t> *ret);
@@ -209,7 +209,7 @@ args_t parse_args(int argc, char** argv) {
             } else if(arg == "--print-runs") {
                 ret.print_runs = true;
             } else if(arg == "--no-cache") {
-                ret.use_cache = false;
+                ret.use_cache = !ret.use_cache;
             } else {
                 fprintf(stderr, "Unrecognized or incomplete argument %s.\n", arg.c_str());
                 exit(1);

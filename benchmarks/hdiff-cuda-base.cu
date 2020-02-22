@@ -78,27 +78,21 @@ void HdiffCudaBaseBenchmark<value_t>::setup(){
 
         } else {
             this->reference_bench = new HdiffReferenceBenchmark<value_t>(this->size);
+            this->reference_bench->use_cache = this->use_cache;
             this->reference_bench->setup();
         }
     }
     /* Import values from reference grids to ensure same conditions. */
-    if(this->do_verify) {
-        this->input->import(this->reference_bench->input);
-        this->coeff->import(this->reference_bench->coeff);
-    } else {
-        this->input->fill_random();
-        this->coeff->fill_random();
+    if(!this->setup_from_cache()) {
+        if(this->do_verify) {
+            this->input->import(this->reference_bench->input);
+            this->coeff->import(this->reference_bench->coeff);
+        } else {
+            this->input->fill_random();
+            this->coeff->fill_random();
+        }
+        this->store_to_cache();
     }
-    if(this->lap) {
-        this->lap->fill(0.0);
-    }
-    if(this->flx) {
-        this->flx->fill(0.0);
-    }
-    if(this->fly) {
-        this->fly->fill(0.0);
-    }
-    this->output->fill(0.0);
     this->Benchmark::setup();
 }
 

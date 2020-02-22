@@ -155,6 +155,9 @@ virtual public Coord3BaseGrid<value_t> {
     /** Serialize the additional fields this class needs to operate when serializing. */
     template<class Archive> void serialize(Archive &ar, const unsigned int version);
 
+    /** Link another unstructured grid to use the exact same neighborship relations and prototypes as this one. */
+    void link(UnstructuredGrid3D<value_t, neigh_ptr_t> *other);
+
 };
 
 // IMPLEMENTATIONS
@@ -683,6 +686,16 @@ void UnstructuredGrid3D<value_t, neigh_ptr_t>::serialize(Archive &ar, unsigned i
     // the call to base class serialize also calls init() on load!
     // therefore, it must be called last (after prototypes etc are set), otherwise those values in data will get overriden by initializer
     ar & boost::serialization::base_object<Coord3BaseGrid<value_t>>(*this); 
+}
+
+template<typename value_t, typename neigh_ptr_t>
+void UnstructuredGrid3D<value_t, neigh_ptr_t>::link(UnstructuredGrid3D<value_t, neigh_ptr_t> *other) {
+    this->indices = other->indices;
+    this->coordinates = other->coordinates;
+    this->neighborships = other->neighborships;
+    this->use_prototypes = other->use_prototypes;
+    this->n_prototypes = other->n_prototypes;
+    this->prototypes = other->prototypes;
 }
 
 #endif

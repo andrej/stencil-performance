@@ -31,11 +31,13 @@ void hdiff_idxvar_kloop(const coord3 max_coord,
     * idx of neighbor X Y Z = n_X_Y_Z with p for positive offset and 
     * n for negative offset. */
     int n_0_0_0       = INDEX(i, j, 0);
+    PROTO(n_0_0_0);
     int n_0_n1_0      = NEIGHBOR(n_0_0_0, 0, -1, 0); /* left */
     int n_n1_0_0      = NEIGHBOR(n_0_0_0, -1, 0, 0); /* top */
     int n_0_p1_0      = NEIGHBOR(n_0_0_0, 0, +1, 0); /* right */
     int n_p1_0_0      = NEIGHBOR(n_0_0_0, +1, 0, 0); /* bottom */
     #ifdef CHASING
+        PROTO(n_0_n1_0);     PROTO(n_n1_0_0);    PROTO(n_0_p1_0);    PROTO(n_p1_0_0);
         int n_0_n2_0      = NEIGHBOR(n_0_n1_0, 0, -1, 0); /* 2 top */
         int n_n1_n1_0     = NEIGHBOR(n_n1_0_0, 0, -1, 0); /* top left */
         int n_n2_0_0      = NEIGHBOR(n_n1_0_0, -1, 0, 0); /* 2 left */

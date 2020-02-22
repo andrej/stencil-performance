@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <memory>
 #include <algorithm>
+#include <boost/serialization/base_object.hpp>
 #include "grid.cu"
 #include "coord3.cu"
 #include "coord3-base.cu"
@@ -30,11 +31,10 @@ template<typename value_t>
 class RegularGrid3D : 
 virtual public Coord3BaseGrid<value_t> {
 
-    protected:
+    public:
     RegularGrid3D() {};
     RegularGrid3D(coord3 dimensions, coord3 halo=coord3(0, 0, 0));
 
-    public:
     static RegularGrid3D *create(coord3 dimensions, coord3 halo=coord3(0, 0, 0));
 
     int index(coord3 coords);
@@ -48,6 +48,9 @@ virtual public Coord3BaseGrid<value_t> {
 
     /** Returns the X-, Y- and Z- strides. */
     coord3 get_strides();
+
+    template<class Archive>
+    void serialize(Archive &ar, const unsigned int version);
 
 };
 
@@ -111,6 +114,15 @@ coord3 RegularGrid3D<value_t>::get_strides() {
     int sy = roundup(this->dimensions.x + 2 * this->halo.x, this->alignment / sizeof(value_t));
     int sz = roundup(sy * (this->dimensions.y + 2 * this->halo.y), this->alignment / sizeof(value_t));
     return coord3(sx, sy, sz);
+}
+
+template<typename value_t>
+template<class Archive>
+void RegularGrid3D<value_t>::serialize(Archive &ar, const unsigned int version) {
+    ar & this->padding;
+    ar & this->alignment;
+    ar & this->zero_offset;
+    ar & boost::serialization::base_object<Coord3BaseGrid<value_t>>(*this);
 }
 
 #endif

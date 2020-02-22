@@ -60,6 +60,10 @@ class LapLapRegularBenchmark : public LapLapBaseBenchmark<value_t> {
     dim3 numthreads(coord3 domain=coord3());
     dim3 numblocks(coord3 domain=coord3());
 
+    void setup_from_archive(Benchmark::cache_iarchive &ia);
+    void store_to_archive(Benchmark::cache_oarchive &oa);
+    std::string cache_file_name();
+
     void parse_args();
     int k_per_thread = 16;
 
@@ -97,8 +101,12 @@ variant(variant) {
 template<typename value_t>
 void LapLapRegularBenchmark<value_t>::setup() {
     coord3 halo2(2, 2, 0);
-    this->input = CudaRegularGrid3D<value_t>::create(this->inner_size, halo2);
-    this->output = CudaRegularGrid3D<value_t>::create(this->inner_size, halo2);
+    if(!this->setup_from_cache()) {
+        this->input = CudaRegularGrid3D<value_t>::create(this->inner_size, halo2);
+        this->input->fill_random();
+        this->output = CudaRegularGrid3D<value_t>::create(this->inner_size, halo2);
+        this->store_to_cache();
+    }
     if(this->variant == LapLapRegular::idxvar_shared) {
         this->input->setSmemBankSize(sizeof(int));
     }
@@ -108,6 +116,24 @@ void LapLapRegularBenchmark<value_t>::setup() {
     this->threads = this->numthreads();
     this->input_ptr = this->input->pointer(coord3(0, 0, 0));
     this->output_ptr = this->output->pointer(coord3(0, 0, 0));
+}
+
+template<typename value_t>
+void LapLapRegularBenchmark<value_t>::setup_from_archive(Benchmark::cache_iarchive &ar) {
+    CudaRegularGrid3D<value_t> *input = new CudaRegularGrid3D<value_t>();
+    CudaRegularGrid3D<value_t> *output = new CudaRegularGrid3D<value_t>();
+    ar >> *input;
+    ar >> *output;
+    this->input = input;
+    this->output = output;
+}
+
+template<typename value_t>
+void LapLapRegularBenchmark<value_t>::store_to_archive(Benchmark::cache_oarchive &ar) {
+    CudaRegularGrid3D<value_t> *input = dynamic_cast<CudaRegularGrid3D<value_t> *>(this->input);
+    CudaRegularGrid3D<value_t> *output = dynamic_cast<CudaRegularGrid3D<value_t> *>(this->output);
+    ar << *input;
+    ar << *output;
 }
 
 template<typename value_t>
@@ -191,6 +217,11 @@ void LapLapRegularBenchmark<value_t>::parse_args() {
     } else {
         this->Benchmark::parse_args();
     }
+}
+
+template<typename value_t>
+std::string LapLapRegularBenchmark<value_t>::cache_file_name() {
+    return "laplap-regular";
 }
 
 #endif

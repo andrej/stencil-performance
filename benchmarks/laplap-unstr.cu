@@ -4,13 +4,10 @@
 #include <stdexcept>
 #include <type_traits>
 #include <cstdint>
+#include <sstream>
 #include <functional>
 #include <boost/serialization/base_object.hpp>
 #include <boost/serialization/export.hpp>
-#include <fstream>
-#include <boost/archive/archive_exception.hpp>
-#include <boost/archive/binary_iarchive.hpp>
-#include <boost/archive/binary_oarchive.hpp>
 
 #include "benchmarks/laplap-base.cu"
 #include "grids/cuda-unstructured.cu"
@@ -39,7 +36,6 @@ class LapLapUnstrBenchmark : public LapLapBaseBenchmark<value_t> {
 
     void setup();
     void run();
-
     dim3 numthreads(coord3 domain=coord3());
     dim3 numblocks(coord3 domain=coord3());
     
@@ -52,8 +48,9 @@ class LapLapUnstrBenchmark : public LapLapBaseBenchmark<value_t> {
     bool use_compression = false;
     bool print_comp_info = false;
 
-    bool setup_from_cache();
-    void store_to_cache();
+    virtual void setup_from_archive(Benchmark::cache_iarchive &ia);
+    virtual void store_to_archive(Benchmark::cache_oarchive &oa);
+    virtual std::string cache_file_name();
 
     int smem = 0;
     neigh_ptr_t *neighborships;
@@ -136,33 +133,16 @@ void LapLapUnstrBenchmark<value_t, neigh_ptr_t>::setup() {
 }
 
 template<typename value_t, typename neigh_ptr_t>
-bool LapLapUnstrBenchmark<value_t, neigh_ptr_t>::setup_from_cache() {
-    if(!this->use_cache) {
-        return false;
-    }
-    std::ifstream ifs(this->cache_file(), std::ios::binary);
-    try {
-        boost::archive::binary_iarchive ia(ifs);
-        CudaUnstructuredGrid3D<value_t, neigh_ptr_t> *input = new CudaUnstructuredGrid3D<value_t, neigh_ptr_t>();
-        ia >> *input;
-        this->input = input;
-    } catch(boost::archive::archive_exception e) {
-        return false;
-    }
-    return true;
+void LapLapUnstrBenchmark<value_t, neigh_ptr_t>::setup_from_archive(Benchmark::cache_iarchive &ia) {
+    CudaUnstructuredGrid3D<value_t, neigh_ptr_t> *input = new CudaUnstructuredGrid3D<value_t, neigh_ptr_t>();
+    ia >> *input;
+    this->input = input;
 }
 
 template<typename value_t, typename neigh_ptr_t>
-void LapLapUnstrBenchmark<value_t, neigh_ptr_t>::store_to_cache() {
-    if(!this->use_cache) {
-        return;
-    }
-    std::ofstream ofs(this->cache_file());
-    try {
-        boost::archive::binary_oarchive oa(ofs, std::ios::binary);
-        CudaUnstructuredGrid3D<value_t, neigh_ptr_t> *input = dynamic_cast<CudaUnstructuredGrid3D<value_t, neigh_ptr_t> *>(this->input);
-        oa << *input;
-    } catch(boost::archive::archive_exception e) {}
+void LapLapUnstrBenchmark<value_t, neigh_ptr_t>::store_to_archive(Benchmark::cache_oarchive &oa) {
+    CudaUnstructuredGrid3D<value_t, neigh_ptr_t> *input = dynamic_cast<CudaUnstructuredGrid3D<value_t, neigh_ptr_t> *>(this->input);
+    oa << *input;
 }
 
 template<typename value_t, typename neigh_ptr_t>
@@ -305,18 +285,42 @@ void LapLapUnstrBenchmark<value_t, neigh_ptr_t>::parse_args() {
             this->Benchmark::parse_args();
         }
     }
+    std::ostringstream s;
     if(this->use_compression) {
-        this->name.append("-comp");
+        s << "-comp";
     }
     if(!this->pointer_chasing) {
-        this->name.append("-no-chase");
+        s << "-no-chase";
     }
     if(this->layout == zcurve) {
-        this->name.append("-z-curves");
+        s << "-z-curves-";
+        s << this->z_curve_width;
     }
     if(this->layout == random_layout) {
-        this->name.append("-random");
+        s << "-random";
     }
+    this->name.append(s.str());
+}
+
+template<typename value_t, typename neigh_ptr_t>
+std::string LapLapUnstrBenchmark<value_t, neigh_ptr_t>::cache_file_name() {
+    std::ostringstream s;
+    s << "laplap-unstr";
+    // don't include kernel variant in cache name so cache can be reused across variants that use same grid
+    if(this->use_compression) {
+        s << "-comp";
+    }
+    if(!this->pointer_chasing) {
+        s << "-no-chase";
+    }
+    if(this->layout == zcurve) {
+        s << "-z-curves-";
+        s << this->z_curve_width;
+    }
+    if(this->layout == random_layout) {
+        s << "-random";
+    }
+    return s.str();
 }
 
 #endif

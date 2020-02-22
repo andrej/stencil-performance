@@ -28,6 +28,8 @@ class HdiffReferenceBenchmark : public Benchmark {
     virtual void setup();
     virtual void populate_grids();
     virtual void teardown();
+    virtual void setup_from_archive(Benchmark::cache_iarchive &ar);
+    virtual void store_to_archive(Benchmark::cache_oarchive &ar);
 
     // CPU implementation
     // As in hdiff_stencil_variant.h
@@ -58,18 +60,60 @@ template<typename value_t>
 void HdiffReferenceBenchmark<value_t>::setup(){
     // Algorithm requires a halo: padding that is not touched
     this->inner_size = this->size - 2*this->halo;
-    // Set up grids
-    this->input = RegularGrid3D<value_t>::create(this->inner_size, this->halo);
-    this->output = RegularGrid3D<value_t>::create(this->inner_size, this->halo);
-    this->coeff = RegularGrid3D<value_t>::create(this->inner_size, this->halo);
-    this->lap = RegularGrid3D<value_t>::create(this->inner_size, this->halo);
-    this->flx = RegularGrid3D<value_t>::create(this->inner_size, this->halo);
-    this->fly = RegularGrid3D<value_t>::create(this->inner_size, this->halo);
 
-    // Populate with data
-    this->populate_grids();
-    // do NOT call base setup here, this would lead to infinite recursion as
-    // in base setup we create a reference benchmark such as this one
+    if(!this->setup_from_cache()) {
+        // Set up grids
+        this->input = RegularGrid3D<value_t>::create(this->inner_size, this->halo);
+        this->output = RegularGrid3D<value_t>::create(this->inner_size, this->halo);
+        this->coeff = RegularGrid3D<value_t>::create(this->inner_size, this->halo);
+        this->lap = RegularGrid3D<value_t>::create(this->inner_size, this->halo);
+        this->flx = RegularGrid3D<value_t>::create(this->inner_size, this->halo);
+        this->fly = RegularGrid3D<value_t>::create(this->inner_size, this->halo);
+
+        // Populate with data
+        this->populate_grids();
+        // do NOT call base setup here, this would lead to infinite recursion as
+        // in base setup we create a reference benchmark such as this one
+        this->store_to_cache();
+    }
+}
+
+template<typename value_t>
+void HdiffReferenceBenchmark<value_t>::setup_from_archive(Benchmark::cache_iarchive &ar) {
+    auto input = new RegularGrid3D<value_t>();
+    auto output = new RegularGrid3D<value_t>();
+    auto coeff = new RegularGrid3D<value_t>();
+    auto lap = new RegularGrid3D<value_t>();
+    auto flx = new RegularGrid3D<value_t>();
+    auto fly = new RegularGrid3D<value_t>();
+    ar >> *input;
+    ar >> *output;
+    ar >> *coeff;
+    ar >> *lap;
+    ar >> *flx;
+    ar >> *fly;
+    this->input = input;
+    this->output = output;
+    this->coeff = coeff;
+    this->lap = lap;
+    this->flx = flx;
+    this->fly = fly;
+}
+
+template<typename value_t>
+void HdiffReferenceBenchmark<value_t>::store_to_archive(Benchmark::cache_oarchive &ar) {
+    auto input = dynamic_cast<RegularGrid3D<value_t> *>(this->input);
+    auto output = dynamic_cast<RegularGrid3D<value_t> *>(this->output);
+    auto coeff = dynamic_cast<RegularGrid3D<value_t> *>(this->coeff);
+    auto lap = dynamic_cast<RegularGrid3D<value_t> *>(this->lap);
+    auto flx = dynamic_cast<RegularGrid3D<value_t> *>(this->flx);
+    auto fly = dynamic_cast<RegularGrid3D<value_t> *>(this->fly);
+    ar << *input;
+    ar << *output;
+    ar << *coeff;
+    ar << *lap;
+    ar << *flx;
+    ar << *fly;
 }
 
 template<typename value_t>
