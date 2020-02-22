@@ -199,9 +199,14 @@ void HdiffCudaRegularBenchmark<value_t>::run() {
 
 template<typename value_t>
 void HdiffCudaRegularBenchmark<value_t>::setup() {
-    this->input = CudaRegularGrid3D<value_t>::create(this->inner_size, this->halo);
+    this->HdiffCudaBaseBenchmark<value_t>::setup();
+    if(!this->setup_from_cache()) {
+        this->input = CudaRegularGrid3D<value_t>::create(this->inner_size, this->halo);
+        this->coeff = CudaRegularGrid3D<value_t>::create(this->inner_size, this->halo);
+        this->populate_grids();
+        this->store_to_cache();
+    }
     this->output = CudaRegularGrid3D<value_t>::create(this->inner_size, this->halo);
-    this->coeff = CudaRegularGrid3D<value_t>::create(this->inner_size, this->halo);
     this->lap = CudaRegularGrid3D<value_t>::create(this->inner_size, this->halo);
     this->flx = CudaRegularGrid3D<value_t>::create(this->inner_size, this->halo);
     this->fly = CudaRegularGrid3D<value_t>::create(this->inner_size, this->halo);
@@ -209,13 +214,12 @@ void HdiffCudaRegularBenchmark<value_t>::setup() {
         this->input->setSmemBankSize(sizeof(int));
     }
     this->strides = (dynamic_cast<CudaRegularGrid3D<value_t>*>(this->input))->get_strides();
-    this->HdiffCudaBaseBenchmark<value_t>::setup(); // takes care of archive setup
 }
 
 template<typename value_t>
 void HdiffCudaRegularBenchmark<value_t>::setup_from_archive(Benchmark::cache_iarchive &ar) {
-    auto input = dynamic_cast<CudaRegularGrid3D<value_t> *>(this->input);
-    auto coeff = dynamic_cast<CudaRegularGrid3D<value_t> *>(this->coeff);
+    auto input = new CudaRegularGrid3D<value_t>(); //dynamic_cast<CudaRegularGrid3D<value_t> *>(this->input);
+    auto coeff = new CudaRegularGrid3D<value_t>(); //dynamic_cast<CudaRegularGrid3D<value_t> *>(this->coeff);
     ar >> *input;
     ar >> *coeff;
     this->input = input;

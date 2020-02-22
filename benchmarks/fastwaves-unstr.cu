@@ -119,9 +119,7 @@ void FastWavesUnstrBenchmark<value_t>::setup() {
         this->aos = true;
         CudaUnstructuredGrid3D<fastwaves_aos_val<value_t>> *ins = CudaUnstructuredGrid3D<fastwaves_aos_val<value_t>>::create_regular(this->inner_size, this->halo, this->layout);
         this->inputs = ins;
-        CudaUnstructuredGrid3D<value_t> *u_out = CudaUnstructuredGrid3D<value_t>::create(this->inner_size, this->halo, 1, ins->neighborships);
-        u_out->indices = ins->indices;
-        u_out->coordinates = ins->coordinates;
+        CudaUnstructuredGrid3D<value_t> *u_out = CudaUnstructuredGrid3D<value_t>::clone(*ins);
         this->u_out = u_out;
         this->v_out = CudaUnstructuredGrid3D<value_t>::clone(*u_out);
         this->ptr_u_out = this->u_out->data;

@@ -281,22 +281,30 @@ dim3 HdiffCudaUnstrBenchmark<value_t>::numthreads(coord3 domain) {
 
 template<typename value_t>
 void HdiffCudaUnstrBenchmark<value_t>::setup() {
-    int neighbor_store_depth = (this->pointer_chasing ? 1 : 2);
-    auto input = CudaUnstructuredGrid3D<value_t>::create_regular(this->inner_size, this->halo, this->layout, neighbor_store_depth);
-    auto coeff = CudaUnstructuredGrid3D<value_t>::clone(*input);
-    this->input = input;
-    this->coeff = coeff;
+    this->HdiffCudaBaseBenchmark<value_t>::setup(); // set up reference benchmark
     if(this->variant == HdiffCudaUnstr::idxvar_shared) {
         this->input->setSmemBankSize(sizeof(int));
     }
-    this->HdiffCudaBaseBenchmark<value_t>::setup();
-    if(this->use_compression) {
-        input->compress();
-        if(!this->quiet) {
-            input->print_prototypes();
+    CudaUnstructuredGrid3D<value_t> *input;
+    CudaUnstructuredGrid3D<value_t> *coeff;
+    if(!this->setup_from_cache()) {
+        int neighbor_store_depth = (this->pointer_chasing ? 1 : 2);
+        input = CudaUnstructuredGrid3D<value_t>::create_regular(this->inner_size, this->halo, this->layout, neighbor_store_depth, DEFAULT_Z_CURVE_WIDTH, this->use_compression);
+        if(this->use_compression) {
+            input->compress();
+            if(!this->quiet) {
+                input->print_prototypes();
+            }
         }
+        coeff = CudaUnstructuredGrid3D<value_t>::clone(*input);
+        this->input = input;
+        this->coeff = coeff;
+        this->populate_grids();
+        this->store_to_cache();
+    } else {
+        input = dynamic_cast<CudaUnstructuredGrid3D<value_t> *>(this->input);
+        coeff = dynamic_cast<CudaUnstructuredGrid3D<value_t> *>(this->input);
     }
-    input = dynamic_cast<CudaUnstructuredGrid3D<value_t> *>(this->input);
     // the following member assignments have to happen after base class setup
     // grids might come from serialized file read in base class setup()
     coeff->link(input);
@@ -314,8 +322,8 @@ void HdiffCudaUnstrBenchmark<value_t>::setup() {
 
 template<typename value_t>
 void HdiffCudaUnstrBenchmark<value_t>::setup_from_archive(Benchmark::cache_iarchive &ar) {
-    auto input = dynamic_cast<CudaUnstructuredGrid3D<value_t> *>(this->input);
-    auto coeff = dynamic_cast<CudaUnstructuredGrid3D<value_t> *>(this->coeff);
+    auto input = new CudaUnstructuredGrid3D<value_t>(); //dynamic_cast<CudaUnstructuredGrid3D<value_t> *>(this->input);
+    auto coeff = new CudaUnstructuredGrid3D<value_t>(); //dynamic_cast<CudaUnstructuredGrid3D<value_t> *>(this->coeff);
     ar >> *input;
     ar >> *coeff;
     this->input = input;

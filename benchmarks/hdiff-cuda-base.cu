@@ -41,6 +41,7 @@ class HdiffCudaBaseBenchmark :  public Benchmark {
     // Setup Input values
     // As in hdiff_stencil_variant.h
     virtual void setup();
+    virtual void populate_grids();
     virtual void teardown();
     virtual void pre();
     virtual void post();
@@ -82,18 +83,19 @@ void HdiffCudaBaseBenchmark<value_t>::setup(){
             this->reference_bench->setup();
         }
     }
-    /* Import values from reference grids to ensure same conditions. */
-    if(!this->setup_from_cache()) {
-        if(this->do_verify) {
-            this->input->import(this->reference_bench->input);
-            this->coeff->import(this->reference_bench->coeff);
-        } else {
-            this->input->fill_random();
-            this->coeff->fill_random();
-        }
-        this->store_to_cache();
-    }
     this->Benchmark::setup();
+}
+
+template<typename value_t>
+void HdiffCudaBaseBenchmark<value_t>::populate_grids() {
+    /* Import values from reference grids to ensure same conditions. */
+    if(this->do_verify) {
+        this->input->import(this->reference_bench->input);
+        this->coeff->import(this->reference_bench->coeff);
+    } else {
+        this->input->fill_random();
+        this->coeff->fill_random();
+    }
 }
 
 template<typename value_t>

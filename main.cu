@@ -104,7 +104,7 @@ struct args_t {
     bool no_verify = false; // skip verification
     bool print_runs = false; // print runtime of each run
     std::vector<precision_t> precisions;
-    bool use_cache = false;
+    bool use_cache = true;
 };
 
 void get_benchmark_identifiers(std::map<std::string, benchmark_type_t> *ret);

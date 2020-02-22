@@ -65,11 +65,11 @@ virtual public Coord3BaseGrid<value_t> {
      * stored in memory, i.e. for neighbor_store_depth=2, pointers to
      * neighbors and pointers to neighbors of neighbors are stored. */
     UnstructuredGrid3D() {};
-    UnstructuredGrid3D(coord3 dimensions, coord3 halo=coord3(0, 0, 0), int neighbor_store_depth=1, neigh_ptr_t *neighborships=NULL, bool use_prototypes=false);
+    UnstructuredGrid3D(coord3 dimensions, coord3 halo=coord3(0, 0, 0), int neighbor_store_depth=1, bool allocate_neighborships=true, bool use_prototypes=false);
 
     virtual void init();
     
-    static UnstructuredGrid3D<value_t, neigh_ptr_t> *create(coord3 dimensions, coord3 halo=coord3(0, 0, 0), int neighbor_store_depth=1, neigh_ptr_t *neighborships=NULL, bool use_prototypes = false);
+    static UnstructuredGrid3D<value_t, neigh_ptr_t> *create(coord3 dimensions, coord3 halo=coord3(0, 0, 0), int neighbor_store_depth=1, bool allocate_neighborships=true, bool use_prototypes = false);
     
     /** Return a new grid with regular neighborship relations. */
     static UnstructuredGrid3D<value_t, neigh_ptr_t> *create_regular(coord3 dims, coord3 halo=coord3(0, 0, 0), layout_t layout=rowmajor, int neighbor_store_depth=1, unsigned char z_curve_width = DEFAULT_Z_CURVE_WIDTH, bool use_prototypes = false);
@@ -156,21 +156,21 @@ virtual public Coord3BaseGrid<value_t> {
     template<class Archive> void serialize(Archive &ar, const unsigned int version);
 
     /** Link another unstructured grid to use the exact same neighborship relations and prototypes as this one. */
-    void link(UnstructuredGrid3D<value_t, neigh_ptr_t> *other);
+    template<typename other_value_t>
+    void link(UnstructuredGrid3D<other_value_t, neigh_ptr_t> *other);
 
 };
 
 // IMPLEMENTATIONS
 
 template<typename value_t, typename neigh_ptr_t>
-UnstructuredGrid3D<value_t, neigh_ptr_t>::UnstructuredGrid3D(coord3 dimensions, coord3 halo, int neighbor_store_depth, neigh_ptr_t *neighborships, bool use_prototypes) :
-neighborships(neighborships),
+UnstructuredGrid3D<value_t, neigh_ptr_t>::UnstructuredGrid3D(coord3 dimensions, coord3 halo, int neighbor_store_depth, bool allocate_neighborships, bool use_prototypes) :
 neighbor_store_depth(neighbor_store_depth),
 use_prototypes(use_prototypes) {
     this->dimensions = dimensions;
     this->halo = halo;
     coord3 outer = dimensions + 2 * halo; 
-    const int stored_neighbors_per_node = (neighborships == NULL ? this->n_stored_neighbors() : 0);
+    const int stored_neighbors_per_node = (allocate_neighborships ? this->n_stored_neighbors() : 0);
     int sz = (  sizeof(value_t) * this->values_stop() /* for the values */
               + sizeof(neigh_ptr_t) * stored_neighbors_per_node * outer.x * outer.y /* for the ptrs */
               + (use_prototypes ? sizeof(neigh_ptr_t) * outer.x * outer.y : 0) ); /* for the prototypes */
@@ -178,8 +178,8 @@ use_prototypes(use_prototypes) {
 }
 
 template<typename value_t, typename neigh_ptr_t>
-UnstructuredGrid3D<value_t, neigh_ptr_t> *UnstructuredGrid3D<value_t, neigh_ptr_t>::create(coord3 dims, coord3 ha, int nsd, neigh_ptr_t *neigh, bool use_prototypes) {
-    UnstructuredGrid3D<value_t, neigh_ptr_t> *obj = new UnstructuredGrid3D<value_t, neigh_ptr_t>(dims, ha, nsd, neigh, use_prototypes);
+UnstructuredGrid3D<value_t, neigh_ptr_t> *UnstructuredGrid3D<value_t, neigh_ptr_t>::create(coord3 dims, coord3 ha, int nsd, bool allocate_neighborships, bool use_prototypes) {
+    UnstructuredGrid3D<value_t, neigh_ptr_t> *obj = new UnstructuredGrid3D<value_t, neigh_ptr_t>(dims, ha, nsd, allocate_neighborships, use_prototypes);
     obj->init();
     return obj;
 }
@@ -200,17 +200,16 @@ void UnstructuredGrid3D<value_t, neigh_ptr_t>::init(){
     this->Grid<value_t, coord3>::init(); // this allocates this->data
     coord3 outer = this->dimensions + 2*this->halo;
     this->values = this->data; // values are in the first part of our data block
-    // initialize empty neighborship pointers
-    if(this->neighborships == NULL) {
-        this->neighborships = (neigh_ptr_t *) &this->data[this->values_stop()];
+    this->neighborships = (neigh_ptr_t *) &this->data[this->values_stop()];
+    /*if(this->neighborships == NULL) {
         /* We do not do zero initialization here because if this was loaded from
          * serialized data the neighborships might already be set. This should
          * be zeroed out on allocation either way!
         neigh_ptr_t *end = (neigh_ptr_t *) ((char *)this->data + this->size);
         for(neigh_ptr_t *ptr = this->neighborships; ptr < end; ptr++) {
             *ptr = 0; // offset=0 <=> pointing to itself means no neighbor set
-        }*/
-    }
+        }
+    }*/
     bool clear_protos = false;
     if(this->prototypes == NULL) {
         clear_protos = true;
@@ -689,7 +688,8 @@ void UnstructuredGrid3D<value_t, neigh_ptr_t>::serialize(Archive &ar, unsigned i
 }
 
 template<typename value_t, typename neigh_ptr_t>
-void UnstructuredGrid3D<value_t, neigh_ptr_t>::link(UnstructuredGrid3D<value_t, neigh_ptr_t> *other) {
+template<typename other_value_t>
+void UnstructuredGrid3D<value_t, neigh_ptr_t>::link(UnstructuredGrid3D<other_value_t, neigh_ptr_t> *other) {
     this->indices = other->indices;
     this->coordinates = other->coordinates;
     this->neighborships = other->neighborships;
