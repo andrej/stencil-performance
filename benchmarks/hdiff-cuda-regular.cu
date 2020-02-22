@@ -67,7 +67,7 @@ class HdiffCudaRegularBenchmark : public HdiffCudaBaseBenchmark<value_t> {
     virtual void setup();
     virtual void teardown();
     virtual void post();
-    virtual void setup_from_archive(Benchmark::cache_iarchive &ar);
+    virtual bool setup_from_archive(Benchmark::cache_iarchive &ar);
     virtual void store_to_archive(Benchmark::cache_oarchive &ar);
     virtual std::string cache_file_name();
 
@@ -217,13 +217,14 @@ void HdiffCudaRegularBenchmark<value_t>::setup() {
 }
 
 template<typename value_t>
-void HdiffCudaRegularBenchmark<value_t>::setup_from_archive(Benchmark::cache_iarchive &ar) {
+bool HdiffCudaRegularBenchmark<value_t>::setup_from_archive(Benchmark::cache_iarchive &ar) {
     auto input = new CudaRegularGrid3D<value_t>(); //dynamic_cast<CudaRegularGrid3D<value_t> *>(this->input);
     auto coeff = new CudaRegularGrid3D<value_t>(); //dynamic_cast<CudaRegularGrid3D<value_t> *>(this->coeff);
     ar >> *input;
     ar >> *coeff;
     this->input = input;
     this->coeff = coeff;
+    return true;
 }
 
 template<typename value_t>

@@ -23,6 +23,7 @@ void fastwaves_idxvar_kloop(const coord3 max_coord,
     }
 
     int idx_0_0_n1  = INDEX(i, j, -1);
+    PROTO(idx_0_0_n1);
     int idx_0_0_0   = NEXT_Z_NEIGHBOR(idx_0_0_n1);
     int idx_0_0_p1  = NEXT_Z_NEIGHBOR(idx_0_0_0);
     int idx_p1_0_n1 = NEIGHBOR(idx_0_0_n1, +1, 0, 0);

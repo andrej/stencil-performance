@@ -130,7 +130,7 @@ class HdiffCudaUnstrBenchmark : public HdiffCudaBaseBenchmark<value_t> {
     virtual dim3 numthreads(coord3 domain=coord3());
     virtual void parse_args();
 
-    virtual void setup_from_archive(Benchmark::cache_iarchive &ar);
+    virtual bool setup_from_archive(Benchmark::cache_iarchive &ar);
     virtual void store_to_archive(Benchmark::cache_oarchive &ar);
     virtual std::string cache_file_name();
 
@@ -321,13 +321,14 @@ void HdiffCudaUnstrBenchmark<value_t>::setup() {
 }
 
 template<typename value_t>
-void HdiffCudaUnstrBenchmark<value_t>::setup_from_archive(Benchmark::cache_iarchive &ar) {
+bool HdiffCudaUnstrBenchmark<value_t>::setup_from_archive(Benchmark::cache_iarchive &ar) {
     auto input = new CudaUnstructuredGrid3D<value_t>(); //dynamic_cast<CudaUnstructuredGrid3D<value_t> *>(this->input);
     auto coeff = new CudaUnstructuredGrid3D<value_t>(); //dynamic_cast<CudaUnstructuredGrid3D<value_t> *>(this->coeff);
     ar >> *input;
     ar >> *coeff;
     this->input = input;
     this->coeff = coeff;
+    return true;
 }
 
 template<typename value_t>

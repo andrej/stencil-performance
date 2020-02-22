@@ -48,7 +48,7 @@ class LapLapUnstrBenchmark : public LapLapBaseBenchmark<value_t> {
     bool use_compression = false;
     bool print_comp_info = false;
 
-    virtual void setup_from_archive(Benchmark::cache_iarchive &ia);
+    virtual bool setup_from_archive(Benchmark::cache_iarchive &ia);
     virtual void store_to_archive(Benchmark::cache_oarchive &oa);
     virtual std::string cache_file_name();
 
@@ -133,10 +133,11 @@ void LapLapUnstrBenchmark<value_t, neigh_ptr_t>::setup() {
 }
 
 template<typename value_t, typename neigh_ptr_t>
-void LapLapUnstrBenchmark<value_t, neigh_ptr_t>::setup_from_archive(Benchmark::cache_iarchive &ia) {
+bool LapLapUnstrBenchmark<value_t, neigh_ptr_t>::setup_from_archive(Benchmark::cache_iarchive &ia) {
     CudaUnstructuredGrid3D<value_t, neigh_ptr_t> *input = new CudaUnstructuredGrid3D<value_t, neigh_ptr_t>();
     ia >> *input;
     this->input = input;
+    return true;
 }
 
 template<typename value_t, typename neigh_ptr_t>

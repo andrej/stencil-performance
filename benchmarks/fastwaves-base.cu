@@ -87,6 +87,7 @@ class FastWavesBaseBenchmark : public Benchmark {
     bool reference_calculated = false;
     
     virtual void setup();
+    virtual void populate_grids();
     virtual void teardown();
     virtual void pre();
     virtual void post();
@@ -119,7 +120,12 @@ void FastWavesBaseBenchmark<value_t>::setup() {
         this->reference_benchmark->edadlat = this->edadlat;
         this->reference_benchmark->setup();
     }
+    this->Benchmark::setup();
+}
 
+template<typename value_t>
+void FastWavesBaseBenchmark<value_t>::populate_grids() {
+        // Reset/ Import values
     if(this->aos) {
         for(int z = -this->halo.z; z < this->inner_size.z + this->halo.z; z++) {
             for(int y = -this->halo.y; y < this->inner_size.y + this->halo.y; y++) {
@@ -141,7 +147,6 @@ void FastWavesBaseBenchmark<value_t>::setup() {
             }
         }
     } else {
-        // Reset/ Import values
         // Inputs / Constants
         if(this->do_verify) {
             this->u_in->import(this->reference_benchmark->u_pos);
@@ -169,10 +174,8 @@ void FastWavesBaseBenchmark<value_t>::setup() {
     }
 
     // Reset Outputs
-    this->u_out->fill(0.0);
-    this->v_out->fill(0.0);
-
-    this->Benchmark::setup();
+    //this->u_out->fill(0.0);
+    //this->v_out->fill(0.0);
 }
 
 template<typename value_t>

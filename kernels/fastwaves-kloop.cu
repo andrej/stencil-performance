@@ -27,6 +27,7 @@ void fastwaves_kloop(const coord3 max_coord,
     // first iteration indices will be passed into -> 0
     int idx_0_0_0, idx_0_0_n1, idx_0_0_p1, idx_p1_0_n1, idx_p1_0_0, idx_p1_0_p1, idx_0_p1_n1, idx_0_p1_0, idx_0_p1_p1;
     idx_0_0_n1    = NEIGHBOR(idx, 0, 0, -1);
+    PROTO(idx_0_0_n1);
     idx_0_0_0     = NEXT_Z_NEIGHBOR(idx_0_0_n1);
     idx_0_0_p1    = NEXT_Z_NEIGHBOR(idx_0_0_0);
     idx_p1_0_n1   = NEIGHBOR(idx_0_0_n1, +1, 0, 0);

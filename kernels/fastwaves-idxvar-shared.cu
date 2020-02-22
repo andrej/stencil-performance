@@ -32,6 +32,7 @@ void fastwaves_idxvar_shared(const coord3 max_coord,
     const int k_step = K_STEP;
 
     int idx_0_0_n1 = INDEX(i, j, -1);
+    PROTO(idx_0_0_n1);
     int idx_p1_0_n1, idx_0_p1_n1;
     if(is_first) {
         idx_p1_0_n1 = idxvars[0] = NEIGHBOR(idx_0_0_n1, +1, 0, 0);

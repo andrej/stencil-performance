@@ -334,12 +334,12 @@ int UnstructuredGrid3D<value_t, neigh_ptr_t>::neighbor_pointer(int index, coord3
 #define GRID_UNSTR_PROTO_2D_NEIGHBOR(prototypes, neighborships, neigh_stride, index, x, y) \
         GRID_UNSTR_2D_NEIGHBOR_(neighborships, neigh_stride, index, prototypes[index], x, y)
 // General purpose macro that also works for indices with Z>0
-#define GRID_UNSTR_NEIGHBOR_(neighborships, z_stride, neigh_stride, index, proto_index, x, y, z) /* Cases Z>=0 */ \
+#define GRID_UNSTR_NEIGHBOR_(neighborships, z_stride, neigh_stride, index, proto_index, x, y, z) /* Cases Z>=0, proto_index must be on Z=0 level */ \
      ( (index) \
-       + (x!=0 || y!=0 ? neighborships[GRID_UNSTR_NEIGHBOR_PTR(z_stride, neigh_stride, proto_index, x, y)] : 0) \
+       + (x!=0 || y!=0 ? neighborships[GRID_UNSTR_2D_NEIGHBOR_PTR(neigh_stride, proto_index, x, y)] : 0) \
        + (z) * (z_stride) )
 #define GRID_UNSTR_NEIGHBOR(neighborships, z_stride, index, x, y, z) /* for grids not using compression neigh_stride = z_stride */ \
-        GRID_UNSTR_NEIGHBOR_(neighborships, z_stride, z_stride, index, index, x, y, z)
+        GRID_UNSTR_NEIGHBOR_(neighborships, z_stride, z_stride, index, ((index) % (z_stride)), x, y, z)
 #define GRID_UNSTR_PROTO_NEIGHBOR(prototypes, neighborships, z_stride, neigh_stride, index, x, y, z) \
         GRID_UNSTR_NEIGHBOR_(neighborships, z_stride, neigh_stride, index, prototypes[index % z_stride], x, y, z)
 
@@ -453,6 +453,7 @@ void UnstructuredGrid3D<value_t, neigh_ptr_t>::add_neighbor(int A, int B, coord3
 template<typename value_t, typename neigh_ptr_t>
 void UnstructuredGrid3D<value_t, neigh_ptr_t>::compress() {
     if(!this->use_prototypes || !this->prototypes || !this->neighborships) {
+        throw std::runtime_error("Cannot a grid which has not allocated space for prototypes or neighborhood relations.");
         return;
     }
 

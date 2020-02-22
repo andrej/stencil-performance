@@ -111,7 +111,7 @@ class Benchmark {
 
     bool setup_from_cache();
     void store_to_cache();
-    virtual void setup_from_archive(Benchmark::cache_iarchive &ar) {};
+    virtual bool setup_from_archive(Benchmark::cache_iarchive &ar) { return false; };
     virtual void store_to_archive(Benchmark::cache_oarchive &ar) {};
 
 };
@@ -262,11 +262,9 @@ bool Benchmark::setup_from_cache() {
     std::ifstream ifs(this->cache_file_path(), std::ios::binary);
     try {
         Benchmark::cache_iarchive ia(ifs);
-        this->setup_from_archive(ia); // sublcasses load their grids here
-    } catch(boost::archive::archive_exception e) {
-        return false;
-    }
-    return true;
+        return this->setup_from_archive(ia); // sublcasses load their grids here
+    } catch(boost::archive::archive_exception e) {}
+    return false;
 }
 
 void Benchmark::store_to_cache() {

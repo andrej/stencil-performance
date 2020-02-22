@@ -28,7 +28,7 @@ class HdiffReferenceBenchmark : public Benchmark {
     virtual void setup();
     virtual void populate_grids();
     virtual void teardown();
-    virtual void setup_from_archive(Benchmark::cache_iarchive &ar);
+    virtual bool setup_from_archive(Benchmark::cache_iarchive &ar);
     virtual void store_to_archive(Benchmark::cache_oarchive &ar);
 
     // CPU implementation
@@ -79,7 +79,7 @@ void HdiffReferenceBenchmark<value_t>::setup(){
 }
 
 template<typename value_t>
-void HdiffReferenceBenchmark<value_t>::setup_from_archive(Benchmark::cache_iarchive &ar) {
+bool HdiffReferenceBenchmark<value_t>::setup_from_archive(Benchmark::cache_iarchive &ar) {
     auto input = new RegularGrid3D<value_t>();
     auto output = new RegularGrid3D<value_t>();
     auto coeff = new RegularGrid3D<value_t>();
@@ -98,6 +98,7 @@ void HdiffReferenceBenchmark<value_t>::setup_from_archive(Benchmark::cache_iarch
     this->lap = lap;
     this->flx = flx;
     this->fly = fly;
+    return true;
 }
 
 template<typename value_t>

@@ -60,7 +60,7 @@ class LapLapRegularBenchmark : public LapLapBaseBenchmark<value_t> {
     dim3 numthreads(coord3 domain=coord3());
     dim3 numblocks(coord3 domain=coord3());
 
-    void setup_from_archive(Benchmark::cache_iarchive &ia);
+    bool setup_from_archive(Benchmark::cache_iarchive &ia);
     void store_to_archive(Benchmark::cache_oarchive &oa);
     std::string cache_file_name();
 
@@ -119,13 +119,14 @@ void LapLapRegularBenchmark<value_t>::setup() {
 }
 
 template<typename value_t>
-void LapLapRegularBenchmark<value_t>::setup_from_archive(Benchmark::cache_iarchive &ar) {
+bool LapLapRegularBenchmark<value_t>::setup_from_archive(Benchmark::cache_iarchive &ar) {
     CudaRegularGrid3D<value_t> *input = new CudaRegularGrid3D<value_t>();
     CudaRegularGrid3D<value_t> *output = new CudaRegularGrid3D<value_t>();
     ar >> *input;
     ar >> *output;
     this->input = input;
     this->output = output;
+    return true;
 }
 
 template<typename value_t>
