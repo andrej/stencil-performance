@@ -1,0 +1,150 @@
+\section{Foundations}									\label{sec:foundations}
+
+\subsection{Grids}											\label{sec:grids}
+
+A grid partitions (tessellates) some space into a discrete number of cells. In meteorology, the three-dimensional space of the atmosphere is subdivided by a grid to facilitate finding numerical solutions to equations governing the weather. Each cell may contain one or multiple values (\emph{fields}) such as the temperature or humidity at a location.
+
+One kind of grid is the \emph{regular grid}. In this type of \emph{structured grid}, each cell is of uniform size and has a a fixed amount of six direct neighbors (top, bottom, left, right, front and back). Real-life objects that have the structure of a regular grid are checkerboards (two dimensions) or a Rubik's cube (three dimensions). Because of its regularity, storing such a grid in memory is straightforward.
+
+In certain use cases, the use of \emph{unstructured grids} is beneficial to the requirements of the application at hand. In contrast to regular grids, cells need not be of equal size in unstructured grids and may have a varying number of neighbors. This means that a location of a cell's neighbor in memory does no longer follow a regular structure. Because neighbor's locations are no longer inherently clear, an unstructured grid requires an neighborship table to describe its structure. Accessing a neighbor requires an indirect memory lookup in order to determine its location in memory.
+
+This thesis is concerned with the performance implications that porting a stencil computation from a regular to a unstructured grid entails. It compares the cost indirect addressing imposes upon several different widely-used stencils.
+
+While unstructured grid theoretically supports arbitrary neighborship relations, for this thesis, we restrict irregularities to the X-Y-plane and assume even unstructured grids are regular (i.e. always have at most two neighbors) in the Z-dimension. This is a common use case in meteorology. In practice, such as in so-called \emph{icosahedral grids}, most of the neighborships in the X-Y-plane will also most often have some structure to it. We make use of these regularities in the optimizations described in section \ref{sec:optimizations}.
+
+
+\subsubsection{Coordinates and Indices}
+
+In our implementations, cells in a grid are identified by \emph{coordinates}, which relate a cell to its real-world position and \emph{indices} which give the storage location of a cell in the grid in memory. 
+
+Throughout the rest of this report we refer to the dimensions of a grid as the \emph{maximum number of elements} in each dimension, and denote it by the vector
+$$d = \begin{pmatrix}d_x \\ d_y \\ d_z\end{pmatrix}.$$
+A unique identifier for each cell on the grid is given by its coordinates, denoted in similar fashion by a vector
+$$p = \begin{pmatrix}p_x \\ p_y \\ p_z\end{pmatrix}.$$
+The coordinates correspond to a position in Euclidian space. Coordinates are scaled such that each integer coordinate maps \emph{uniquely} to a cell and vice versa. In the regular grid, direct neighbors (adjacent/face-touching cells) differ in only one coordinate by an amount of one. In unstructured grids, not every coordinate is necessarily assigned to any cell, and one cell may span multiple coordinates. Therefore, an unstructured cell's neighbor might have coordinates that differ by more than one.
+
+As memory is one-dimensional, a mapping from the three-dimensional coordinates of a cell to its location in memory is required of a grid implementation. We call this location in memory the \emph{index} and denote it with the letter $i$. The mapping from three-dimensional coordinate space to the one-dimensional memory index defines the memory layout of the grid. In regular grids, this mapping is straightforward, while in unstructured grids it may be arbitrary. How regular and unstructured grids are laid-out in memory is detailed in section \ref{sec:grid-implementations} (Grid implementations).
+
+\subsection{Stencils}									\label{sec:stencils}
+
+Finding approximate numerical solutions to the governing equations of physical processes, as in meteorology, often entails performing certain unchanging calculations on every cell of a grid. The result of this process is again a grid of similar dimensions. For each cell, the calculated output value is dependent only on a bounded, small number of neighboring cells' values (\emph{neighborhood}). Such a computation is called \emph{stencil}. Simple stencils may require only the values of the current cell as well as directly adjacent (face-touching) neighbors in order to calculate the output value, while more complex ones could also depend on diagonal neighbors, neighbors-of-neighbors etc. Yet, some spatial locality is guaranteed. 
+
+\paragraph{Halo} In stencil computations, special consideration needs to be given to the boundary cells of the grid. Cells at the boundary of a grid have fewer neighbors than inner cells. As such, the output value for a stencil depending on neigbhors is unclear for cells who do not have those neighbors. One way to address this issue is to execute the stencil only on the safe inner values of a grid, seperated from the boundary by a certain padding. The amount of padding used depends on the size of the neighborhood which a stencil requires for its computation. We call the set of cells residing in the padding around the boundaries of the grid \emph{halo}. Stencil implementations may include a branch instruction that prevents any computations if a cell lies in the halo. Alternatively, for ease of implementation and performance, it can be beneficial to store the halo seperately in memory.
+
+\subsection{GPU Programming on the Nvidia CUDA Platform}
+
+\emph{Graphics processing units} (GPUs) particularly lend themselves to stencil computations. In this section, we contrast the execution model of classical \emph{central processing units} (CPUs) with that of GPUs. We explain why stencil applications can profit from execution on the GPU and elaborate the fundamentals of the \emph{Nvidia CUDA} platform for execution on the GPU.
+
+Most classical computer programs run sequentially on the CPU. Computations are performed step-by-step. Such a sequence of operations is called \emph{thread}. First CPUs were only capable of running one thread at a time. Even today, only a handful of threads, i.e. execution streams, can run truly in parallel on a CPU. Operating on large data sets on the CPU therefore still mostly involves repeated calculations within loops which handle one data point at a time.
+
+Most performance optimizations in CPUs target \emph{latency}; caches, pipelining, branch prediction and similar techniques aim to reduce the time between issuing a command and storing its result. While CPUs have become much faster since their inception, the improvements to performance have recently slowed due to physical constraints.
+
+Sustained demands for faster runtimes and more complex applications have thus forced rethinking of the sequential execution model. Many real-world applications on large data sets consist of largely unvarying computations on many datapoints. These applications often have few sequential dependencies. Applications in computer grpahics, for example, often entail highly monotone computations that are repeated for every pixel displayed on the screen. The resulting value of the pixel at one edge of the screen probably does not require knowing about the result of a pixel at the other end, but sequential execution still dictates one value being calculated before the other. This observation spurred the development of parallel architectures, such as in GPUs. GPUs overcome the performance limits of sequential computation by providing thousands of hardware units which are able to compute (run threads) independently from one another, at the same time.\cite[Chapter~2]{cuda-for-engineers} This increases the \emph{throughput} of those devices: While a \emph{low-latency} CPU reacts to an issued command fast, it provides only one result for one datapoint. Meanwhile, a \emph{high throughput} GPU might take a longer time to issue the command, but it calculates the results for several datapoints ``at once''.
+
+CPUs therefore shine in scenarios where calculations are less straightforward and predictable, while GPUs are more useful whereever monotone computations on large data sets are performed. Another advantage of GPUs is \emph{scalability}: Because the performed parallel computations are completely independent, larger problem sizes can effectively be made more efficient simply by adding more parallel execution capabilities to the hardware, i.e. adding more processors. Despite the name, GPUs are today no longer just used for graphics processing.
+
+The task of applying a stencil to a grid (sections \ref{sec:grids}, \ref{sec:stencils}) greatly benefits in terms of performance from execution on highly parallel architectures such as graphics processing units (\emph{GPUs}), as it can easily be parallelized by decomposing the problem domain. Each thread may be responsible for calculating the result of one cell or a small set of cells in the output grid. As data dependencies are limited to a local neighborhood, parallel threads can work on spatially separated data concurrently without risk of data races in most cases. Data races only occur if threads share some dependencies, i.e. when their neighborhood overlaps. In that case, each thread can re-compute its dependencies (called \emph{computation on-the-fly}) or threads may share their results by means of \emph{synchronization}.
+
+In this thesis, we use the \emph{Nvidia CUDA} architecture to implement meteorological stencil computations on the \emph{Nvidia Tesla V100} GPU, and we assess their performance on different types of grids.
+
+\subsubsection{SIMT Execution Model}
+
+\emph{CUDA} employs a \emph{Single Instruction, Multiple Thread (SIMT)} execution model. This model can be compared to the \emph{Single Instruction, Multiple Data (SIMD)} model but makes writing programs more straight-forward to programmers experienced in sequential programming.\cite[Section~3.1]{ptx-isa} 
+
+In a \emph{SIMD} model, instructions are ``wide'': They support input operands that are larger than single scalar values. Programmers explicitly issue these \emph{vector instructions} to perform a calculation on a set of values. In contrast, in the SIMT model used by \emph{CUDA}, programmers do not need to explicitly perform operations on multiple data points. Instead, code is written such that it operates on single scalar values. Many instances, i.e. \emph{threads}, of this code are run which differ only in a input \emph{thread index} they receive. In most applications, this input is used to determine which datapoint the thread opeates on. Upon execution, when the same operation is executed in many threads on consecutive data points, they are grouped together automatically to be executed in parallel in SIMD-like fashion.
+
+\subsubsection{Software}
+
+Code to be executed on the GPU is written in specially-anotated functions called \emph{kernels}. Kernels can be written as regular C code but are compiled by the distinct Nvidia compiler \emph{(nvcc)} to \emph{Parallel Thread Execution (PTX)} machine code which can be run on the GPU. Inside a kernel, a \emph{thread and block index} is made available. Using a special syntax recognized by \emph{nvcc}, kernels can be launched from the CPU onto the GPU (sometimes simply called \emph{device}, as opposed to \emph{host} which refers to the CPU). The \emph{CUDA} Application Programming Interface (API) provides a device synchronization routine, which is required to synchronize CPU and GPU after computation of the kernel on the GPU is completed. This enables relatively simple offloading of parallelizable workloads onto the GPU as a coprocessor while continuing to run the rest of the program asynchronously on the CPU. The \emph{CUDA} API furhtermore provides routines for memory allocation on the device, memory prefetching (see \ref{sec:unified-memory} unified memory) and setting certain device parameters.
+
+\begin{lstfloat}
+\begin{lstlisting}[caption={Example showing kernel, its launch and CUDA API calls for allocating unified memory},captionpos=b,language=C]
+// Kernel Definition. This function runs on the GPU.
+__global__
+void multiply(double fac, double *input, double *output) {
+	int i = threadIdx.x + blockIdx.x*blockDim.x;
+	output[i] = fac * input[i];
+}
+
+// Kernel Invocation. This function runs on the CPU.
+int main(int argc, char **argv) {
+	double *input, output;
+	int N = 1024 * 1024;
+	cudaMallocManaged(&input, N * sizeof(double));
+	cudaMallocManaged(&output, N * sizeof(double));
+	cudaMemset(input, 42.0, N * sizeof(double));
+	multiply<<<N/256, 256>>>(3.0, input, output);
+	cudaDeviceSynchronize();
+	cudaFree(input);
+	cudaFree(output;)
+}
+\end{lstlisting}
+\end{lstfloat}
+
+\subsubsection{Streaming Multiprocessors} \label{sec:hardware}
+
+\emph{CUDA}-capable GPUs are structured as an array of so-called \emph{Streaming Multiprocessors (SMs)}. Each SM contains a multitutde of scalar processor cores. These cores include arithmetic, logic and floating point units (ALUs, FPUs) and perform the actual computations on the data points. Together, they are used to advance computation in a \emph{warp}. A warp is a set of (typically 32) threads that are executed concurrently on the same multiprocessor. In every cycle, each thread inside a warp uses one of the scalar cores to execute the same instruction (on different data), or it is turned off if a branch diverged previously. A warp of multiple threads at the same instruction pointer executing the same instruction is therefore similar to executing a SIMD instruction on multiple datapoints.
+
+Each SM has its own scheduler and operates completely independently from the other SMs. If the threads inside a warp diverge (because of branching instructions), the different execution paths are executed sequentially on the SM. It is therefore paramount to performance that kernels are written in such a way that threads in the same warp follow the same execution path whenever possible. One way to achieve this is to ensure branch conditions involve only the thread index divided by 32 (i.e. the warp size), as this will be the same value for all threads inside a warp. 
+
+SMs chose the threads to form a warp from a pool of threads called a \emph{block}. When one warp finishes executing or is stalled (e.g. because of a memory dependency), the next set of threads forming a warp in the block is chosen to be executed. All threads in a block execute on the same SM. Resources such as registers and shared memory are divided among all threads in a block. Threads in the same block can communicate with one another through shared memory. Using the \texttt{\_\_syncthreads()} command in a kernel synchronizes all threads in the same block.
+
+When a kernel is launched, the programmer may specify how many threads should be part of the same block (\emph{block size}), and how many blocks there should be (\emph{grid size}). These parameters are called the \emph{launch configuration}. It is important to have more blocks than SMs, as otherwise some SMs will have no work to perform. Furthermore, if a synchronization instruction is used in the kernel, it is beneficial to have multiple blocks per SM, as to occupy the SM when one of the blocks is stalling because it is waiting for synchronization. The number of threads per block (block size) should be a multiple of 32 to ensure warps can be entirely filled with threads. \cite[Section~10]{cuda-best-practices}
+
+\subsubsection{Memories} \label{sec:memories}
+
+There are several types of memory address spaces available in kernel code. Figure \ref{fig:memory-hierarchy} shows these address spaces in the programming model on the left, and how they are implemented in hardware with caches in the Volta architecture on the right. 
+
+\paragraph{Local Memory}
+Local memory is visible only to one thread. There is a limited number of registers available in the SM. Using a large number of registers in a kernel thus reduces the amount of threads that can be launched on the same SM. Registers can be spilled to local memory, but this incurs a cost; registers are on-chip per SM, whereas spilled registers require access to device memory.
+
+\paragraph{Shared Memory}
+Shared memory is shared between all threads in a block. It resides locally in each SM, close to the functional units. The amount of shared memory is limited per SM and therefore using more shared memory reduces the number of threads that can be launched in parallel. In the Volta architecture, shared memory competes for space with the L1 cache for global and texture memory accesses.
+
+\subparagraph{Bank Conflicts}
+When using shared memory, one has to be wary of bank conflicts. Accesses to shared memory of multiple threads can be executed simultaneously as long as they fall into seperate so called \emph{shared memory banks}. In the \emph{Volta} architecture used in this thesis, there are 32 banks. Consecutive 32-bit words are mapped to consecutive banks. To avoid bank conflicts it is thus important that for any two threads in the same warp accessing shared memory at addresses $i$ and $j$, it holds that $i \neq j \mod 32$. An exception to this rule is if all threads access the same address, in which case a \emph{broadcast} occurs.
+
+\paragraph{Global Memory}	\label{sec:unified-memory}
+Global memory is accessible by all threads across all blocks. Using the \texttt{cudaMalloc()} and \text{cudaFree()} routines provided by the \emph{CUDA} Runtime API it can be allocated and freed. Note that the pointers returned by \texttt{cudaMalloc} cannot be used in CPU code. Instead, data has to be manually copied from the host to the device and vice versa using the \texttt{cudaMemcpy()} function with \texttt{cudaMemcpyHostToDevice} and \texttt{cudaMemcpyDeviceToHost} parameters, respectively. 
+
+Since \emph{CUDA} version 6.0, there also exists \emph{unified memory} which relieves programmers from manually having to copy memory back and forth. Unified memory provides an address space that is accessible from both the host (CPU) and the device (GPU). Copying is done on-demand, when data is being accessed. Therefore, when timing exclusively the kernel runtime, switching from managed memory (with explicit memory transfers before and after the kernel run) to unified memory could impact the measured kernel-only run time. The overall runtime does not change, as memory has to be transferred in both cases; the transfer simply moves from the explicit call to \texttt{cudaMemcpy} implicitly to the first access to a unified memory address in the kernel.
+
+Synchronizing the memories between host and device can also be made explicit in unified memory using the function \texttt{cudaMemPrefetchAsync()}. We use this mechanism in our benchmarks to ensure only the relevant aspects of kernel runtimes are reported, without any distortion by memory transfers that have to take place for any kernel either way.
+
+Inside kernel code, unified memory appears just as global memory. Additionally to global memory, there also exist \emph{constant} and \emph{texture memory}. These address spaces are also persistent accross threads. Constant memory may not be written, but provides better performance when all threads access the same address. Texture memory is similar to global memory, but special routines in the Cuda API are provided for accessing it. Furthermore, it is cached in a way that profits from accesses which are local in 2D-space.
+
+\subparagraph{Coalescing}
+
+A paramount performance concern for memory-bandwith-intensive kernels is the pattern of global memory accesses. When all threads in a warp read consecutive 4-byte words, these reads are executed as one larger vector load instruction (the accesses \emph{coalesce}). This enables simultaneous reading of memory for all those threads. On the other hand, if the addresses accessed are sparse, each request has to be serviced in series by the SM. This reduces performance drastically. Therefore a memory layout should be chosen where data needed by different threads at the same computation step is laid out sequentially wherever possible. If this is not doable, a solution can be to intermediately load some data into shared memory with a coalesced access and then accessing the needed values through shared memory fetched by another thread. If all threads require access to the same address, constant memory may also be a remedy for uncoalesced accesses.
+
+\subsubsection{Arguing About Performance}
+
+\begin{figure}
+	\makebox[\textwidth]{
+	\input{tex/memory-hierarchy.tex}}
+	\caption{\label{fig:memory-hierarchy} Memory Hierarchy of the Nvidia Volta architecture (compute capability 7.0). Global memory accesses are only cached in the unified L1 data/texture cache if they are read-only. Illustration based on information provided in \cite[Sections 2.3, 5.3.2, H.6]{cuda-programming}.}
+\end{figure}
+
+Instructions which load from (slow) memory or depend on the result of a previous instruciton that has not yet been completed can cause so-called \emph{stalls} in both CPUs and GPUs. While on the CPU, many performance optimizations target reducing the number and the effect of these stalls (i.e. reducing latency), GPUs have the capability to \emph{hide} stalls by means of simply switching to a different warp that is not blocked. To analyze the performance of GPU applications we are therefore interested in two main characteristics of the execution:
+
+\begin{enumerate}
+	\item The \emph{occupancy}, which describes how much work is available to the SMs on the GPU. In the ideal case, no SM should ever be idle waiting for a stalled warp. It should execute useful work instead. The \emph{achieved occupancy} is defined as the ratio of active warps to the maximum number of warps supported on an SM. Altering the execution configuration (block size) of a kernel can aid in improving occupancy.
+	\item The main \emph{reasons for stalling}, which tell us why individual threads executions blocked. For many kernels (all stencil applications in this thesis) memory dependencies are the main reason causing stalls. For these types of kernels, a close look at the \emph{achieved memory bandwidths} in comparison to the maximum achievable bandwith of the used hardware often reveals where the deficiencies lie. For other more computationally expensive kernels, stall reasons may include busy instruction pipelines or execution dependencies.
+\end{enumerate}
+
+Considering these two characteristics gives an overview of what the main limiting factors of a kernel are. Both factors influence each other; when threads never stall, SMs will always have something to execute (provided there are enough threads). Occupancy will thus be high even if the number of issued threads is not much larger than the number of SMs times the number of threads in a warp (32). If occupancy is low, splitting the problem into smaller parts and increasing the number of threads and blocks may help.
+
+\paragraph{\texttt{nvprof} metrics} Nvidia provides a command-line profiling tool called \texttt{nvprof}. It supports collecting several metrics as kernels are executed. We highlight several of these metrics which are of particular interest for the analyses to follow:
+
+\subparagraph{Metrics concerned with occupancy}
+\begin{itemize}
+	\item \texttt{achieved\_occupancy}: Gives the ratio of active warps to the maximum number of warps supported on an SM, averaged over all SMs.
+	\item \texttt{issue\_slot\_efficiency}: This provides a more fine-grained look at occupancy, by reporting how many instructions were issued on a per-core level. If there are many branches, only one thread might be active in a warp in a given cycle (worst case). This would result in a low issue slot efficiency.
+\end{itemize}
+
+\subparagraph{Metrics concerned with memory stalls}
+\begin{itemize}
+	\item
+\end{itemize}
+
+%TODO first run not timed (referenced in results section)

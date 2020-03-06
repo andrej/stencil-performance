@@ -1,0 +1,113 @@
+\section{Grid Storage Strategies}				\label{sec:grid-implementations}
+
+In this section, we explain different approaches for implementing the regular and unstructured grids which will be used by the stencil computations in subsequent sections. We detail considerations that need to be made when implementing grids for the CUDA platform. We characterize our grid implementations by the following two main properties:
+\begin{enumerate}
+	\item The way the \emph{values} stored inside a cell are laid out in memory.
+	\item How the \emph{neighborship relations} for a cell are defined.
+\end{enumerate}
+
+\subsection{Regular Grids}
+
+\subsubsection{Row-major Indexing}
+
+In regular grids, coordinates can directly be mapped to a memory index by simple arithmetic. One way to do this is \emph{row-major indexing}. This is the memory layout many programming languages such as \emph{C} use to lay out multi-dimensional arrays in memory. The cells of the grid are indexed as follows: A cell at coordinates $p$ receives the offset
+ $$\text{index}\left(p_x, p_y, p_z\right) = p_x + p_y \cdot d_x + p_z \cdot d_x \cdot d_y.$$
+Herein, the factors besides the coordinates are called the strides, i.e. the \emph{x-stride} is $1$, \emph{y-stride} is $d_x$ and \emph{z-stride} is $d_x\cdot d_y$. Only in a regular grid are the strides constant -- this is the advantage of using a regular grid. Stepping through the memory linearly, this means that the X-coordinate is the fastest changing and the Z-coordinate is the slowest changing. Using this scheme, memory locality is good for cells with similar X-coordinates, but not necessarily so for cells with similar Y- or Z-coordinates.
+
+\subsubsection{Neighborship Relations}
+
+With row-major indexing, in order to access the value of a neighbor of a cell at position $p$, it suffices to know the coordinates of the cell and the strides of the grid. The indices of the left (right), top (bottom) and front (back) neighbors are simply given by subtracting (adding) the x-stride, y-stride or z-stride respectively. This gives the same index as subtracting one from (adding one to) the respective X-, Y- or Z-coordinate and then calculating the index as described above. All that is required for accessing a neighbor's value is simple arithmetic for the index and a memory load at the calculated index to receive the cell's stored value.
+
+For example, in memory, the left neighbor of a cell in memory at location $i$ is located at $i-1$ the top neighbor at $i-1\cdot d_x$ and the back neighbor (Z-dimension) is at $i-1\cdot d_x\cdot d_y$. From this, it is evident that when using row-major indexing in regular grids, neighbors in the X-dimenison (left/right) will have great memory locality. However, as the grid dimension in X- or Y-dimension exceeds beyond what the processor can hold in cache, accesses to neighbors in Y- or Z-direction become more costly. 
+
+\subsubsection{Memory Alignment}
+
+The Cuda compiler generally ensures that data structures are well-aligned in memory for the target architecture for coalescing accesses. However, when storing a regular grid for later stencil applications, manual alignment calculations can become necessary due to the halo. 
+
+Consider some stencil applied to a regular grid. Because of the lack of neighboring values, a kernel will not operate on values at the boundary of the grid, the halo. The first thread actually executing any load/store instructions will be on an inner value. Therefore, if the halo is not a multiple of the vector load instruction size (32), some loads at the beginning and end of each row will not be aligned. The addresses of the halo cells are not loaded and thus wasted in the instruction.
+
+This problem can be aleviated by adding paddings such that not the very first element of the array storing the grids values is 32-bit-aligned, but the first \emph{inner} value. Given a halo of size $h = \begin{pmatrix}h_x & h_y & h_z\end{pmatrix}^\top$ we want the coordinate $h$ to be aligned, not $\begin{pmatrix} 0 & 0 & 0\end{pmatrix}^\top$. We thus chose minimal paddings $a$, $b$ and $c$ and reformulate the index computation such that
+\begin{gather}
+	\text{index}\left(p_x, p_y, p_z\right) = p_x + a + p_y \cdot \left(d_x + b\right) + p_z \cdot \left(d_x \cdot d_y + c\right)
+	\\
+	\text{index}\left(h_x, p_y, p_z\right) \equiv 0 \mod 32 \qquad \text{for all $p_y$, $p_z$}
+\end{gather}
+
+\subsection{Unstructured Grids}
+
+\subsubsection{Memory Layout and Indexing of Values}
+
+In unstructured grids, coordinates can be mapped to any memory location. No direct correspondence between coordinates to indices is guaranteed (even though some regularity will be present in most real-world use cases). This is required, because the varying size of cells (varying resolutions) in unstructured grids leads to non-constant strides.
+
+Luckily, none of the stencils benchmarked requires knowing a cells absolut position to compute its value. To compute the output value for some cell stored at index $i$ (with unknown coordinates), it suffices to be able to obtain the values of its relative neighbors. Mapping a coordinate to an index or vice versa is never required in our stencil code.
+
+In meteorology applications, the grid remains regular in the Z-dimension. Therefore the Z-coordinate retains its meaning and can be inferred from the memory location $i$, specifically $p_z = i \mod d_xd_y$.
+
+\paragraph{Halo}
+
+% TODO explain Halo storage
+
+\paragraph{Row-major}
+
+% TODO detail that row-major storage was also used
+
+\paragraph{Z-order-curves}
+
+The goal of this layout is to give most cells with close X-, Y- and Z-coordinates close indices. This is achieved by intertwining the bits of all three components of a coordinate. In this thesis, we have implemented a memory layout wich uses the Z-curve layout in the X-Y-plane and resorts to regular stride-based indexing in the Z-dimension. Furthermore, to make use of CUDA's vector instructions, which can consume up to 32 bytes of consecutive memory, the Z-curve implemented here is a stretched out variant; the last five bits are \emph{not} intertwined.
+
+\subsubsection{Neighborship Relations}
+
+In unstructured grids, neighboring cells are no longer separated in memory by  constant strides as in the regular grid. As there are varying sizes and locations of cells, neighborship relations may be arbitrary, i.e. coordinates of neighboring nodes $(p_x, p_y, p_z)$ and $(p_x', p_y', p_z')$ may be unrelated, just as their respective memory locations $i$ and $i'$. Some information about the neighborship relations thus has to be stored in memory.
+
+As graph representations of grids are mostly sparse, we use something akin to multiple \emph{adjacency lists}\cite[Chapter 12]{DSA}, which we will also call \emph{neighborship tables}, to represent the structure of the grid. To determine the memory location of a neighboring cell, a lookup in one of the neighborship tables is neccessary.
+
+Suppose there are $m$ types of \emph{neighborship relations} (e.g. top, bottom, left and right neighbors, $m=4$). For each relation, one array the size of the grid will be allocated. This array functions as the neighborship table for that relation (e.g. we have a top-, bottom-, left- and right-array). For each cell whose value is stored in the data block at index $i$, each neighborship table contains an entry at that same index $i$ pointing to a neighbor. The pointer is stored as a relative offset from the index $i$. This has the advantage that a stencil thread working on the value at $i$ does not need to know where the beginning of the data block is; it can simply add the offset to the index. An offset of $0$ signifies that the cell at this index does not have such a neighbor.
+
+The index $i_\text{neigh}$ of the $k$-th neighbor of a cell at index $i$ is stored in the neighborship tables block at $i_\text{neigh} = i + \mathtt{neigh[}d_xd_y\cdot k + i\mathtt{]}$, where \texttt{neigh} is a pointer to the first neighborship table and all neighborship tables are stored consecutively.
+
+\textbf{Example:} Given an array \texttt{values}, which stores the values of each cell, and an array \texttt{top\_neighbors}, which is the top-neighborship table for the grid, then the value of the top neighbor of cell $i$ is stored at $\mathtt{values[}i + \mathtt{top\_neighbors[}i\mathtt{]]}$.
+
+Storing neighborship offsets in multiple seperate arrays in this fashion is crucial for GPU execution because it enables coalescing of the accesses to the neighborship tables. Suppose some stencil computation, in which multiple threads desire to calculate the output value for several cells at consecutive memory addresses. They will all require the same neighbor cells (as the exact same stencil computation is applied to every cell). Therefore, if, for example, all threads require the top neighbor, consecutive addresses in the top-neighbor table will be requested and accesses will get coalesced. If, however, we had a ``classical'' adjacency list, where top, bottom, left and right neighbors were each stored together (consecutively) for every cell, accesses by threads to the top-neighbor would be seperated by a stride of four elements, thus making coalescing impossible and forcing sequential loads.
+
+% TODO
+% - describe compression w. prototypes dictionary
+%   -> constant memory
+% - restructure no-chase vs chase
+% - check wether coalescing is mentioned for neighborship table
+% - maybe one sentence about data type for neighborhsip table
+
+\paragraph{Meteorology Specific: Z-Regularity}
+
+In meteorology applications, the Z-dimension retains its regularity; neighborship relations in the X-Y-plane are the same at any Z-level. It therefore suffices to store the X-Y-neighborship relations once. We further limit each cell to have at most $4$ directly adjacent neighbors (\emph{connected edges} in graph terminology). This is the maximum number of neighbors any cell in a two-dimensional quadrilateral grid can have. To avoid the issue of \emph{pointer chasing} it might also be beneficial to store all neighbors-of-neigbhors up to a certain depth $l$. Looking up neighbors-of-neighbors beyond that depth will require multiple indirect lookups. To store all neighbors and neighbors-of-neighbors up to a depth of $l$, this yields a requirement of $m=2\cdot l(l+1)$ pointers per cell in the X-Y-plane.
+
+Knowing this, we can allocate $\mathtt{sizeof(int)}\cdot m \cdot d_x d_y$ bytes of memory ahead of time to store the neighborship tables. Furthermore, reserving $m$ slots for each cell instead of using a variable-length data structure (such as a linked list) enables us to directly index into the neighborship table. For example, a neighborship pointer for the $k$-th neighbor of a cell stored at index $i$ can be found in the $k$-th neighborship table at index $(i \mod d_xd_y)$. Herein, the modulo $d_xd_y$, i.e. the Z-stride, is required for memory indices $i$ for $Z>0$.
+
+Representing the entire grids structure (including all neighborship relations) and its values can thus be achieved with a memory footprint of $\mathtt{sizeof(int)} \cdot d_xd_ym + \mathtt{sizeof(T)}\cdot d_xd_yd_z$ bytes, wherein \texttt{T} is the data type used for values (\texttt{float} or \texttt{double}, or a struct for array-of-struct-type storage of multiple fields, see \ref{sec:representing-multiple-fields}).
+
+\subsection{Representing Multiple Fields} \label{sec:representing-multiple-fields}
+
+Two of the three benchmarked stencils and most real-world applications perform calculations that require storage and retrieval of more than one value per cell in the grid. There are two obvious approaches to storing multiple \emph{fields} for both regular and unstructured grids, \emph{array-of-structs} and \emph{struct-of-arrays}.
+
+\paragraph{Array of Structs}
+In the array-of-structs memory layout, all fields for one cell are stored together, before any values for the next cell. This means that accesses to different fields of the same cell have good memory locality, whereas accessing the same field of different cells requires larger strides.
+
+\paragraph{Struct of Arrays}
+In the struct-of-arrays layout, there are $k$ arrays for $k$ fields. This is conceptually the same as having $k$ different one-field grids. Different fields of the same cell are stored in seperate arrays and are thus seperated by (at least) the size of one array. This approach requires additional care to keep the indices for cells synchronized across all arrays; deleting or adding a cell requires access to all $k$ arrays.
+
+The struct-of-arrays approach is highly beneficial to most GPU stencil implementations because of coalescing. When a stencil is implemented such that each thread is responsible for the calculation of one output value, all threads will most likely try to access the same field on different cells concurrently. In the struct-of-array layout, these accesses are able to coalesce (if the cells appear consecutively in memory).  Because of this, we have implemented all our benchmarks in this fashion, i.e. as multiple one-field grids. To verify the claim that array-of-structs is slowr than struct-of-arrays, we have implemented both variants for the \emph{fast waves} benchmark, see table \ref{tab:array-of-structs}.
+
+\begin{table}
+	\begin{tabular}{l c c}
+		\textbf{Benchmark} & \textbf{Run Time} & \textbf{Load Efficiency} \\
+		\hline
+		Array of Structs & $8282 \mu s$ & $25.73\%$\\
+		Struct of Arrays & $2546 \mu s$ & $99.39\%$
+	\end{tabular}
+	\caption{\label{tab:array-of-structs} Comparison of run times and global load efficiency (ratio of requested loads to performed loads, where bad coalescing leads to more loads being performed than needed) for the fast waves benchmark with domain size $512\times 512\times 64$ and block size of $128\times 1\times 2$.}
+\end{table}
+
+However, in the struct-of-arrays approach, cache locality might suffer from the large strides between the fields of a cell. It might be desirable to also load the other fields of a cell into the cache when one field of that cell is accessed. In this approach, however, only identical fields from other cells are close and thus loaded in the cache. A compromise that seeks to combine both the caching advantages of array-of-structs and the coalescing of struct-of-arrays is the \emph{array-of-structs-of-arrays} approach, which stores one array, which for each warp-sized block of cells contains a struct of warp-sized arrays for each field. We have not implemented this.
+
+% TODO
+% - put this section together with value storage / restructure
+% - in the value storage section also metion briefly float v double

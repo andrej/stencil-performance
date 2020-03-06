@@ -1,0 +1,42 @@
+\documentclass[a4paper, 11pt]{article}
+
+\usepackage[utf8]{inputenc} 
+\usepackage{fontspec} 
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{enumitem}
+
+% Bibliography
+\usepackage{biblatex} 
+\usepackage[hidelinks]{hyperref} \addbibresource{bibliography.bib}
+
+% Listings
+\usepackage{float} 
+\usepackage{listings} \newfloat{lstfloat}{htbp}{lop} \floatname{lstfloat}{Listing} 
+\def\lstfloatautorefname{Listing}
+
+% Graphics
+\usepackage{tikz}
+\graphicspath{ {./img/} }
+
+\title{Efficient GPU Implementation of Stencils on Unstructured Grids} 
+\author{André Rösti}
+
+\begin{document}
+
+\maketitle 
+\newpage
+
+\tableofcontents
+
+\include{tex/introduction}
+\include{tex/related-work}
+\include{tex/foundations}
+\include{tex/grid-implementations}
+\include{tex/optimizations}
+\include{tex/results}
+\include{tex/conclusions}
+
+\printbibliography
+
+\end{document}
