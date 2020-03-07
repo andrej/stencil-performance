@@ -67,11 +67,13 @@ The stencils were benchmarked on a \emph{Nvidia Tesla V100} GPU. This GPU implem
 \subsection{Overview of Results}
 
 \begin{table}
-	\begin{tabular}{l c c l l r}		
+	\begin{tabular}{l c c l c r} % c c}		
 		\multicolumn{6}{c}{\textbf{Laplace-of-Laplace Stencil}} \\
 		\hline
 		\hline
-		Storage & (1) & (2) & Access Strategy  & Runtime & Slowdown \\
+		%& & & & \multicolumn{2}{c}{$512\times 512\times 64$ Grid} & \multicolumn{2}{c}{$128\times 128\times 64$ Grid} \\
+		%\cline{5-6} %\cline{7-8} 
+		Storage & (1) & (2) & Access Strategy  & Runtime & Slowdown \\ %& Runtime & Slowdown \\
 		\hline 
 		\multicolumn{3}{c}{regular grid baseline} & index variables & $353 \mu s$ & -\\
 		\hline
@@ -130,26 +132,34 @@ The stencils were benchmarked on a \emph{Nvidia Tesla V100} GPU. This GPU implem
 	\caption{\label{tab:overview} Fastest access strategy, runtimes (median of 20 runs) and relative slowdown given the grid storage type for the three benchmarked stencils on a $512\times 512\times 64$-sized grid of doubles.}
 \end{table}
 
-Across all executed benchmarks, the observed slowdown incurred because of indirect addressing is in the range of $$
+Table \ref{tab:overview} lists the fastest storage/access-combinations for all stencils and reports their runtimes and overhead. Across all executed benchmarks, we measured that the main cost of switching to an unstructured grid is a roughly a constant time penalty. On a $512\times 512\times 64$ grid, the additional time required by the unstructured kernels is between $137 \mu s$ and $159 \mu s$ for the fastest variants of the horizontal diffusion and Laplace-of-Laplace stencils. The latency in the computationally more complex fastwaves stencil is lower at $102 \mu s$ (in the best case), as it only accesses four neighbors. It is likely that the cost paid when switching to indirect addressing is mainly due to the latency of the neighborship table accesses which must occur before any computations can be done, and that these measured overheads quantify that latency.
+
+The relative slowdowns are in the range of $4\%$ to $71\%$. The biggest differences in these relative slowdowns are observed due to differences between the stencils. As the overhead is largely constant, simpler stencils with less computation time spent per cell suffer more. For the most simple stencil, Laplace-of-Laplace (\emph{laplap}), relative slowdowns are largest with values of roughly $45\%$ to $71\%$. The more complex fastwaves stencil, which accesses nine different fields (compared to the one field of the \emph{laplap} stencil) only suffers from slowdowns in the $5\%$-area. The medium-intensity horizontal diffusion sits in the middle with its $25\% - 55\%$ range. 
+
+In section \ref{sec:res-storage} and \ref{sec:res-access}, we explore the performance of the storage and access methods used. The chosen grid access strategy can have a high impact on the runtimes. Yet, no access strategy clearly dominates all others. Which implementation is fastest depends on the combination of access and storage, as well as on the stencil. Surprisingly, the \emph{naive} access strategy is competitive, and at times better than the optimized variations. The \emph{idxvar} optimization always performs similarly or slightly better. The optimized \emph{z-loop}, \emph{sliced z-loop} and the \emph{shared} access strategy did in most cases not pay off.
+
+For both the horizontal diffusion and Laplace-of-Laplace stencils, compressing the neighborship table provides a significant benefit. However, due to the additional memory lookup required and unavoidable uncoalesced accesses to the compressed neighborship table, the advantage is not as large as one might at first expect.
+
+Most results presented in this section focus on grids of size $512\times 512\times 64$. However, variations in the problem domain also lead to interesting observations. As the grids are still structured in the Z-dimension, changing the size of dimension and measuring the accompanying slowdowns reveals how the different implementations are able to make use of the regularity. In much smaller grids, the runtimes change in more hard-to-predict manners. At smaller sizes, the cache can be used more effectively. Generally, the relative slowdown in smaller grids also becomes smaller. Section \ref{sec:res-size} gives some insight into how the performance relates to the input domain size.
+
+The choice of the right number of threads when launching the kernels is an especially important. Depending on the implementation, a different number of threads, or a different arrangement of the threads is better. In section \ref{sec:res-blocksize} the effect of the block sizes is evaluated and explained.
 
 % TODO 
-% - General fastest variant (storage+access) per stencil
-% - Relative and absolute overhead of these fastest variants
-% - Describe as function of change in problem domain size, explain with latency of first Z-level lookup v. throughput
-% - approximate latency
-% - Mention effects between storage/access/stencil don't give clear answer which is best
 % - Overview graph of only fastest variant per stencil
-% - Introductory sentence giving overview of next sections
 
-\subsection{Effect of Grid Storage}
+\subsection{Effect of Grid Storage} \label{sec:res-storage}
 
-In section \ref{sec:grid-implementations}, we described different approaches to storing an unstructured grid. Four storage approaches were benchmarked as a result of varying two properties: First, the depth of the neighborship table, i.e. whether only neighbors (\emph{chasing} variant) or also neighbors-of-neighbors (\emph{non-chasing} variant) were stored. Second, whether the neighborship table was \emph{compressed} or \emph{uncompressed}.
+In section \ref{sec:grid-implementations}, we described different approaches to storing an unstructured grid. Four storage approaches were benchmarked as a result of varying the following two properties: First, the depth of the neighborship table, i.e. whether only neighbors (\emph{chasing} variant) or also neighbors-of-neighbors (\emph{non-chasing} variant) were stored. Second, whether the neighborship table was \emph{compressed} or \emph{uncompressed}.
+
 
 % TODO 
 % - which is fastest combination overall?
 % - graph of fastest access variant and all storage variants for all stencils
 
 \subsubsection{Pointer Chasing versus Explicit Neighbor-of-Neighbor Storage}
+
+Two of the three benchmarked stencils, Laplace-of-Laplace and Horizontal Diffusion, access neighbors beyond the directly face-touching cells. For those stencils, two implementations were benchmarked: First, we assessed the performance when only direct neighbors are explicitly stored. This approach requires \emph{pointer chasing}: In order to access the neighbor of a neighbor, two sequential lookups become necessary. As the second lookup can only be started when the first one completed, a higher latency may occur in this variant. Therefore, we then also tested variants in which the neighbors-of-neighbors were explicitly stored in memory, reducing the number of required memory lookups for those cells from two to one. This comes at the cost of a higher memory requirement, however.
+
 
 % TODO
 % - Where is explicitly storing faster?
@@ -158,10 +168,12 @@ In section \ref{sec:grid-implementations}, we described different approaches to 
 
 \subsubsection{Advantage of Compressed Neighborship Tables}
 
+Across all stenils except fastwaves, and across all access implementations, compressing the neighborship table improves performance. Table \ref{tab:compression} shows how effective the trivial compression scheme that we implemented is on a $512\times 512\times 64$-sized grid. If the values of the grid are laid out in row-major fashion, compression is especially effective. In this case, only the elements in the halo have different neighborship pointers; all others share the top entry. Using a z-curves layout, the distribution of neighborship table accesses is a little bit more evenly spread out. However, the concentration of several frequently occuring patterns is still able to provide a runtime benefit.
+
 \begin{table}
 	\begin{tabular}{l l l l l l}
 		\hline
-		Compressed? & Chasing? & Memory layout & \# Entries & Ratio\textsuperscript{*} & Frequency\textsuperscript{\dag} \\
+		Compressed? & Chasing? & Storage & \# Entries & Ratio\textsuperscript{*} & Freq.\textsuperscript{\dag} \\
 		\hline
 		- & \checkmark & both & $1,048,576$ & $1$ & $<1\%$\\
 		- & - & both & $3,145,728$ & $1$ & $<1\%$\\
@@ -179,7 +191,7 @@ In section \ref{sec:grid-implementations}, we described different approaches to 
 % - Why not larger advantage? -> Metrics to back up coalescing explanation/latency of first prototype lookup and second lookup is non-coalesced
 % - Why uncompressed faster for fastwaves?
 
-\subsection{Effect of Access Strategy}
+\subsection{Effect of Access Strategy} \label{sec:res-access}
 
 In section \ref{sec:optimizations}, we discussed various optimizations for accessing such grids in a stencil application. Here, we compare the performance of these approaches. Figure \ref{fig:storage-access} gives an overview of the possible storage/access-combinations.
 
@@ -215,7 +227,7 @@ For one, the index variables variant for the fastwaves kernel leads to a higher 
 \subsubsection{\emph{Shared} Access Strategy}
 
 % TODO
-% - is almost same as idxvar due to caches
+% - shared is almost same as idxvar due to caches
 % - overhead of synchronization makes it slightly slower
 % - back this up with metrics
 
@@ -226,7 +238,7 @@ For one, the index variables variant for the fastwaves kernel leads to a higher 
 % - Why is it faster for uncompressed variants, why slower for compressed?
 %    -> Back up with metrics!
 
-\subsection{Effect of Problem Domain Size and Precision}
+\subsection{Effect of Problem Domain Size and Precision} \ref{sec:res-size}
 
 On grids of relatively large size ($512\times 512\times 64$), the fastest unstructured variants are between $5\%$ and $50\%$ slower than their regular counterparts, depending on the stencil. Generally, the relative slowdowns decrease with increasing domain size in the Z-dimension ($512\times 512\times 1$ up to $512\times 512\times 64$). This can be explained by the regularity of the grid in the Z-dimension, which some of the optimized implementations make use of. Theoretically, only one lookup to determine neighboring indices is required for all cells in a grid with equal X- and Y-coordinates. Even the unoptimized variants profit from this regularity, as neighborship information appears to be mostly kept in the caches.
 
@@ -252,15 +264,8 @@ For smaller grids ($128\times 128\times 64$), slowdowns are larger.
 % - effect of precision
 %   -> grouped bar graph double vs single; keep short
 
-\subsection{Effect of stencil properties}
 
-A major factor determining the relative cost of switching to an unstructured grid is the complexity of the original stencil. In stencils with fewer fields, such as the \emph{Laplace of Laplace} stencil, the additional lookups required in indirect adressing resulted in a larger relative cost. In the \emph{Fast Waves} stencil, which for its 9 fields requires many memory accesses already in its regular version, the overhead of indirect addressing is less noticeable in relation to the toal run time. 
-
-% TODO
-% - more fields -> less relative overhead; absolute? (might also decrease due to latency hiding with other field transactions)
-% - more neighbors
-
-\subsection{Optimal Block Size}
+\subsection{Optimal Block Size} \label{sec:res-blocksize}
 
 \subsubsection{Background}
 
