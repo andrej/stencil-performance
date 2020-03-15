@@ -142,33 +142,64 @@ For both the horizontal diffusion and Laplace-of-Laplace stencils, compressing t
 
 Most results presented in this section focus on grids of size $512\times 512\times 64$. However, variations in the problem domain also lead to interesting observations. As the grids are still structured in the Z-dimension, changing the size of dimension and measuring the accompanying slowdowns reveals how the different implementations are able to make use of the regularity. In much smaller grids, the runtimes change in more hard-to-predict manners. At smaller sizes, the cache can be used more effectively. Generally, the relative slowdown in smaller grids also becomes smaller. Section \ref{sec:res-size} gives some insight into how the performance relates to the input domain size.
 
-The choice of the right number of threads when launching the kernels is an especially important. Depending on the implementation, a different number of threads, or a different arrangement of the threads is better. In section \ref{sec:res-blocksize} the effect of the block sizes is evaluated and explained.
+The choice of the right number of threads when launching the kernels is especially important. Depending on the implementation, a different number of threads, or a different arrangement of the threads is better. In section \ref{sec:res-blocksize} the effect of the block sizes is evaluated and explained.
 
+\begin{verbatim}
 % TODO 
 % - Overview graph of only fastest variant per stencil
+\end{verbatim}
 
 \subsection{Effect of Grid Storage} \label{sec:res-storage}
 
 In section \ref{sec:grid-implementations}, we described different approaches to storing an unstructured grid. Four storage approaches were benchmarked as a result of varying the following two properties: First, the depth of the neighborship table, i.e. whether only neighbors (\emph{chasing} variant) or also neighbors-of-neighbors (\emph{non-chasing} variant) were stored. Second, whether the neighborship table was \emph{compressed} or \emph{uncompressed}.
 
-
-% TODO 
-% - which is fastest combination overall?
-% - graph of fastest access variant and all storage variants for all stencils
+\begin{figure}
+	% ax=u.barplot(df64mins[(df64mins["stencil"]=="hdiff")&df64mins["z-curves"]&(df64mins["size-x"]>=128)], grp=u.col.stencil+u.col.size, cat=u.col.storage, tickrot=0, y="rel")
+	% ax.set_ylim(bottom=1)
+	% fig=u.plotdone()
+	% u.plotsave("report/img/hdiff-z-curves-sizes-storage.pdf", fig)
+	\comment{
+	      stencil  size-x  size-y  size-z  unstructured        variant  z-curves  no-chase   comp  threads-x  threads-y  threads-z       min       max       avg    median
+	11327   hdiff     128     128      64          True         idxvar      True     False  False         64          1          8   50000.0   53000.0   51000.0   51000.0
+	12079   hdiff     128     128      64          True         idxvar      True     False   True         32          1         16   52000.0   56000.0   53000.0   53000.0
+	10516   hdiff     128     128      64          True         idxvar      True      True  False         32          2          8   47000.0   50000.0   48000.0   49000.0
+	10880   hdiff     128     128      64          True          naive      True      True   True         32          1          8   48000.0   51000.0   50000.0   50000.0
+	32073   hdiff     512     512      64          True         idxvar      True     False  False         64          1          8  801000.0  828000.0  817000.0  820000.0
+	31623   hdiff     512     512      64          True         idxvar      True     False   True        128          1          2  734000.0  746000.0  741000.0  741000.0
+	32178   hdiff     512     512      64          True  idxvar-shared      True      True  False         32          1         16  819000.0  854000.0  838000.0  841000.0
+	31541   hdiff     512     512      64          True          naive      True      True   True        128          1          2  707000.0  721000.0  713000.0  710000.0
+	}
+	\includegraphics[scale=0.75]{hdiff-z-curves-sizes-storage.pdf}
+	\caption{\ref{fig:hdiff-sizes-storage} Relative slowdowns for the horizontal diffusion stencil on a small and a larger grid. The fastest access variant is plotted for each bar, which is one of \emph{index variables}, \emph{naive} and \emph{idxvar-shared} for the shown benchmarks. This example for the horizontal diffusion stencil is representative for the other two benchmarks as well, where the slowdowns follow a similar pattern. (Note that in the fastwaves stencils, pointer chasing is not applicable as there only direct neighbors are accessed.)}
+\end{figure}
 
 \subsubsection{Pointer Chasing versus Explicit Neighbor-of-Neighbor Storage}
+\label{sec:results-chasing}
 
-Two of the three benchmarked stencils, Laplace-of-Laplace and Horizontal Diffusion, access neighbors beyond the directly face-touching cells. For those stencils, two implementations were benchmarked: First, we assessed the performance when only direct neighbors are explicitly stored. This approach requires \emph{pointer chasing}: In order to access the neighbor of a neighbor, two sequential lookups become necessary. As the second lookup can only be started when the first one completed, a higher latency may occur in this variant. Therefore, we then also tested variants in which the neighbors-of-neighbors were explicitly stored in memory, reducing the number of required memory lookups for those cells from two to one. This comes at the cost of a higher memory requirement, however.
+Two of the three benchmarked stencils, Laplace-of-Laplace and Horizontal Diffusion, access neighbors beyond the directly face-touching cells (neighbors of neighbors). For those stencils, two implementations were benchmarked: First, we assessed the performance when only direct neighbors are explicitly stored. This approach requires \emph{pointer chasing}: In order to access the neighbor of a neighbor, two sequential lookups become necessary. As the second lookup can only be started when the first one completed, a higher latency may occur in this variant. Therefore, we then also tested variants in which the neighbors-of-neighbors were explicitly stored in memory, reducing the number of required memory lookups for those cells from two to one. This comes at the cost of a higher memory footprint, however.
 
+Generally we observe the following trend: If the grid is small or compressed, pointer chasing becomes an issue (and thus non-chasing variants profit). In larger uncompressed grids, the latency of the two lookups required in pointer chasing for neighbors-of-neighbors can be effectively hidden. This is visible in figure \ref{fig:hdiff-sizes-storage}, which outlines the differences of the storage approaches for the fastest respective variant of the horizontal diffusion stencil on grids of different sizes. 
 
-% TODO
-% - Where is explicitly storing faster?
-% - Explanation why pointer chasing faster for most variants / vice versa
-% - Table of metrics to back claims up
+In all cases a higher total number of device memory and L2 cache reads is observed in the \texttt{nvprof} metrics for the non-chasing variants. This is to be expected, as non-chasing variants need to store and read more information from a larger number of different addresses. The L1 cache hit rate lowers by around $6\%$ in both large and small grids when pointers to neighbors-of-neighbors are explicitly stored. In large grids, the L2 cache hit rate also drops dramatically; for smaller grids, it is unaffected and remains high. Thus, the additional neighbor-of-neighbor information stored hurts cache locality more in larger grids, putting non-chasing variants at a disadvantage there. This is due to the fact that larger grids require more of this information, while the cache size remains constant -- consequently, some data has to be evicted from the cache. This does not happen as often in a smaller grid. The variants that perform pointer chasing experience a higher percentage of stalls due to memory dependencies due to the second lookup depending on the result of the first for neighbor-of-neighbor reads.  We conclude that non-chasing storage is beneficial to small grids, where it is effective in reducing latency, and unfavorable for larger grids due to the caused cache evictions (especially in the L2 cache), that actually increase the latency of neighbor acceses. Table \ref{tab:chasing} shows an overview of the metrics discussed in this paragraph for an exemplary stencil configuration of the horizontal diffusion stencil.
+
+\begin{table}
+	\comment{chase-v-no-chase.txt}
+	\begin{tabular}{l l l l l l}
+		\hline
+		\textbf{Size} & \textbf{Chasing?} & \textbf{\texttt{tex\_cache\_hit\_rate}} & \textbf{\texttt{l2\_tex\_hit\_rate}} & \textbf{\texttt{stall\_memory\_dependency}} & \textbf{Runtime} \\
+		\hline
+		$128\times 128\times 64$ & - & 			$73\%$ & $68\%$ & $59\%$ & $\mu s$ \\
+		$128\times 128\times 64$ & \checkmark & $67\%$ & $72\%$ & $54\%$ & $\mu s$ \\
+		$512\times 512\times 64$ & - & 			$68\%$ & $58\%$ & $74\%$ & $\mu s$ \\
+		$512\times 512\times 64$ & \checkmark & $63\%$ & $37\%$ & $60\%$ & $\mu s$ \\
+		\hline
+	\end{tabular}
+	\caption{\label{tab:chasing} Selected metrics for runs of the horizontal diffusion stencil on different types of grids (all of them in z-curves layout). The fastest found variant and launch configuration was chosen for each configuration seperately.}
+\end{table}
 
 \subsubsection{Advantage of Compressed Neighborship Tables}
 
-Across all stenils except fastwaves, and across all access implementations, compressing the neighborship table improves performance. Table \ref{tab:compression} shows how effective the trivial compression scheme that we implemented is on a $512\times 512\times 64$-sized grid. If the values of the grid are laid out in row-major fashion, compression is especially effective. In this case, only the elements in the halo have different neighborship pointers; all others share the top entry. Using a z-curves layout, the distribution of neighborship table accesses is a little bit more evenly spread out. However, the concentration of several frequently occuring patterns is still able to provide a runtime benefit.
+Across all stenils except fastwaves, and across all access implementations, compressing the neighborship table improves performance for large enough grids. Table \ref{tab:compression} shows the distribution of neighborship table entries attained by the trivial compression scheme that we implemented is on a $512\times 512\times 64$-sized grid. If the values of the grid are laid out in row-major fashion, compression is especially effective. In this case, only the elements in the halo have different neighborship pointers; all others share the top entry. Using a z-curves layout, the distribution of neighborship table accesses is more evenly spread out. However, the concentration of several frequently occuring patterns is still able to provide a runtime benefit.
 
 \begin{table}
 	\begin{tabular}{l l l l l l}
@@ -186,10 +217,15 @@ Across all stenils except fastwaves, and across all access implementations, comp
 	\caption{\label{tab:compression} Properties of neighborship table before and after compression for different types of grids. \textsuperscript{*}Ratio of number of compressed neighborship table entries to number of uncompressed neighborship table entries. \textsuperscript{\dag}The frequency given is the frequency of the most common neighborship table entry. }
 \end{table}
 
+\begin{verbatim}
 % TODO
 % - Relative advantage of compression for all variants/combinations
 % - Why not larger advantage? -> Metrics to back up coalescing explanation/latency of first prototype lookup and second lookup is non-coalesced
 % - Why uncompressed faster for fastwaves?
+
+% mention fewer memory dram transactions/bytes in compressed variants
+% mention higher hit rate for large grids, smaller hit rate for small
+\end{verbatim}
 
 \subsection{Effect of Access Strategy} \label{sec:res-access}
 
@@ -226,23 +262,28 @@ For one, the index variables variant for the fastwaves kernel leads to a higher 
 
 \subsubsection{\emph{Shared} Access Strategy}
 
+\begin{verbatim}
+% mention it is faster for no-chase, uncompressed grid storage
+% -> explicit shared memory usage better than relying on cache when there is a very large number of neighbors
+
 % TODO
 % - shared is almost same as idxvar due to caches
 % - overhead of synchronization makes it slightly slower
 % - back this up with metrics
+\end{verbatim}
 
 \subsubsection{\emph{Z-loop} and \emph{Z-loop-sliced} Access Strategies}
 
+\begin{verbatim}
 % TODO
 % - reiterate what the supposed advantage of z loop is
 % - Why is it faster for uncompressed variants, why slower for compressed?
 %    -> Back up with metrics!
+\end{verbatim}
 
-\subsection{Effect of Problem Domain Size and Precision} \ref{sec:res-size}
+\subsection{Effect of Problem Domain Size and Precision} \label{sec:res-size}
 
-On grids of relatively large size ($512\times 512\times 64$), the fastest unstructured variants are between $5\%$ and $50\%$ slower than their regular counterparts, depending on the stencil. Generally, the relative slowdowns decrease with increasing domain size in the Z-dimension ($512\times 512\times 1$ up to $512\times 512\times 64$). This can be explained by the regularity of the grid in the Z-dimension, which some of the optimized implementations make use of. Theoretically, only one lookup to determine neighboring indices is required for all cells in a grid with equal X- and Y-coordinates. Even the unoptimized variants profit from this regularity, as neighborship information appears to be mostly kept in the caches.
-
-For smaller grids ($128\times 128\times 64$), slowdowns are larger.
+Generally, the relative slowdowns decrease with increasing domain size in the Z-dimension ($512\times 512\times 1$ up to $512\times 512\times 64$). This can be explained by the regularity of the grid in the Z-dimension, which some of the optimized implementations make use of. Theoretically, only one lookup to determine neighboring indices is required for all cells in a grid with equal X- and Y-coordinates. Even the unoptimized variants profit from this regularity, as neighborship information appears to be mostly kept in the caches.
 
 \begin{figure}
 	\makebox[\textwidth]{
@@ -253,6 +294,7 @@ For smaller grids ($128\times 128\times 64$), slowdowns are larger.
 	\caption{\label{fig:results-512-sizes}Runtimes relative to stencil on regular grids sized $512\times 512\times 1$ up to $512\times 512\times 64$}
 \end{figure}
 
+\begin{verbatim}
 % TODO
 % - effect of Z-size increase
 %   -> graph per variant (choose best-looking storage strategy if all similar)
@@ -263,7 +305,7 @@ For smaller grids ($128\times 128\times 64$), slowdowns are larger.
 %   -> larger sizes 512x512x64
 % - effect of precision
 %   -> grouped bar graph double vs single; keep short
-
+\end{verbatim}
 
 \subsection{Optimal Block Size} \label{sec:res-blocksize}
 

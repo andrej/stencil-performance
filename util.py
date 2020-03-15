@@ -25,7 +25,8 @@ class col:
 
 # Return dataframe reduced to one entry with minimal value to minimize per group
 def groupmin(df, by=col.problem, minimize="median"):
-    return df.loc[df.groupby(by)[minimize].idxmin()]
+    tmp = df.reset_index(drop=True)
+    return tmp.loc[tmp.groupby(by)[minimize].idxmin()]
     
 # Return series of relative values relative to minimum element in same group
 def relmingroup(df, by=col.problem, to="median"):
@@ -33,13 +34,23 @@ def relmingroup(df, by=col.problem, to="median"):
     return relgroup(df, grpmins, by, to)
 
 # Return series of relative values relative to specific element per group
-def relgroup(df, df_base, by=col.size, to="median"):
+def relgroup(df, df_base, by=col.stencil+col.size, to="median"):
     cols = by + [to]
     tmp = df.merge(df_base[cols], on=by, how="left")
     assert len(tmp) == len(df) # if this fails, the input df_base had multiple matches for a base "by"; maybe use aggregate .min()?
     tmp.index = df.index
     return tmp[to + "_x"] / tmp[to + "_y"]
 
+# Setup ultimate dataframe
+def setup():
+    large = pd.read_csv("results/ultimate-reformat.csv")
+    medium = pd.read_csv("results/ultimate-128-reformat.csv")
+    small = pd.read_csv("results/ultimate-64-reformat.csv")
+    large[["avg", "min", "max", "median"]] *= 1000 # micro to nanoseconds
+    medium[["avg", "min", "max", "median"]] *= 1000
+    df = pd.concat([large, medium, small], ignore_index=True)
+    df.sort_values("median", inplace=True)
+    return df
 
 # ####################
 # NAME PRETTY PRINTING
@@ -62,7 +73,8 @@ column_titles = { "pretty" : "Benchmark",
                   "kernel-avg" : "Average runtime [μs]",
                   "kernel-median" : "Median runtime [μs]",
                   "kernel-min" : "Minimal runtime [μs]",
-                  "kernel-max" : "Maximal runtime [μs]", }
+                  "kernel-max" : "Maximal runtime [μs]",
+                  "rel" : "Runtime [relative to baseline]"}
 
 # Pretty-print names for graphs
 # cols: Columns to be considered for generating pretty-print name (make sure to exclude any measurement values that vary for rows of the same data set)
@@ -81,11 +93,14 @@ def title(df, cols=col.category, **kwargs):
 
 def pretty_cb(row, cols=col.category, fmt="{0}: {1}", join=",  ", 
               formatters={ "unstructured" : lambda x, r: "unstructured" if x else "regular",
-                           "z-curves"     : lambda x, r: ("z-curves" if x else "row-major") if r["unstructured"] else None,
-                           "no-chase"     : lambda x, r: ("non-chasing" if x else "chasing") if r["unstructured"] else None,
-                           "comp"         : lambda x, r: ("compressed" if x else "uncompressed") if r["unstructured"] else None,
+                           "z-curves"     : lambda x, r: ("z-curves" if x else "row-major") if not ("unstructured" in r and not r["unstructured"]) else None,
+                           "no-chase"     : lambda x, r: ("non-chasing" if x else "chasing") if not ("unstructured" in r and not r["unstructured"]) else None,
+                           "comp"         : lambda x, r: ("compressed" if x else "uncompressed") if not ("unstructured" in r and not r["unstructured"]) else None,
                            "stencil"      : lambda x, r: stencil_names[x] if x in stencil_names else x.capitalize(),
-                           "variant"      : lambda x, r: variant_names[x] if x in variant_names else x }):
+                           "variant"      : lambda x, r: variant_names[x] if x in variant_names else x,
+                           "size-x"       : lambda x, r: "{0}×{1}×{2}".format(x, r["size-y"], r["size-z"]) if "size-y" in r and "size-z" in r else None,
+                           "size-y"       : lambda x, r: None,
+                           "size-z"       : lambda x, r: None }):
     out = []
     for col in cols:
         if col not in row:
@@ -103,26 +118,33 @@ def pretty_cb(row, cols=col.category, fmt="{0}: {1}", join=",  ",
 # Setup common plot params
 def plotinit(w=6, h=4):
     plt.style.use("seaborn")
-    f = plt.gcf()
-    f.set_size_inches(w, h)
-    plt.grid()
+    fig = plt.gcf()
+    fig.set_size_inches(w, h)
 
-def plotdone():
-    plotlegend()
-    f = plt.gcf()
-    f.tight_layout()
-    plt.show()
+def plotdone(fig=None, legend=2):
+    if not fig:
+        fig = plt.gcf()
+    plotlegend(fig.gca(), legend)
+    plt.tight_layout()
+    fig.show()
+    return fig
 
-def saveplot(f):
-    f = plt.gcf()
-    f.tight_layout()
-    plt.savefig(f, dpi=300)
+def plotsave(f, fig=None):
+    if not fig:
+        fig = plt.gcf()
+    plt.tight_layout()
+    fig.savefig(f, dpi=300)
+    return fig
 
-def plotlegend(ncol=2, ax=None, **kwargs):
+def plotlegend(ax=None, pos=2,  **kwargs):
     if not ax:
         ax = plt.gca()
-    ax.legend(loc='lower left', bbox_to_anchor=(0, 1), ncol=ncol, **kwargs)
-
+    if(pos == 0):
+        ax.legend(**kwargs)
+    elif(pos == 1):
+        ax.legend(loc="upper left", bbox_to_anchor=(0, 1), ncol=2, **kwargs)
+    else:
+        ax.legend(loc="upper left", bbox_to_anchor=(1, 1), ncol=1, **kwargs)
 
 # Line plot
 def lineplot(df, by=col.category, x="threads-z", y="median",
@@ -144,16 +166,19 @@ def lineplot(df, by=col.category, x="threads-z", y="median",
     ax.set_xlabel(column_titles[x] if x in column_titles else x)
     ax.set_ylabel(column_titles[y] if y in column_titles else y)
     ax.set_title(title(mins))
+    ax.grid(axis="both")
 
 # Grouped bars plot
 # cat: categories, these are differentiated by colors + legend
 # grp: groups, these appear togheter as bars next to each other
 def barplot(df, cat=col.access, grp=col.storage + col.gridtype, y="median",
             color="color", ax=None, 
-            w=1, s=1.6, **kwargs):
+            w=1, s=1.6, tickrot=15, **kwargs):
     if not ax:
         ax = plt.gca()
     mins = groupmin(df, cat + grp, minimize=y) # ensure one point per bar
+    
+    mins = mins.reset_index(drop=True) # ensure one entry per index only (later index is used to identify rows)
     
     groups = mins.groupby(grp)
     group_counts = groups[y].count()
@@ -174,8 +199,15 @@ def barplot(df, cat=col.access, grp=col.storage + col.gridtype, y="median",
         ax.bar(x=xs.values, height=data[y].values, label=label,
                color=data[color] if color in data else None)
     
-    ax.set_xticks(group_numbers*s + group_offsets*w + group_counts*w*0.5)
-    ax.set_xticklabels(group_labels, rotation=15, horizontalalignment="right")
+    ax.set_xticks(group_numbers*s + group_offsets*w + (group_counts-1)*w*0.5)
+    if tickrot == 0:
+        ax.set_xticklabels(group_labels, rotation=0, horizontalalignment="center")
+    else:
+        ax.set_xticklabels(group_labels, rotation=tickrot, horizontalalignment="right")
+    ax.set_ylabel(column_titles[y] if y in column_titles else y)
+    ax.set_title(title(mins))
+    ax.grid(axis="x")
+    return ax
 
 
 # ##############
