@@ -60,9 +60,10 @@ def setup():
 stencil_names = { "laplap"    : "Laplace-of-Laplace",
                   "hdiff"     : "Horizontal diffusion",
                   "fastwaves" : "Fastwaves" }
-variant_names = { "idxvar"    : "index temporaries",
+variant_names = { "idxvar"    : "index variables",
                   "idxvar-kloop" : "z-loop",
-                  "idxvar-kloop-sliced" : "sliced z-loop" }
+                  "idxvar-kloop-sliced" : "sliced z-loop",
+                  "idxvar-shared" : "shared" }
 column_titles = { "pretty" : "Benchmark",
                   "size-x" : "Domain size (X)",          "size-y" : "Domain size (Y)",          "size-z" : "Domain size (Z)",
                   "blocks-x" : "Number of blocks (X)",   "blocks-y" : "Number of blocks (Y)",   "blocks-z" : "Number of blocks (Z)",
@@ -118,12 +119,11 @@ def pretty_cb(row, cols=col.category, fmt="{0}: {1}", join=",  ",
 # Setup common plot params
 def plotinit(w=6, h=4):
     plt.style.use("seaborn")
-    fig = plt.gcf()
-    fig.set_size_inches(w, h)
 
 def plotdone(fig=None, legend=2):
     if not fig:
         fig = plt.gcf()
+    fig.set_size_inches(w, h)
     plotlegend(fig.gca(), legend)
     plt.tight_layout()
     fig.show()
@@ -153,6 +153,13 @@ def lineplot(df, by=col.category, x="threads-z", y="median",
              **kwargs):
     if not ax:
         ax = plt.gca()
+    if color not in df.columns or marker not in df.columns:
+        df = add_colors_markers(df)
+        color = "color"
+        marker = "marker"
+    if not label in df.columns:
+        df = df.copy()
+        df[label] = pretty(df)
     mins = groupmin(df, by + [x], minimize=y) # ensure one point per line & X
     lines = mins.groupby(by)
     for i, data in lines:
@@ -176,6 +183,9 @@ def barplot(df, cat=col.access, grp=col.storage + col.gridtype, y="median",
             w=1, s=1.6, tickrot=15, **kwargs):
     if not ax:
         ax = plt.gca()
+    if not color in df.columns:
+        df = add_colors_markers(df)
+        color = "color"
     mins = groupmin(df, cat + grp, minimize=y) # ensure one point per bar
     
     mins = mins.reset_index(drop=True) # ensure one entry per index only (later index is used to identify rows)
@@ -220,7 +230,17 @@ def dfmap(df, cols, mapping, default=""):
                                     else default, axis=1)
 
 # Add markers/colors to dataframe
-def add_colors_markers(df, color="variant", marker=None, default=""):
+def add_colors_markers(df, color=None, marker=None, default=""):
+    if not color:
+        nvariant = len(np.unique(df[col.variant]))
+        nstencil = len(np.unique(df[col.stencil]))
+        nstorage = len(np.unique(df[col.storage], axis=0))
+        if nvariant == max(nvariant, nstencil, nstorage):
+            color = "variant"
+        elif nstencil == max(nvariant, nstencil, nstorage):
+            color = "stencil"
+        else:
+            color = "storage"
     if marker == None and color:
         marker = color
     colfun = (     colors_variant if color == "variant"
