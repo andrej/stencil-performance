@@ -12,13 +12,40 @@ In this chapter, we describe how stencils can obtain the index of required neigh
 
 \section{Optimizations Making Use of the Z-Regularity}
 
-\subsection{Index Temporaries + Shared Memory} In this approach (\emph{idxvar-shared} for short), the stencil is implemented such that there is one thread per output cell (as in \emph{naive} and \emph{idxvar}). However, not all threads perform the neighbor index lookups. Instead, for each cell in the X-Y-plane, designated threads in each block perform the index calculation/lookup of all required neighboring cells at the $Z=0$ level. The designated threads store the result of that computation/lookup in shared memory. If the Z-index modulo the Z-block-size is zero, a thread is a designated lookup-thread. After the neighboring cells indices at the lowest Z-level are determined and stored in shared memory, all threads in the block synchronize. All threads then access shared memory to obtain the required indices. They add the appropriate constant Z-stride to them to obtain the index of the neighbors at their Z-level. Using this approach, the regularity of the grid in the Z-dimension is exploited in order to only perform one global memory lookup per block for the neighborship information. The shared memory lookups are cheaper than lookups in global memory, however synchronization adds some overhead. For this approach to be effective, the block size in the Z dimension needs to be large enough.
+\subsection{Index Temporaries + Shared Memory} In this approach (\emph{shared} for short), the stencil is implemented such that there is one thread per output cell (as in \emph{naive} and \emph{idxvar}). However, not all threads perform the neighbor index lookups. Instead, for each cell in the X-Y-plane, designated ``leader'' threads in each block perform the index calculation/lookup of all required neighboring cells at the $Z=0$ level. The designated threads store the result of that computation/lookup in shared memory. If the Z-index modulo the Z-block-size is zero, a thread is a designated lookup-thread. After the neighboring cells indices at the lowest Z-level are determined and stored in shared memory, all threads in the block synchronize. All threads then access shared memory to obtain the required indices. They add the appropriate constant Z-stride to them to obtain the index of the neighbors at their Z-level. Using this approach, the regularity of the grid in the Z-dimension is exploited in order to only perform one global memory lookup per block for the neighborship information. The shared memory lookups are cheaper than lookups in global memory, however synchronization adds some overhead. For this approach to be effective, the block size in the Z dimension needs to be large enough.
 
 \subsubsection{Bank Conflicts}
 
-In orde
+As mentioned in section \ref{sec:bank-conflicts}, bank conflicts occur in the Volta architecture when two threads try accessing addresses that are equal modulo $32$. Bank conflicts have to be avoided in order to make use of the full performance of shared memory.
+
+A thread in the \emph{shared} access strategy stores or reads multiple shared memory slots (one for each neighbor). Assume we store neighborship information of each cell contiguously in shared memory. If the total number of required neighbors is very unfortunate, for example $8$ neighbors per cell (equals an array of $32$ bytes), then all threads end up (trying to) access the same memory bank simultaneously in the index lookup phase. This happens because the length of the neighborship array happens to align all top neighbors of cells into one bank, all left neighbors into another bank, etc. In the index lookup phase, all threads then attempt to store their top (left, ...) neighbor pointer at the same time.
+
+In the \emph{shared} access strategy we address this problem by adding a padding to the shared memory storage of neighbors. Thus, neighbors are not stored contiguously, but have gaps in between them. The padding is chosen as the smallest value that is coprime with $32$. This guarantees the least possible number of bank conflicts in this scenario; pointers to the same type of neighbor are spread out evenly across banks for different cells. In other words, all top neighbors are spread evenly across banks, all left neighbors are spread evenly across banks (but may coincide banks with top neighbors, because those are not accessed at the same time instant), etc.
 
 \subsubsection{Warp Broadcasting}
+
+Loads and stores to shared memory produce some overhead. A more lightweight alternative provided by the Cuda architecture are so-called \emph{warp-level primitives}. Those allow threads that are \emph{within the same warp} to exchange data more efficiently -- in a direct register-to-register fashion.
+
+We briefly experimented with a variant of \emph{shared} strategy, using warp broadcasting instead of shared memory. In this variant, all threads in the first lane (first thread of each warp) are the designated leader threads which do the actual neighbor lookup. Other threads in the same warp receive the leader thread's pointer by use of the \texttt{\_\_shfl\_sync()} method.
+
+While the actual warp broadcasting is more lightweight than shared memory, it is also more limited: only threads within the same warp can exchange data. This sets restrictions on the kernel launch configuration; the threads in a block have to be allocated such that cells across different Z-levels fall within the same warp (otherwise no neighbor pointer sharing can take place). To make use of warp broadcasting, some additional calculations also need to be made (determining the lane ID, masks of active threads). For those reasons, warp broadcasting appeared to be slightly slower than the shared memory access variants in most realistic scenarios. In launch configurations with many threads in the X- or Y-dimension, warp broadcasting even was considerably slower (due to no sharing being possible within warp limits anymore). However, in launch configurations with many threads in the Z-dimension, warp broadcasting slightly outperformed shared memory. These launch configurations are rather slow overall (compared to other block sizes), though, and are therefore of theoretical interest at best.
+
+\begin{table}
+	\begin{comment}
+%		Benchmark                           , Precision, Domain size,,, Blocks     ,,, Threads    ,,, Kernel-only execution time                
+%		                                    ,          ,   X,   Y,   Z,   X,   Y,   Z,   X,   Y,   Z,   Average,    Median,   Minimum,   Maximum
+%		laplap-unstr-idxvar-shared-z-curves-4,    double, 512, 512,  64,   4, 508,   8, 128,   1,   8,    683697,    686700,    673325,    694566
+%		laplap-unstr-idxvar-shared-z-curves-4,    double, 512, 512,  64,   8, 508,   8,  64,   1,   8,    671574,    672506,    646585,    682435
+%		laplap-unstr-idxvar-shared-z-curves-4,    double, 512, 512,  64,  16, 508,   8,  32,   1,   8,    675590,    672800,    666436,    696186
+%		laplap-unstr-idxvar-shared-z-curves-4,    double, 512, 512,  64, 508, 508,   2,   1,   1,  32,  14204440,  14620526,  13242579,  14820472
+%		laplap-unstr-idxvar-warp-shared-z-curves-4,    double, 512, 512,  64,   4, 508,   8, 128,   1,   8,    731646,    731741,    724136,    737836
+%		laplap-unstr-idxvar-warp-shared-z-curves-4,    double, 512, 512,  64,   8, 508,   8,  64,   1,   8,    696922,    696741,    685216,    706796
+%		laplap-unstr-idxvar-warp-shared-z-curves-4,    double, 512, 512,  64,  16, 508,   8,  32,   1,   8,    684476,    684046,    673685,    694766
+%		laplap-unstr-idxvar-warp-shared-z-curves-4,    double, 512, 512,  64, 508, 508,   2,   1,   1,  32,  12711487,  12711234,  12702345,  12727694
+		\end{comment}
+	%\begin{tabular}{}
+	%\end{tabular}{}
+\end{table}
 
 \begin{verbatim}
 % TODO
