@@ -1,8 +1,8 @@
-\section{Foundations}									\label{sec:foundations}
+\chapter{Foundations}									\label{sec:foundations}
 
-\subsection{Grids}											\label{sec:grids}
+\section{Grids}											\label{sec:grids}
 
-A grid partitions (tessellates) some space into a discrete number of cells. In meteorology, the three-dimensional space of the atmosphere is subdivided by a grid to facilitate finding numerical solutions to equations governing the weather. Each cell may contain one or multiple values (\emph{fields}) such as the temperature or humidity at a location.
+A grid partitions (tessellates) some space into a discrete number of cells. In weather/climate modeling, the three-dimensional space of the atmosphere is subdivided by a grid to facilitate finding numerical solutions to equations governing the weather. Each cell may contain one or multiple values (\emph{fields}) such as the temperature or humidity at a location.
 
 One kind of grid is the \emph{regular grid}. In this type of \emph{structured grid}, each cell is of uniform size and has a a fixed amount of six direct neighbors (top, bottom, left, right, front and back). Real-life objects that have the structure of a regular grid are checkerboards (two dimensions) or a Rubik's cube (three dimensions). Because of its regularity, storing such a grid in memory is straightforward.
 
@@ -10,10 +10,10 @@ In certain use cases, the use of \emph{unstructured grids} is beneficial to the 
 
 This thesis is concerned with the performance implications that porting a stencil computation from a regular to a unstructured grid entails. It compares the cost indirect addressing imposes upon several different widely-used stencils.
 
-While an unstructured grid theoretically supports arbitrary neighborship relations, for this thesis, we restrict irregularities to the X-Y-plane and assume even unstructured grids are regular (i.e. always have at most two neighbors) in the Z-dimension. This is a common use case in meteorology. In practice, such as in so-called \emph{icosahedral grids}, most of the neighborships in the X-Y-plane will also most often have some structure to it. We make use of these regularities in the optimizations described in section \ref{sec:grid-implementations} and \ref{sec:optimizations}.
+While an unstructured grid theoretically supports arbitrary neighborship relations, for this thesis, we restrict irregularities to the X-Y-plane and assume even unstructured grids are regular (i.e. always have at most two neighbors) in the Z-dimension. This is a common use case in atmospheric modeling applications. In practice, such as in so-called \emph{icosahedral grids}, most of the neighborships in the X-Y-plane will also most often have some structure to it. We make use of these regularities in the optimizations described in section \ref{sec:grid-implementations} and \ref{sec:optimizations}.
 
 
-\subsubsection{Coordinates and Indices}
+\subsection{Coordinates and Indices}
 
 In our implementations, cells in a grid are identified by \emph{coordinates}, which relate a cell to its real-world position and \emph{indices} which give the storage location of a cell in memory. 
 
@@ -25,13 +25,13 @@ The coordinates correspond to a position in Euclidian space. Coordinates are cho
 
 As memory is one-dimensional, a mapping from the three-dimensional coordinates of a cell to its location in memory is required of a grid implementation. We call this location in memory the \emph{index} and denote it with the letter $i$. The mapping from three-dimensional coordinate space to the one-dimensional memory index defines the memory layout of the grid. In regular grids, this mapping is straightforward, while in unstructured grids it may be arbitrary. How regular and unstructured grids are laid-out in memory is detailed in section \ref{sec:grid-implementations} (Grid implementations).
 
-\subsection{Stencils}									\label{sec:stencils}
+\section{Stencils}									\label{sec:stencils}
 
 Finding approximate numerical solutions to the governing equations of physical processes, as in meteorology, often entails performing certain unchanging calculations on every cell of a grid. The result of this process is again a grid of similar dimensions. For each cell, the calculated output value is dependent only on a bounded, small number of neighboring cells' values (\emph{neighborhood}). Such a computation is called \emph{stencil}. Simple stencils may require only the values of the current cell as well as directly adjacent (face-touching) neighbors in order to calculate the output value, while more complex ones could also depend on diagonal neighbors, neighbors-of-neighbors etc. Yet, some spatial locality is guaranteed. 
 
-\paragraph{Halo} \ref{sec:halo} In stencil computations, special consideration needs to be given to the boundary cells of the grid. Cells at the boundary of a grid have fewer neighbors than inner cells. As such, the output value for a stencil depending on neigbhors is unclear for cells who do not have those neighbors. One way to address this issue is to execute the stencil only on the safe inner values of a grid, seperated from the boundary by a certain padding. The amount of padding used depends on the size of the neighborhood which a stencil requires for its computation. We call the set of cells residing in the padding around the boundaries of the grid \emph{halo}. Stencil implementations may include a branch instruction that prevents any computations if a cell lies in the halo. Alternatively, for ease of implementation and performance, it can be beneficial to store the halo seperately in memory.
+\paragraph{Halo} \label{sec:halo} In stencil computations, special consideration needs to be given to the boundary cells of the grid. Cells at the boundary of a grid have fewer neighbors than inner cells. As such, the output value for a stencil depending on neigbhors is unclear for cells who do not have those neighbors. One way to address this issue is to execute the stencil only on the safe inner values of a grid, seperated from the boundary by a certain padding. The amount of padding used depends on the size of the neighborhood which a stencil requires for its computation. We call the set of cells residing in the padding around the boundaries of the grid \emph{halo}. Stencil implementations may include a branch instruction that prevents any computations if a cell lies in the halo. Alternatively, for ease of implementation and performance, it can be beneficial to store the halo seperately in memory.
 
-\subsection{GPU Programming on the Nvidia CUDA Platform}
+\section{GPU Programming on the Nvidia CUDA Platform}
 
 \emph{Graphics processing units} (GPUs) particularly lend themselves to stencil computations. In this section, we contrast the execution model of classical \emph{central processing units} (CPUs) with that of GPUs. We explain why stencil applications can profit from execution on the GPU and elaborate the fundamentals of the \emph{Nvidia CUDA} platform for execution on the GPU.
 
@@ -47,13 +47,13 @@ The task of applying a stencil to a grid (sections \ref{sec:grids}, \ref{sec:ste
 
 In this thesis, we use the \emph{Nvidia CUDA} architecture to implement meteorological stencil computations on the \emph{Nvidia Tesla V100} GPU, and we assess their performance on different types of grids.
 
-\subsubsection{SIMT Execution Model}
+\subsection{SIMT Execution Model}
 
 \emph{CUDA} employs a \emph{Single Instruction, Multiple Thread (SIMT)} execution model. This model can be compared to the \emph{Single Instruction, Multiple Data (SIMD)} model but makes writing programs more straight-forward to programmers experienced in sequential programming.\cite[Section~3.1]{ptx-isa} 
 
 In a \emph{SIMD} model, instructions are ``wide'': They support input operands that are larger than single scalar values. Programmers explicitly issue these \emph{vector instructions} to perform a calculation on a set of values. In contrast, in the SIMT model used by \emph{CUDA}, programmers do not need to explicitly perform operations on multiple data points. Instead, code is written such that it operates on single scalar values. Many instances, i.e. \emph{threads}, of this code are run which differ only in a input \emph{thread index} they receive. In most applications, this input is used to determine which datapoint the thread opeates on. Upon execution, when the same operation is executed in many threads on consecutive data points, they are grouped together automatically to be executed in parallel in SIMD-like fashion.
 
-\subsubsection{Software}
+\subsection{Software}
 
 Code to be executed on the GPU is written in specially-anotated functions called \emph{kernels}. Kernels can be written as regular C code but are compiled by the distinct Nvidia compiler \emph{(nvcc)} to \emph{Parallel Thread Execution (PTX)} machine code which can be run on the GPU. Inside a kernel, a \emph{thread and block index} is made available. Using a special syntax recognized by \emph{nvcc}, kernels can be launched from the CPU onto the GPU (sometimes simply called \emph{device}, as opposed to \emph{host} which refers to the CPU). The \emph{CUDA} Application Programming Interface (API) provides a device synchronization routine, which is required to synchronize CPU and GPU after computation of the kernel on the GPU is completed. This enables relatively simple offloading of parallelizable workloads onto the GPU as a coprocessor while continuing to run the rest of the program asynchronously on the CPU. The \emph{CUDA} API furthermore provides routines for memory allocation on the device, memory prefetching (see \ref{sec:unified-memory} unified memory) and setting certain device parameters.
 
@@ -81,7 +81,7 @@ int main(int argc, char **argv) {
 \end{lstlisting}
 \end{lstfloat}
 
-\subsubsection{Streaming Multiprocessors} \label{sec:hardware}
+\subsection{Streaming Multiprocessors} \label{sec:hardware}
 
 \emph{CUDA}-capable GPUs are structured as an array of so-called \emph{Streaming Multiprocessors (SMs)}. Each SM contains a multitutde of scalar processor cores. These cores include arithmetic, logic and floating point units (ALUs, FPUs) and perform the actual computations on the data points. Together, they are used to advance computation in a \emph{warp}. A warp is a set of (typically 32) threads that are executed concurrently on the same multiprocessor. In every cycle, each thread inside a warp uses one of the scalar cores to execute the same instruction (on different data), or it is turned off if a branch diverged previously. A warp of multiple threads at the same instruction pointer executing the same instruction is therefore similar to executing a SIMD instruction on multiple datapoints.
 
@@ -91,7 +91,7 @@ SMs chose the threads to form a warp from a pool of threads called a \emph{block
 
 When a kernel is launched, the programmer may specify how many threads should be part of the same block (\emph{block size}), and how many blocks there should be (\emph{grid size}). These parameters are called the \emph{launch configuration}. It is important to have more blocks than SMs, as otherwise some SMs will have no work to perform. Furthermore, if a synchronization instruction is used in the kernel, it is beneficial to have multiple blocks per SM, as to occupy the SM when one of the blocks is stalling because it is waiting for synchronization. The number of threads per block (block size) should be a multiple of 32 to ensure warps can be entirely filled with threads. \cite[Section~10]{cuda-best-practices}
 
-\subsubsection{Memories} \label{sec:memories}
+\subsection{Memories} \label{sec:memories}
 
 There are several types of memory address spaces available in kernel code. Figure \ref{fig:memory-hierarchy} shows these address spaces in the programming model on the left, and how they are implemented in hardware with caches in the Volta architecture on the right. 
 
@@ -101,16 +101,16 @@ There are several types of memory address spaces available in kernel code. Figur
 	\caption{\label{fig:memory-hierarchy} Memory Hierarchy of the Nvidia Volta architecture (compute capability 7.0). Global memory accesses are only cached in the unified L1 data/texture cache if they are read-only. Illustration based on information provided in \cite[Sections 2.3, 5.3.2, H.6]{cuda-programming}.}
 \end{figure}
 
-\paragraph{Local Memory}
+\subsubsection{Local Memory}
 Local memory is visible only to one thread and is almost always implemented using registers. There is a limited number of registers available in the SM. Using a large number of registers in a kernel thus reduces the amount of threads that can be launched on the same SM. Registers can be spilled to local memory, but this incurs a cost; registers are on-chip per SM, whereas spilled registers require access to device memory.
 
-\paragraph{Shared Memory}
+\subsubsection{Shared Memory}
 Shared memory is shared between all threads in a block. It resides locally in each SM, close to the functional units. The amount of shared memory is limited per SM and therefore using more shared memory reduces the number of threads that can be launched in parallel. In the Volta architecture, shared memory competes for space with the L1 cache for global and texture memory accesses.
 
-\subparagraph{Bank Conflicts}
+\paragraph{Bank Conflicts} \label{sec:bank-conflicts}
 When using shared memory, one has to be wary of bank conflicts. Accesses to shared memory of multiple threads can be executed simultaneously as long as they fall into seperate so called \emph{shared memory banks}. In the \emph{Volta} architecture used in this thesis, there are 32 banks. Consecutive 32-bit words are mapped to consecutive banks. To avoid bank conflicts it is thus important that for any two threads in the same warp, shared memory addresses accessed are coprime, i.e. for two memory accesses at addresses $i$ and $j$, $i \neq j \mod 32$. An exception to this rule is if all threads access the same address, in which case a \emph{broadcast} occurs.
 
-\paragraph{Global Memory}	\label{sec:unified-memory}
+\subsubsection{Global Memory}	\label{sec:unified-memory}
 Global memory is accessible by all threads across all blocks. Using the \texttt{cudaMalloc()} and \texttt{cudaFree()} routines provided by the \emph{CUDA} Runtime API it can be allocated and freed. Note that the pointers returned by \texttt{cudaMalloc()} cannot be used in CPU code. Instead, data has to be manually copied from the host to the device and vice versa using the \texttt{cudaMemcpy()} function with \texttt{cudaMemcpyHostToDevice} and \texttt{cudaMemcpyDeviceToHost} parameters, respectively. 
 
 Since \emph{CUDA} version 6.0, there also exists \emph{unified memory} which relieves programmers from manually having to copy memory back and forth. Unified memory provides an address space that is accessible from both the host (CPU) and the device (GPU). Copying is done on-demand, when data is being accessed. Therefore, when timing exclusively the kernel runtime, switching from managed memory (with explicit memory transfers before and after the kernel run) to unified memory could impact the measured kernel-only run time. The overall runtime does not change, as memory has to be transferred in both cases; the transfer simply moves from the explicit call to \texttt{cudaMemcpy} implicitly to the first access to a unified memory address in the kernel.
@@ -119,11 +119,11 @@ Synchronizing the memories between host and device can also be made explicit in 
 
 Additionally to global/unified memory, there also exist \emph{constant} and \emph{texture memory}. These address spaces are also persistent accross threads. Constant memory may not be written, but provides better performance when all threads access the same address. Texture memory is similar to global memory, but special routines in the Cuda API are provided for accessing it. Furthermore, it is cached in a way that profits from accesses which are spatially local in 2D.
 
-\subparagraph{Coalescing} A paramount performance concern for memory-bandwith-intensive kernels is the pattern of global memory accesses. When all threads in a warp read consecutive 4-byte words, these reads are executed as one larger vector load instruction (the accesses are said to \emph{coalesce}). This enables simultaneous reading of memory for all those threads. On the other hand, if the addresses accessed are sparse, each request has to be serviced in series by the SM. This reduces performance drastically. Therefore a memory layout should be chosen where data needed by different threads at the same computation step is laid out sequentially wherever possible. If this is not doable, a solution can be to intermediately load some data into shared memory with a coalesced access and then accessing the needed values through shared memory fetched by another thread. If all threads require access to the same address, constant memory may also be a remedy for uncoalesced accesses.
+\paragraph{Coalescing} A paramount performance concern for memory-bandwith-intensive kernels is the pattern of global memory accesses. When all threads in a warp read consecutive 4-byte words, these reads are executed as one larger vector load instruction (the accesses are said to \emph{coalesce}). This enables simultaneous reading of memory for all those threads. On the other hand, if the addresses accessed are sparse, each request has to be serviced in series by the SM. This reduces performance drastically. Therefore a memory layout should be chosen where data needed by different threads at the same computation step is laid out sequentially wherever possible. If this is not doable, a solution can be to intermediately load some data into shared memory with a coalesced access and then accessing the needed values through shared memory fetched by another thread. If all threads require access to the same address, constant memory may also be a remedy for uncoalesced accesses.
 
-\paragraph{Caches} Caching of memory accesses turned out to be another major factor in determining the runtimes of our implemented stencils. In the used Volta architecture, there is an L1 and an L2 cache for global and constant memory accesses. The L1 cache is seperate to each SM and shares its space with shared memory; using shared memory can therefore also be seen as a explicitly managed cache. Only read-only accesses to global memory are cached in L1, as this cache is per-SM and writes would require inter-SM synchronization. A second, seperate L1 cache services constant memory reads and writes. The L2 cache is shared between SMs. It functions as a cache for global reads/writes as well as for local memory spilled from rgisters and constant accesses missing the L1 constant cache. In \cite[Chapter 3]{dissecting}, the latency for an L1 hit is reported at 28 cycles, and at about 193 cycles for an L2 hit. A more detailed overview of the memory structure and caches is also given in that paper.
+\subsubsection{Caches} Caching of memory accesses turned out to be another major factor in determining the runtimes of our implemented stencils. In the used Volta architecture, there is an L1 and an L2 cache for global and constant memory accesses. The L1 cache is seperate to each SM and shares its space with shared memory; using shared memory can therefore also be seen as a explicitly managed cache. Only read-only accesses to global memory are cached in L1, as this cache is per-SM and writes would require inter-SM synchronization. A second, seperate L1 cache services constant memory reads and writes. The L2 cache is shared between SMs. It functions as a cache for global reads/writes as well as for local memory spilled from rgisters and constant accesses missing the L1 constant cache. In \cite[Chapter 3]{dissecting}, the latency for an L1 hit is reported at 28 cycles, and at about 193 cycles for an L2 hit. A more detailed overview of the memory structure and caches is also given in that paper.
 
-\subsubsection{Arguing About Performance}
+\subsection{Arguing About Performance}
 
 To understand GPU performance of a kernel, it is important to understand the benefits of latency hiding. Instructions which load from (slow) memory or depend on the result of a previous instruciton that has not yet been completed can cause so-called \emph{stalls} in both CPUs and GPUs. While on the CPU, many performance optimizations target reducing the number and the effect of these stalls (i.e. reducing latency), GPUs have the capability to \emph{hide} stalls by means of simply switching to a different warp that is not blocked. To analyze the performance of GPU applications we are therefore interested in two main characteristics of the execution:
 
@@ -134,14 +134,58 @@ To understand GPU performance of a kernel, it is important to understand the ben
 
 Considering these two characteristics gives an overview of what the main limiting factors of a kernel are. Both factors influence each other; when threads never stall, SMs will always have something to execute (provided there are enough threads). Occupancy will thus be high even if the number of issued threads is not much larger than the number of SMs times the number of threads in a warp (32). If occupancy is low, splitting the problem into smaller parts and increasing the number of threads and blocks may help, but only if these threads do not all stall at the same time.
 
-\paragraph{\texttt{nvprof} metrics} \label{sec:metrics} Nvidia provides a command-line profiling tool called \texttt{nvprof}. This tool supports collecting several metrics as kernels are executed. Some of these metrics which are of particular interest for the analyses to follow are:
+\subsubsection{\texttt{nvprof} metrics} \label{sec:metrics}
 
-\begin{itemize}
-	\item For \textbf{occupancy}, \texttt{achieved\_occupancy} (higher is better) and \texttt{issue\_slot\_utilization} (higher is better) are of interest. The first gives the ratio of active warps to the maximum number of warps supported on an SM, averaged over all SMs. The latter provides a more fine-grained look at occupancy, by reporting how many instructions were issued on a per-core level as a ratio to what the hardware would be capable of. If there are many branches, only one thread might be active in a warp in a given cycle (worst case). This would result in a low issue slot efficiency. Lastly, the \texttt{ipc} (higher is better) reports the instructions executed per cycle; this is a metric of how well the SMs are able to pipeline the instruction streams of a kernel. As pipelining is not as sophisticated as on CPUs, simple measures such as loop unrolling may yield better numbers here.
-	\item Various \textbf{stall reasons} give insight into why threads cannot execute. Often, \texttt{stall\_memory\_dependency} reports the highest percentage of stalls, meaning most stalls occur because of memory accesses. Comparing the \texttt{dram\_read\_throughput} (higher is better) to the maximum throughput attainable by the device indicates wether the kernel is bandwidth-bound.
-	\item In case of a bandwith-bound kernel, bad \textbf{coalescing} of global memory accesses can be an issue. In this case, many values are read that are not required, because the load instruction did not align with the requested data. \texttt{gld\_efficiency} (higher is better) is a first metric to look at, where $100\%$ indicates fully-coalesced accesses. \texttt{gld\_transactions\_per\_request} (lower is better) reports how many memory transactions (32-byte load instructions performed by the SM) actually needed to be performed on average per warp-level (32 threads) memory request, i.e. if the accesses coalesce this number is lower (better).
-	\item If coalescing is fine, memory accesses may still be inefficient in terms of \textbf{caching}. In that case, a look at the hit rates in the per-SM L1 cache, reported as \texttt{tex\_cache\_hit\_rate} (higher is better), and the L2 cache, reported as \texttt{l2\_tex\_hit\_rate} (higher is better) reveals how cache-local the accesses are. The absolute numbers of transactions seen at each level (L1, L2, device memory) are reported in \texttt{tex\_cache\_transactions} (sum of arrows $1$ and $2$ in figure \ref{fig:memory-hierarchy}), \texttt{l2\_read\_transactions} (arrow $3$ in figure \ref{fig:memory-hierarchy}) and \texttt{dram\_read\_transactions} (arrow $4$ in figure \ref{fig:memory-hierarchy}) respectively. The texture cache is mentioned explicitly in the names of some of these metrics because this cache has not been unified with the global and other caches in some previous iterations of the architecture. In figure \ref{fig:memory-hierarchy}, the arrows $1$ and $2$ distinguish between accesses to the L1 cache for global memory and texture memory; for the former, there exists also the \texttt{global\_hit\_rate} metric (arrow $1$).
-	\item Profiling also provides a very simple mean of \textbf{verification} that the kernels are computing the same/correct result. \texttt{gst\_transactions} should equal the expected number of modified data points in the result.
-\end{itemize}
+Nvidia provides a command-line profiling tool called \texttt{nvprof}. This tool supports collecting several metrics as kernels are executed. Some of these metrics which are of particular interest for the analyses to follow are:
+
+\begin{longtable}{p{0.3\textwidth} p{0.65\textwidth}}
+	\multicolumn{2}{c}{\textbf{Occupancy metrics}} \\
+	\hline
+	\hline
+	
+	\raggedright \texttt{achieved\_\allowbreak occupancy} & Ratio of active warps to the maximum number of warps supported on an SM, averaged over all SMs. Higher is better. \\
+	\hline
+	\raggedright \texttt{issue\_\allowbreak slot\_\allowbreak utilization} & Instructions issued on a per-core level as ratio to what hardware is capable of. This is more fine-grained than the achieved occupancy, as it captures if only few threads per warp are active. Higher is better. \\
+	\hline
+	\raggedright \texttt{ipc} & Warp-level instructions executed per cycle. If there are many stalls, this ratio drops. Furthermore, this captures how well the SMs are able to pipeline instruction streams of a kernel. As pipelining is not as sophisticated as on CPUs, simple measures such as loop unrolling may yield better numbers here. Higher is better. \\
+	
+	\\
+	\multicolumn{2}{c}{\textbf{Stall reason metrics}} \\
+	\hline
+	\hline
+	\raggedright \texttt{stall\_\allowbreak memory\_\allowbreak dependency} & Stall reasons give insight into why threads cannot execute. If most stalls occur due to memory dependencies, comparing \texttt{dram\_read\_throughput} to the maximum value attainable by the device reveals whether the kernel performance is memory-bandwidth-bound. In memory-bound kernels, \textit{coalescing} and \textit{caching} metrics are especially important. \\
+	
+	\\
+	\multicolumn{2}{c}{\textbf{Coalescing metrics}} \\
+	\hline
+	\hline
+	\raggedright \texttt{gld\_\allowbreak efficiency} & In case of bad coalescing, the device performs reads on many values that the kernel does not actually require. This happens if the requested data's addresses do not align with the bounds of a single load instruction. This metric indicates how much of an executed read is actually used by the kernel, and how much of the read is wasted. Higher is better. \\
+	\hline
+	\raggedright \texttt{gld\_\allowbreak transactions\_\allowbreak per\_\allowbreak request} & Reports how many memory transactions (32-byte load instructions performed by the SM) actually had to be performed on average per warp-level (32 threads) memory request. Lower is better. \\
+	
+	\\
+	\multicolumn{2}{c}{\textbf{Caching metrics}} \\
+	\hline
+	\hline
+	
+	\raggedright \texttt{tex\_\allowbreak cache\_\allowbreak hit\_\allowbreak rate} & L1 cache hit rate. Each SM has its own unified L1 cache. The texture cache is mentioned explicitly in the names of some of these metrics because this cache has not been unified with the global and other caches in some previous iterations of the architecture. Higher is better. \\
+	\hline
+	\raggedright \texttt{l2\_\allowbreak tex\_\allowbreak hit\_\allowbreak rate} & L2 cache hit rate. This cache is shared among SMs. Higher is better. \\
+	\hline
+	\raggedright \texttt{tex\_\allowbreak cache\_\allowbreak transactions} & Sum of arrows $1$ and $2$ in figure \ref{fig:memory-hierarchy}. Absolute number of transactions seen at L1 cache. \\
+	\hline
+	\raggedright \texttt{l2\_\allowbreak read\_\allowbreak transactions} & Arrow $3$ in figure \ref{fig:memory-hierarchy}. Absolute number of transactions at L2 cache. \\
+	\hline
+	\raggedright \texttt{dram\_\allowbreak read\_\allowbreak transactions} & Arrow $4$ in figure \ref{fig:memory-hierarchy}. Absolute number of device memory reads (uncached). \\
+	\hline
+	\raggedright \texttt{global\_\allowbreak hit\_\allowbreak rate} & Arrow $1$ in figure \ref{fig:memory-hierarchy}. Hit rate at L1 cache \emph{only} for global memory reads (excludes texture memory). \\
+	
+	\\
+	\multicolumn{2}{c}{\textbf{Verification}} \\
+	\hline
+	\hline
+	\raggedright \texttt{gst\_\allowbreak transactions} & Profiling also provides a simple means of verifying the correctness of the kernel. Checking whether the number of global store transactions is as expected gives an indication whether the kernel is behaving as expected. \\
+	\hline
+\end{longtable}
 
 One aspect of profiling a CUDA application in specific that also must not go unmentioned is the just-in-time compilation of kernels. The PTX instructions stored in CUDA binaries are not yet truly low-level machine code for the graphics card. In order to support running the same application on various platforms, these instructions are instead compiled on-the-fly for each host program run by the Nvidia driver. It is expected that the first execution of a kernel takes more time than subsequent executions due to this compilation step. In our benchmarks in section \ref{sec:results}, we therefore did not include the first run of a kernel.

@@ -1,5 +1,19 @@
 \section{Optimal Block Size} \label{sec:res-blocksize}
 
+% TODO make concrete suggestions for optimal block size (table maybe?)
+
+% \begin{table}
+% 	\begin{tabular}{l p{2.35cm} p{2.35cm} p{2.35cm} p{2.35cm}}
+% 		\hline
+% 		Access & {\raggedright chasing, uncompressed} & {\raggedright non-chasing, uncompressed} & {\raggedright chasing, compressed} & {\raggedright non-chasing, compressed} \\
+% 		\hline
+% 		\hline
+% 		hdiff & & & & \\
+% 		\emph{naive} & $32\times 1\times 8$ & $64\times 1\times 8$ & $256\times 1\times 1$ & $128\times 1\times 2$ \\
+% 		\emph{idxvar} & $64\times 1\times 8$ & $32\times 1\times 16$ & $128\times 1\times 2$ & $64\times 1\times 2$ \\
+% 	\end{tabular}
+% \end{table}
+
 One of the main determining factors for performance of a kernel is its launch configuration, which includes its grid size (number of blocks) and block size (number of threads, see section \ref{sec:hardware}). Cuda provides the option to specify block sizes in three dimensions, providing each thread with a X-, Y- and Z-index. In our benchmarks, we have tested all possible combinations of block sizes in steps of powers of two from 32 up to 512.
 
 In order to cover the entire problem domain (which remains constant in size), a decrease in number of threads is always accompanied by an increase in the number of blocks (grid size), and vice versa. Owing to the way we map thread indices onto memory indices (X thread index maps onto memory index directly), thread sizes in the X-dimension of less than $32$ are highly inefficient. They lead to non-coalescing memory accesses. The X-dimension of the benchmarked block sizes is therefore always at least $32$.
@@ -44,8 +58,8 @@ At the opposite end of the spectrum lie the grids stored using compressed neighb
 %		$64\times 1\times 2$ & $62.25\%$ & $66.21\%$ & $69.99\%$ & $60.36\%$ \\
 %		$64\times 1\times 4$ & $72.33\%$ & $71.72\%$ & $72.77\%$ & $60.81\%$
 %	\end{tabular}
-	\begin{tabular}{l l l l l}
-		Blocksize & \texttt{tex\_cache\_hit\_rate} & \texttt{l2\_tex\_hit\_rate} \\
+	\begin{tabular}{l l l p{2cm} p{2cm}}
+		Blocksize & \texttt{tex\_\allowbreak cache\_\allowbreak hit\_\allowbreak rate} & \texttt{l2\_\allowbreak tex\_\allowbreak hit\_\allowbreak rate} \\
 		\hline
 		$32\times 1\times 1$ & $44.39\%$ & $67.69\%$ \\
 		$32\times 1\times 2$ & $57.96\%$ & $68.12\%$ \\
@@ -61,8 +75,8 @@ By the design of the \emph{shared} access strategy, a speedup is supposed to be 
 Contrary to the other stencils, the \emph{z-loop} and \emph{z-loop-sliced} grid access strategies suffer from a high total thread count. As both of these strategies require one thread to perform calculations for multiple cells on different Z-levels, the total number of blocks and threads required to cover the entire grid is smaller. On the largest tested grid size ($512\times 512\times 64$), this leads to occupancy issues: As threads stall, there is not enough work can be scheduled to certain streaming multiprocessors to hide that latency. All threads inside a block are required to be executed on the same SM. Having more threads inside a block thus gives less blocks that can be scheduled onto stalled SMs. Smaller block sizes, on the other hand, give the scheduler a larger pool of blocks to choose from when trying to hide latency. Compare table \ref{tab:laplap-blocksize-occupancy} for an example of how a too large block size negatively impacts the \emph{kloop} implementation of the exemplary \emph{laplap} benchmark.
 
 \begin{table}
-	\begin{tabular}{l l l l l}
-		Variant & Blocksize & Runtime & \texttt{achieved\_occupancy} & \texttt{issue\_slot\_utilization} \\
+	\begin{tabular}{l l l p{2.5cm} p{2.5cm}}
+		\textbf{Variant} & \textbf{Blocksize} & \textbf{Runtime} & \textbf{\texttt{achieved\_\allowbreak occupancy}} & \textbf{\texttt{issue\_\allowbreak slot\_\allowbreak utilization}} \\
 		\hline
 		idxvar & $512$ & $783\mu s$ & $85\%$ & $19\%$ \\
 		idxvar & $128$ & $844\mu s$ & $\mathbf{92\%}$ & $18\%$ \\

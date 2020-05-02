@@ -5,6 +5,7 @@
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{enumitem}
+\usepackage{longtable}
 
 % Bibliography
 \usepackage{biblatex} 
@@ -20,20 +21,60 @@
 \graphicspath{ {./img/} }
 
 % Comments
-\newcommand{\comment}[1]{}
+\newcommand{\comment}[1]{} 
 
 \title{Efficient GPU Implementation of Stencils on Unstructured Grids} 
 \author{André Rösti}
 
 \begin{document}
 
-\maketitle 
-\newpage
+\begin{titlepage}
+		
+	\begin{center}
+		
+		{\Huge \textbf{Efficient GPU Implementation of Stencils on Unstructured Grids}}
+		
+		\vspace{2cm}
+		
+		{\Large \textit{Bachelor Thesis}}
+		
+		\vspace{2cm}
+		
+		André Albert Rösti
+		
+		May 14, 2020
+		
+	\end{center}
+		
+	\vfill
+		
+	\raggedleft Advisors: T. Gysi, Dr. T. Grosser, Prof. T. Hoefler
+		
+	\raggedleft Department of Computer Science, ETH Zürich
+		
+\end{titlepage}
+\thispagestyle{empty}
 
+\pagenumbering{roman}
 \tableofcontents
+
+\chapter*{Abstract}
+
+Stencil computations on unstructured grids with a regular Z-dimension are frequently performed in meteorology for atmospheric modeling. While using a GPU to parallelize execution of such stencils promises fast runtimes, supporting the irregular structure in two dimensions complicates their implementation, as neighborship access necessitate indirect memory lookups.
+
+In this thesis, we explore various approaches of storing unstructured grids with one regular dimension and accessing them from the GPU in a stencil computation. We benchmark the performance of three real-world stencils of varying complexity on various unstructured grid implementations, some of which make explicit use of the Z-regularity. In our initial naive approaches, we observe slowdowns of $122\%$ (simple stencil), $52\%$ (medium-complexity stencil) and $5\%$ (complex stencil) compared to executing the same stencils on entirely regular grids. Notably, through a neighborship table compression scheme, we are able to improve those values to $49\%$, $30\%$ and $5\%$ (no improvement) respectively. We also detail the foundations of the Nvidia CUDA GPU architecture.
+
+% Unstructured grid with regular Z-dimension
+% Storage of Grid
+% Access of Grid on GPU
+% Optimizations making use of Z
+% Compression
+% Results, relative slowdown compared to regular grids
 
 \include{tex/introduction}
 \include{tex/related-work}
+
+\pagenumbering{arabic}
 \include{tex/foundations}
 \include{tex/grid-implementations}
 \include{tex/optimizations}

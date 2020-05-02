@@ -16,9 +16,9 @@ class col:
     blocks          = [ "blocks-x", "blocks-y", "blocks-z" ]
     measurements    = [ "min", "max", "avg", "median" ]
     launchconfig    = threads + blocks
-    access          = stencil + gridtype + variant
+    access          = gridtype + variant
     storage         = z_curves + no_chase + comp
-    category        = access + storage
+    category        = stencil + access + storage
     problem         = stencil + size + gridtype
     benchmark       = problem + variant + storage
     a               = benchmark + threads + measurements
@@ -117,10 +117,10 @@ def pretty_cb(row, cols=col.category, fmt="{0}: {1}", join=",  ",
 # ##############
 
 # Setup common plot params
-def plotinit(w=6, h=4):
+def plotinit():
     plt.style.use("seaborn")
 
-def plotdone(fig=None, legend=2):
+def plotdone(fig=None, legend=2, w=6, h=4):
     if not fig:
         fig = plt.gcf()
     fig.set_size_inches(w, h)
@@ -180,12 +180,19 @@ def lineplot(df, by=col.category, x="threads-z", y="median",
 # grp: groups, these appear togheter as bars next to each other
 def barplot(df, cat=col.access, grp=col.storage + col.gridtype, y="median",
             color="color", ax=None, 
-            w=1, s=1.6, tickrot=15, **kwargs):
+            w=1, s=1.6, tickrot=15, 
+            grp_pretty=None, cat_pretty=None, **kwargs):
     if not ax:
         ax = plt.gca()
     if not color in df.columns:
         df = add_colors_markers(df)
         color = "color"
+
+    if not grp_pretty:
+        grp_pretty=grp
+    if not cat_pretty:
+        cat_pretty=cat
+
     mins = groupmin(df, cat + grp, minimize=y) # ensure one point per bar
     
     mins = mins.reset_index(drop=True) # ensure one entry per index only (later index is used to identify rows)
@@ -196,9 +203,9 @@ def barplot(df, cat=col.access, grp=col.storage + col.gridtype, y="median",
     group_numbers = pd.Series(np.arange(0, len(group_counts)), index=group_counts.index)
     group_offsets = pd.Series(np.roll(group_counts.cumsum(), 1), index=group_counts.index)
     group_offsets.iloc[0] = 0
-    group_labels = pretty(group_counts.reset_index(), cols=grp)
+    group_labels = pretty(group_counts.reset_index(), cols=grp_pretty)
     categories = mins.groupby(cat, as_index=False)
-    category_labels = pretty(mins, cols=cat)
+    category_labels = pretty(mins, cols=cat_pretty)
     
     for i, (category, data) in enumerate(categories):
         inner_no = [group_inner_no.loc[x] for x in data.index]

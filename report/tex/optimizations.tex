@@ -18,7 +18,7 @@ In this chapter, we describe how stencils can obtain the index of required neigh
 
 As mentioned in section \ref{sec:bank-conflicts}, bank conflicts occur in the Volta architecture when two threads try accessing addresses that are equal modulo $32$. Bank conflicts have to be avoided in order to make use of the full performance of shared memory.
 
-A thread in the \emph{shared} access strategy stores or reads multiple shared memory slots (one for each neighbor). Assume we store neighborship information of each cell contiguously in shared memory. If the total number of required neighbors is very unfortunate, for example $8$ neighbors per cell (equals an array of $32$ bytes), then all threads end up (trying to) access the same memory bank simultaneously in the index lookup phase. This happens because the length of the neighborship array happens to align all top neighbors of cells into one bank, all left neighbors into another bank, etc. In the index lookup phase, all threads then attempt to store their top (left, ...) neighbor pointer at the same time.
+A thread in the \emph{shared} access strategy stores or reads multiple shared memory slots (one for each neighbor). Assume we store neighborship information of each cell contiguously in shared memory. If the total number of required neighbors is very unfortunate, for example $8$ neighbors per cell (equals an array of $32$ bytes), then all threads end up (trying to) access the same memory bank simultaneously in the index lookup phase. This happens because the length of the neighborship array happens to align all top neighbors of cells into one bank, all left neighbors into another bank, etc. In the index lookup phase, all threads then attempt to load their top (left, ...) neighbor pointer at the same time.
 
 In the \emph{shared} access strategy we address this problem by adding a padding to the shared memory storage of neighbors. Thus, neighbors are not stored contiguously, but have gaps in between them. The padding is chosen as the smallest value that is coprime with $32$. This guarantees the least possible number of bank conflicts in this scenario; pointers to the same type of neighbor are spread out evenly across banks for different cells. In other words, all top neighbors are spread evenly across banks, all left neighbors are spread evenly across banks (but may coincide banks with top neighbors, because those are not accessed at the same time instant), etc.
 
@@ -28,30 +28,41 @@ Loads and stores to shared memory produce some overhead. A more lightweight alte
 
 We briefly experimented with a variant of \emph{shared} strategy, using warp broadcasting instead of shared memory. In this variant, all threads in the first lane (first thread of each warp) are the designated leader threads which do the actual neighbor lookup. Other threads in the same warp receive the leader thread's pointer by use of the \texttt{\_\_shfl\_sync()} method.
 
-While the actual warp broadcasting is more lightweight than shared memory, it is also more limited: only threads within the same warp can exchange data. This sets restrictions on the kernel launch configuration; the threads in a block have to be allocated such that cells across different Z-levels fall within the same warp (otherwise no neighbor pointer sharing can take place). To make use of warp broadcasting, some additional calculations also need to be made (determining the lane ID, masks of active threads). For those reasons, warp broadcasting appeared to be slightly slower than the shared memory access variants in most realistic scenarios. In launch configurations with many threads in the X- or Y-dimension, warp broadcasting even was considerably slower (due to no sharing being possible within warp limits anymore). However, in launch configurations with many threads in the Z-dimension, warp broadcasting slightly outperformed shared memory. These launch configurations are rather slow overall (compared to other block sizes), though, and are therefore of theoretical interest at best.
+While the actual warp broadcasting is more lightweight than shared memory, it is also more limited: only threads within the same warp can exchange data. This sets restrictions on the kernel launch configuration; the threads in a block have to be allocated such that cells across different Z-levels fall within the same warp (otherwise no neighbor pointer sharing can take place). To make use of warp broadcasting, some additional calculations also need to be made (determining the lane ID, masks of active threads). For those reasons, warp broadcasting appeared to be slightly slower than the shared memory access variants in most realistic scenarios. In launch configurations with many threads in the X- or Y-dimension, warp broadcasting even was considerably slower (due to no sharing being possible within warp limits anymore). However, in launch configurations with many threads in the Z-dimension, warp broadcasting slightly outperformed shared memory. These launch configurations are rather slow overall (compared to other block sizes), though, and are therefore not very useful.
+
+See table \ref{tab:warp-broadcasting} for a comparison of the warp broadcasting approach to using shared memory on an exemplary benchmark.
 
 \begin{table}
-	\begin{comment}
-%		Benchmark                           , Precision, Domain size,,, Blocks     ,,, Threads    ,,, Kernel-only execution time                
-%		                                    ,          ,   X,   Y,   Z,   X,   Y,   Z,   X,   Y,   Z,   Average,    Median,   Minimum,   Maximum
-%		laplap-unstr-idxvar-shared-z-curves-4,    double, 512, 512,  64,   4, 508,   8, 128,   1,   8,    683697,    686700,    673325,    694566
-%		laplap-unstr-idxvar-shared-z-curves-4,    double, 512, 512,  64,   8, 508,   8,  64,   1,   8,    671574,    672506,    646585,    682435
-%		laplap-unstr-idxvar-shared-z-curves-4,    double, 512, 512,  64,  16, 508,   8,  32,   1,   8,    675590,    672800,    666436,    696186
-%		laplap-unstr-idxvar-shared-z-curves-4,    double, 512, 512,  64, 508, 508,   2,   1,   1,  32,  14204440,  14620526,  13242579,  14820472
-%		laplap-unstr-idxvar-warp-shared-z-curves-4,    double, 512, 512,  64,   4, 508,   8, 128,   1,   8,    731646,    731741,    724136,    737836
-%		laplap-unstr-idxvar-warp-shared-z-curves-4,    double, 512, 512,  64,   8, 508,   8,  64,   1,   8,    696922,    696741,    685216,    706796
-%		laplap-unstr-idxvar-warp-shared-z-curves-4,    double, 512, 512,  64,  16, 508,   8,  32,   1,   8,    684476,    684046,    673685,    694766
-%		laplap-unstr-idxvar-warp-shared-z-curves-4,    double, 512, 512,  64, 508, 508,   2,   1,   1,  32,  12711487,  12711234,  12702345,  12727694
-		\end{comment}
-	%\begin{tabular}{}
-	%\end{tabular}{}
+	\begin{tabular}{l l l l}
+		\hline
+		\textbf{Block size} & \textbf{Variant} & \textbf{Runtime} \\
+		\hline
+		\hline
+		$128\times 1 \times 8$ & Shared memory 	   & $\mathbf{684 \mu s}$ \\
+							   & Warp broadcasting & $737 \mu s$ \\
+		\hline
+		$32\times 1\times 8$ & Shared memory & $\mathbf{675 \mu s}$ \\
+							 & Warp broadcasting & $693 \mu s$ \\
+		\hline
+		$1\times 1\times 32$ & Shared memory & $13654 \mu s$ \\
+							 & Warp broadcasting & $\mathbf{12711 \mu s}$ \\
+		\hline
+	\end{tabular}
+	\caption{\label{tab:warp-broadcasting}Median runtimes (20 runs) for the Laplace-of-Laplace benchmark (z-curves memory layout, pointer chasing, uncompressed) for three select block sizes. We observe that warp broadcasting is only faster than shared memory in the last block size configuration, which is the slowest overall. We therefore did not further investigate the use of warp broadcasting.}
 \end{table}
-
-\begin{verbatim}
-% TODO
-% - detail bank conflict experiments
-% - mention that we also tried warp broadcasting
-\end{verbatim}
+% ./gridbenchmark --no-verify --size 512x512x64 --threads 128x1x8 32x1x1 32x1x8 8x1x32 1x1x32 laplap-unstr-idxvar-shared -z laplap-unstr-idxvar-warp-shared -z 
+% Benchmark                           , Precision, Domain size,,, Blocks     ,,, Threads    ,,, Kernel-only execution time                
+%                                    ,          ,   X,   Y,   Z,   X,   Y,   Z,   X,   Y,   Z,   Average,    Median,   Minimum,   Maximum
+% laplap-unstr-idxvar-shared-z-curves-4,    double, 512, 512,  64,   4, 508,   8, 128,   1,   8,    685276,    684060,    675086,    696476
+% laplap-unstr-idxvar-shared-z-curves-4,    double, 512, 512,  64,  16, 508,  64,  32,   1,   1,   1038436,   1037644,   1027729,   1046049
+% laplap-unstr-idxvar-shared-z-curves-4,    double, 512, 512,  64,  16, 508,   8,  32,   1,   8,    673723,    674726,    654446,    691286
+% laplap-unstr-idxvar-shared-z-curves-4,    double, 512, 512,  64,  64, 508,   2,   8,   1,  32,   2114038,   2114163,   2111828,   2116009
+% laplap-unstr-idxvar-shared-z-curves-4,    double, 512, 512,  64, 508, 508,   2,   1,   1,  32,  13804636,  13653834,  13220255,  14550507
+% laplap-unstr-idxvar-warp-shared-z-curves-4,    double, 512, 512,  64,   4, 508,   8, 128,   1,   8,    737049,    737926,    725546,    742856
+% laplap-unstr-idxvar-warp-shared-z-curves-4,    double, 512, 512,  64,  16, 508,  64,  32,   1,   1,   1010478,   1010224,   1004369,   1017049
+% laplap-unstr-idxvar-warp-shared-z-curves-4,    double, 512, 512,  64,  16, 508,   8,  32,   1,   8,    695580,    693476,    683075,    766056
+% laplap-unstr-idxvar-warp-shared-z-curves-4,    double, 512, 512,  64,  64, 508,   2,   8,   1,  32,   1860175,   1860061,   1856796,   1863697
+% laplap-unstr-idxvar-warp-shared-z-curves-4,    double, 512, 512,  64, 508, 508,   2,   1,   1,  32,  12711574,  12712320,  12702761,  12722870
 
 \subsection{Index Temporaries + K-loop} In this approach (\emph{idxvar-kloop} for short), there are only $d_x\times d_y$ threads, i.e. only one thread per stack of cells in the X-Y-plane. Each thread calculates the results for all cells with equal X- and Y-coordinates in a loop over all Z. The indices of all required cells at the $z=0$ level are stored in \emph{index variables} before the start of the loop. Regularity of the grid in Z-direction enables us to update the index variables in each iteration of the loop by simply adding a Z-stride. There is no memory lookup into the neighborship table inside the loop. Thus, even in the unstructured grid case, memory lookups are only necessary once before the loop. This comes at the cost of possibly reduced occupancy, however, as there are fewer threads.
 

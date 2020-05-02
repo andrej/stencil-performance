@@ -63,3 +63,35 @@ We implement each stencil in several variations as different Cuda kernels; one v
 A regular and an unstructured version of all grid access variants are implemented; one for regular grids and one for unstructured grids. In all variants, the implementation of the actual output value calculations performed in accordance to the stencil definition remains completely unchanged. Only the portions of code responsible for indexing cells and neighbors are swapped to facilitate running the calculations on top of the different grid representations. This is achieved by using \emph{C preprocessor macro definitions} in all places where indexing or neighborship access is required. These macro definitions are then redefined to either use direct or indirect addressing for the respective grids.
 
 The stencils were benchmarked on a \emph{Nvidia Tesla V100} GPU. This GPU implements the \emph{Volta} architecture by Nvidia with compute capability $7.0$. The reported run times are the median of 20 timed kernel runs. Before the first one of the timed kernel runs, an untimed \emph{warm-up run} is performed (see section \ref{sec:foundations}). The GPU is reset using an API call to \texttt{cudaDeviceReset()} between each run in order to flush caches and free device memory from previous runs. The grid values and neighborship relations (for unstructured grids) are stored in unified global memory and are pre-transferred to the GPU and back to the host (\texttt{cudaMemPrefetchAsync()}) before respectively after the kernels are run. Memory transfer from host to device and back is therefore \emph{not} part of the reported run times.
+
+\section{Overview of Results}
+
+\begin{figure}
+	% >>> fas=u.groupmin(df[(df["size-z"]==64)&df["z-curves"]], by=u.col.problem+u.col.access+u.col.storage)
+	% >>> fas=u.add_colors_markers(fas, color="variant")
+	% >>> reg=u.groupmin(df[(df["size-z"]==64)&~df["unstructured"]], by=u.col.problem)
+	% >>> reg["variant"]="regular"
+	% >>> reg["color"]="black"
+	% >>> x=pd.concat([fas,reg])
+	% >>> u.barplot(x[x["stencil"]=="fastwaves"], grp=u.col.storage+["unstructured"], cat=u.col.access, cat_pretty=["variant"], grp_pretty=["no-chase", "comp"])
+	% <matplotlib.axes._subplots.AxesSubplot object at 0x124582ed0>
+	% >>> plt.ylabel("Median runtime [μs]")
+	% Text(0, 0.5, 'Median runtime [μs]')
+	% >>> fig=u.plotdone(legend=2)
+	% >>> fig.set_size_inches(6,3)
+	% >>> u.plotsave("report/img/overview-fastwaves.pdf", fig)
+	
+	\includegraphics[scale=0.75]{overview-laplap.pdf}
+	
+	\vspace{0.5cm}
+	
+	\includegraphics[scale=0.75]{overview-hdiff.pdf}
+	
+	\vspace{0.5cm}
+	
+	\includegraphics[scale=0.75]{overview-fastwaves.pdf}
+	
+	\caption{\label{fig:storage-access} Median runtimes across 20 runs for all combinations of storage and access strategy, for stencils on a $512\times512\times 64$-sized unstructured grid (z-curves layout).}
+\end{figure}
+
+Overall, we observed slowdowns around $50\%$, $30\%$ and $5\%$ compared to fastest regular grid performance for the \emph{laplap}, \emph{hdiff} and \emph{fastwaves} stencils, respectively. Figure \ref{fig:storage-access} shows an overview of the overhead for all tested combinations of storage and access strategy on a large grid of size $512\times 512\times 64$. For different domain sizes, see \ref{sec:res-size}. We chose to display the results for a \emph{z-curve} layout, but results for the \emph{row-major} benchmarks are similar. The fastest block size is plotted for each bar; for a more detailed analysis of what block sizes are beneficial to the different access strategies, see section \ref{sec:res-blocksize}. A more in-depth analysis of the different storage and access strategies is given in section \ref{sec:res-storage} and \ref{sec:res-access} respectively.
