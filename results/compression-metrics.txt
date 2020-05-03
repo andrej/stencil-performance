@@ -1,0 +1,960 @@
+  stencil  size   comp   threads     median
+fastwaves    64  False    32x8x2     44.685
+fastwaves    64   True    32x8x1     46.050
+fastwaves   128  False    16x8x1    144.000
+fastwaves   128   True    32x4x1    143.000
+fastwaves   512  False    64x1x4   2455.000
+fastwaves   512   True    64x1x8   2526.000
+
+    hdiff    64  False    32x2x4     18.225
+    hdiff    64   True    32x4x2     19.190
+    hdiff   128  False    64x2x1     51.000
+    hdiff   128   True    64x2x1     50.000
+    hdiff   512  False    64x1x8    804.000
+    hdiff   512   True   128x1x2    731.000
+
+   laplap    64  False    32x2x4     17.035
+   laplap    64   True    32x4x1     17.200
+   laplap   128  False    32x2x4     38.000
+   laplap   128   True    64x4x1     40.000
+   laplap   512  False    64x2x4    627.000
+   laplap   512   True   128x2x1    512.000
+
+
+tex_cache_transactions,l2_read_transactions,dram_read_transactions,tex_cache_hit_rate,l2_tex_hit_rate,achieved_occupancy,ipc,issue_slot_utilization,gld_efficiency,gld_transactions_per_request,stall_memory_dependency,stall_exec_dependency,gld_requested_throughput,gld_throughput,tex_cache_throughput,l2_tex_read_throughput,dram_read_throughput 
+
+# HDIFF, ROW-MAJOR
+
+## SIZE 64
+
+### NON-COMP
+
+      tex_cache_transactions    432045 ^
+        l2_read_transactions    310245
+      dram_read_transactions     48338
+          tex_cache_hit_rate    73.16%
+             l2_tex_hit_rate    71.52%
+          achieved_occupancy  0.677625
+                         ipc  1.261507
+      issue_slot_utilization    31.77%
+              gld_efficiency    87.73%
+gld_transactions_per_request  6.983617
+     stall_memory_dependency    47.95%
+       stall_exec_dependency    11.07%
+    gld_requested_throughput  2541.6GB/s .
+              gld_throughput  2897.2GB/s .
+        tex_cache_throughput  3798.2GB/s ^
+      l2_tex_read_throughput  683.03GB/s .
+        dram_read_throughput  120.04GB/s ^
+
+### COMP
+
+      tex_cache_transactions    465119
+        l2_read_transactions    238376
+      dram_read_transactions     49822
+          tex_cache_hit_rate    77.18%
+             l2_tex_hit_rate    64.65%
+          achieved_occupancy  0.663884
+                         ipc  1.280346
+      issue_slot_utilization    32.30%
+              gld_efficiency    78.71%
+gld_transactions_per_request  5.513360
+     stall_memory_dependency    44.86%
+       stall_exec_dependency    13.28%
+    gld_requested_throughput  2092.4GB/s
+              gld_throughput  2658.4GB/s
+        tex_cache_throughput  3997.5GB/s
+      l2_tex_read_throughput  508.98GB/s
+        dram_read_throughput  124.45GB/s
+
+## SIZE 128
+
+### NON-COMP
+
+      tex_cache_transactions   1713727  ^
+        l2_read_transactions   1735041  .
+      dram_read_transactions    508219  ~
+          tex_cache_hit_rate    65.58%  ^
+             l2_tex_hit_rate    62.96%  .
+          achieved_occupancy  0.852242  .
+                         ipc  1.213039  ^
+      issue_slot_utilization    30.36%  .
+              gld_efficiency    91.70%  .
+gld_transactions_per_request  6.704223  .
+     stall_memory_dependency    77.83%  .
+       stall_exec_dependency     8.39%  ^
+    gld_requested_throughput  3290.5GB/s  ..
+              gld_throughput  3588.3GB/s  ..
+        tex_cache_throughput  4586.2GB/s  ^
+      l2_tex_read_throughput  1161.1GB/s  .
+        dram_read_throughput  339.99GB/s  ~
+
+### COMP
+
+      tex_cache_transactions   1837006
+        l2_read_transactions   1298073
+      dram_read_transactions    508220
+          tex_cache_hit_rate    70.72%
+             l2_tex_hit_rate    52.65%
+          achieved_occupancy  0.839596
+                         ipc  1.271823
+      issue_slot_utilization    31.83%
+              gld_efficiency    83.14%
+gld_transactions_per_request  5.204589
+     stall_memory_dependency    75.12%
+       stall_exec_dependency    10.24%
+     gld_requested_throughput  2705.2GB/s
+               gld_throughput  3253.6GB/s
+         tex_cache_throughput  4812.8GB/s
+       l2_tex_read_throughput  851.02GB/s
+         dram_read_throughput  332.94GB/s
+
+
+
+## SIZE 512
+
+### NON-COMP
+
+      tex_cache_transactions  26752737  ^
+        l2_read_transactions  28242593  ^
+      dram_read_transactions   9359230  ^
+          tex_cache_hit_rate    66.06%  .
+             l2_tex_hit_rate    59.31%  ~
+          achieved_occupancy  0.905202  .
+                         ipc  0.993737  ^
+      issue_slot_utilization    24.85%  ^
+              gld_efficiency    92.08%  .
+gld_transactions_per_request  6.682593  .
+     stall_memory_dependency    77.29%  ^
+       stall_exec_dependency     6.65%  ^
+    gld_requested_throughput  3002.3GB/s  .
+              gld_throughput  3260.3GB/s  .
+        tex_cache_throughput  3889.9GB/s  ^^
+      l2_tex_read_throughput  1026.3GB/s  ^^
+        dram_read_throughput  340.52GB/s  ^^
+
+
+### COMP
+
+      tex_cache_transactions  29056707
+        l2_read_transactions  29037439
+      dram_read_transactions   9381085
+          tex_cache_hit_rate    61.25%
+             l2_tex_hit_rate    60.30%
+          achieved_occupancy  0.878081
+                         ipc  1.184626
+      issue_slot_utilization    29.62%
+              gld_efficiency    86.68%
+gld_transactions_per_request  4.974717
+     stall_memory_dependency    78.79%
+       stall_exec_dependency     9.26%
+    gld_requested_throughput  2790.2GB/s
+              gld_throughput  3219.1GB/s
+        tex_cache_throughput  4699.9GB/s
+      l2_tex_read_throughput  1174.0GB/s
+        dram_read_throughput  379.65GB/s
+
+
+
+# LAPLAP ROW-MAJOR
+
+## SIZE 64
+
+### NON-COMP
+
+      tex_cache_transactions      393315 ^
+        l2_read_transactions      260946
+      dram_read_transactions         180
+          tex_cache_hit_rate      75.57%
+             l2_tex_hit_rate      88.59%
+          achieved_occupancy    0.697696
+                         ipc    1.453451
+      issue_slot_utilization      36.63%
+              gld_efficiency      88.13%
+gld_transactions_per_request    6.868692
+     stall_memory_dependency      27.02%
+       stall_exec_dependency      11.52%
+    gld_requested_throughput  3313.8GB/s .
+              gld_throughput  3760.3GB/s .
+        tex_cache_throughput  4763.8GB/s ^
+      l2_tex_read_throughput  788.83GB/s .
+        dram_read_throughput  559.00MB/s ^
+
+### COMP
+
+      tex_cache_transactions      448218
+        l2_read_transactions      193087
+      dram_read_transactions        2037
+          tex_cache_hit_rate      79.61%
+             l2_tex_hit_rate      85.60%
+          achieved_occupancy    0.608351
+                         ipc    1.370353
+      issue_slot_utilization      34.46%
+              gld_efficiency      78.35%
+gld_transactions_per_request    5.384298
+     stall_memory_dependency      26.63%
+       stall_exec_dependency      12.86%
+    gld_requested_throughput  2531.0GB/s
+              gld_throughput  3230.4GB/s
+        tex_cache_throughput  4958.0GB/s
+      l2_tex_read_throughput  533.02GB/s
+        dram_read_throughput  5.6353GB/s
+
+## SIZE 128
+
+### NON-COMP
+
+      tex_cache_transactions     1622488 ^
+        l2_read_transactions     1198590
+      dram_read_transactions      262165
+          tex_cache_hit_rate      73.65%
+             l2_tex_hit_rate      67.02%
+          achieved_occupancy    0.871615
+                         ipc    1.297902
+      issue_slot_utilization      32.51%
+              gld_efficiency      89.42%
+gld_transactions_per_request    6.792133
+     stall_memory_dependency      65.83%
+       stall_exec_dependency       8.29%
+    gld_requested_throughput  4079.1GB/s .
+              gld_throughput  4561.6GB/s .
+        tex_cache_throughput  5663.5GB/s ^
+      l2_tex_read_throughput  1046.1GB/s .
+        dram_read_throughput  228.78GB/s .
+
+### COMP
+
+      tex_cache_transactions     1754911
+        l2_read_transactions      747145
+      dram_read_transactions      262169
+          tex_cache_hit_rate      80.16%
+             l2_tex_hit_rate      51.65%
+          achieved_occupancy    0.825818
+                         ipc    1.352016
+      issue_slot_utilization      33.89%
+              gld_efficiency      82.32%
+gld_transactions_per_request    5.107948
+     stall_memory_dependency      63.80%
+       stall_exec_dependency       8.77%
+    gld_requested_throughput  3251.0GB/s
+              gld_throughput  3949.2GB/s
+        tex_cache_throughput  5876.7GB/s
+      l2_tex_read_throughput  625.76GB/s
+        dram_read_throughput  219.48GB/s
+
+
+## SIZE 512
+
+### NON-COMP
+
+      tex_cache_transactions    24759204 ^
+        l2_read_transactions    25123476
+      dram_read_transactions     5225287
+          tex_cache_hit_rate      67.91%
+             l2_tex_hit_rate      69.66%
+          achieved_occupancy    0.908033
+                         ipc    1.029816
+      issue_slot_utilization      25.75%
+              gld_efficiency      91.81%
+gld_transactions_per_request    6.621635
+     stall_memory_dependency      66.08%
+       stall_exec_dependency       6.29%
+    gld_requested_throughput  3701.0GB/s .
+              gld_throughput  4031.0GB/s ^
+        tex_cache_throughput  4672.2GB/s ^^
+      l2_tex_read_throughput  1185.0GB/s .
+        dram_read_throughput  246.51GB/s .
+
+### COMP
+
+
+      tex_cache_transactions    27599671
+        l2_read_transactions    17848270
+      dram_read_transactions     4272674
+          tex_cache_hit_rate      72.99%
+             l2_tex_hit_rate      63.49%
+          achieved_occupancy    0.899344
+                         ipc    1.323815
+      issue_slot_utilization      33.10%
+              gld_efficiency      85.82%
+gld_transactions_per_request    4.881823
+     stall_memory_dependency      67.20%
+       stall_exec_dependency       7.87%
+    gld_requested_throughput  3627.5GB/s
+              gld_throughput  4227.0GB/s
+        tex_cache_throughput  6173.2GB/s
+      l2_tex_read_throughput  997.99GB/s
+        dram_read_throughput  238.92GB/s
+
+
+# FASTWAVES
+
+## SIZE 64
+
+### NON-COMP
+
+      tex_cache_transactions      516608 ^
+        l2_read_transactions      745710
+      dram_read_transactions      489133
+          tex_cache_hit_rate      53.49%
+             l2_tex_hit_rate      32.87%
+          achieved_occupancy    0.434097
+                         ipc    0.507214
+      issue_slot_utilization      12.78%
+              gld_efficiency      95.68%
+gld_transactions_per_request    8.064057
+     stall_memory_dependency      77.69%
+       stall_exec_dependency       7.85%
+    gld_requested_throughput  1297.8GB/s .
+              gld_throughput  1356.4GB/s .
+        tex_cache_throughput  1629.2GB/s ^
+      l2_tex_read_throughput  587.96GB/s ^
+        dram_read_throughput  385.64GB/s .
+
+### COMP
+
+      tex_cache_transactions      532316
+        l2_read_transactions      886575
+      dram_read_transactions      487511
+          tex_cache_hit_rate      45.69%
+             l2_tex_hit_rate      42.17%
+          achieved_occupancy    0.532313
+                         ipc    0.515066
+      issue_slot_utilization      12.96%
+              gld_efficiency      94.58%
+gld_transactions_per_request    7.799453
+     stall_memory_dependency      81.19%
+       stall_exec_dependency       6.45%
+    gld_requested_throughput  1271.9GB/s
+              gld_throughput  1344.8GB/s
+        tex_cache_throughput  1668.7GB/s
+      l2_tex_read_throughput  695.07GB/s
+        dram_read_throughput  382.05GB/s
+
+
+## SIZE 128
+
+### NON-COMP
+
+      tex_cache_transactions     2248181
+        l2_read_transactions     4289072
+      dram_read_transactions     2112864
+          tex_cache_hit_rate      40.60%
+             l2_tex_hit_rate      48.55%
+          achieved_occupancy    0.584159
+                         ipc    0.496405
+      issue_slot_utilization      12.43%
+              gld_efficiency      93.47%
+gld_transactions_per_request    8.282768
+     stall_memory_dependency      89.46%
+       stall_exec_dependency       5.65%
+    gld_requested_throughput  1456.8GB/s ^
+              gld_throughput  1558.5GB/s .
+        tex_cache_throughput  1863.3GB/s .
+      l2_tex_read_throughput  888.93GB/s .
+        dram_read_throughput  437.79GB/s ^
+
+### COMP
+
+      tex_cache_transactions     2188855
+        l2_read_transactions     3937740
+      dram_read_transactions     2113413
+          tex_cache_hit_rate      43.18%
+             l2_tex_hit_rate      43.40%
+          achieved_occupancy    0.581146
+                         ipc    0.515153
+      issue_slot_utilization      12.89%
+              gld_efficiency      95.56%
+gld_transactions_per_request    7.741871
+     stall_memory_dependency      89.68%
+       stall_exec_dependency       5.91%
+    gld_requested_throughput  1465.7GB/s
+              gld_throughput  1533.9GB/s
+        tex_cache_throughput  1852.4GB/s
+      l2_tex_read_throughput  833.01GB/s
+        dram_read_throughput  447.13GB/s
+
+
+## SIZE 512
+
+### NON-COMP
+
+      tex_cache_transactions    33692517 ^
+        l2_read_transactions    60452807
+      dram_read_transactions    39305492
+          tex_cache_hit_rate      47.49%
+             l2_tex_hit_rate      33.42%
+          achieved_occupancy    0.595045
+                         ipc    0.471494
+      issue_slot_utilization      11.79%
+              gld_efficiency      97.76%
+gld_transactions_per_request    7.927142
+     stall_memory_dependency      90.78%
+       stall_exec_dependency       5.36%
+    gld_requested_throughput  1429.0GB/s .
+              gld_throughput  1461.7GB/s .
+        tex_cache_throughput  1632.1GB/s .
+      l2_tex_read_throughput  732.09GB/s .
+        dram_read_throughput  475.99GB/s .
+
+### COMP
+
+      tex_cache_transactions    34406582
+        l2_read_transactions    55422075
+      dram_read_transactions    36756279
+          tex_cache_hit_rate      51.05%
+             l2_tex_hit_rate      32.26%
+          achieved_occupancy    0.467443
+                         ipc    0.455655
+      issue_slot_utilization      11.39%
+              gld_efficiency      96.77%
+gld_transactions_per_request    7.648926
+     stall_memory_dependency      86.84%
+       stall_exec_dependency       6.58%
+    gld_requested_throughput  1339.0GB/s
+              gld_throughput  1383.7GB/s
+        tex_cache_throughput  1585.5GB/s
+      l2_tex_read_throughput  638.49GB/s
+        dram_read_throughput  423.44GB/s
+
+
+#######
+# Z-CURVES
+
+  stencil    size  z-curves   comp  threads    median
+fastwaves      64      True  False   32x8x2    45.210
+fastwaves      64      True   True   32x8x2    45.780
+fastwaves     128      True  False   64x2x1   140.000
+fastwaves     128      True   True   32x2x1   144.000
+fastwaves     512      True  False   32x2x4  2472.000
+fastwaves     512      True   True   32x1x8  2543.000
+
+    hdiff      64      True  False   32x8x2    18.750
+    hdiff      64      True   True   32x1x4    19.680
+    hdiff     128      True  False   64x1x8    51.000
+    hdiff     128      True   True   64x2x1    53.000
+    hdiff     512      True  False   64x1x8   820.000
+    hdiff     512      True   True  128x1x2   741.000
+
+   laplap      64      True  False   32x4x2    17.390
+   laplap      64      True   True   32x4x2    18.075
+   laplap     128      True  False   64x4x2    40.000
+   laplap     128      True   True   64x8x1    42.000
+   laplap     512      True  False   64x1x4   618.000
+   laplap     512      True   True  256x1x1   532.000
+
+# HDIFF Z-CURVES
+
+## SIZE 64
+
+### NON-COMPRESSED
+
+      tex_cache_transactions      467924
+        l2_read_transactions      273406
+      dram_read_transactions       46810
+          tex_cache_hit_rate      76.45%
+             l2_tex_hit_rate      68.41%
+          achieved_occupancy    0.709806
+                         ipc    1.206453
+      issue_slot_utilization      30.50%
+              gld_efficiency      85.92%
+gld_transactions_per_request    7.130244
+     stall_memory_dependency      38.45%
+       stall_exec_dependency      10.18%
+    gld_requested_throughput  2527.4GB/s .
+              gld_throughput  2941.4GB/s .
+        tex_cache_throughput  4106.3GB/s ^
+      l2_tex_read_throughput  599.58GB/s ^
+        dram_read_throughput  102.70GB/s .
+
+### COMPRESSED
+
+      tex_cache_transactions      527102
+        l2_read_transactions      415962
+      dram_read_transactions       49619
+          tex_cache_hit_rate      66.34%
+             l2_tex_hit_rate      78.19%
+          achieved_occupancy    0.639533
+                         ipc    1.155709
+      issue_slot_utilization      29.02%
+              gld_efficiency      74.44%
+gld_transactions_per_request    5.952527
+     stall_memory_dependency      56.59%
+       stall_exec_dependency      11.94%
+    gld_requested_throughput  1982.8GB/s
+              gld_throughput  2663.5GB/s
+        tex_cache_throughput  4208.1GB/s
+      l2_tex_read_throughput  829.48GB/s
+        dram_read_throughput  99.033GB/s
+
+## SIZE 128
+
+### NON-COMPRESSED
+
+      tex_cache_transactions     1924729
+        l2_read_transactions     1468718
+      dram_read_transactions      508233
+          tex_cache_hit_rate      70.94%
+             l2_tex_hit_rate      57.37%
+          achieved_occupancy    0.866140
+                         ipc    1.157219
+      issue_slot_utilization      29.01%
+              gld_efficiency      87.70%
+gld_transactions_per_request    7.009695
+     stall_memory_dependency      67.29%
+       stall_exec_dependency       8.07%
+    gld_requested_throughput  3177.4GB/s .
+              gld_throughput  3623.1GB/s .
+        tex_cache_throughput  4971.8GB/s ^
+      l2_tex_read_throughput  948.26GB/s .
+        dram_read_throughput  328.20GB/s .
+
+### COMPRESSED
+
+      tex_cache_transactions     2071258
+        l2_read_transactions     1421427
+      dram_read_transactions      508202
+          tex_cache_hit_rate      71.82%
+             l2_tex_hit_rate      56.68%
+          achieved_occupancy    0.845783
+                         ipc    1.208285
+      issue_slot_utilization      30.24%
+              gld_efficiency      75.30%
+gld_transactions_per_request    5.888095
+     stall_memory_dependency      75.87%
+       stall_exec_dependency       9.50%
+    gld_requested_throughput  2654.4GB/s
+              gld_throughput  3525.0GB/s
+        tex_cache_throughput  5197.4GB/s
+      l2_tex_read_throughput  891.35GB/s
+        dram_read_throughput  318.81GB/s
+
+## SIZE 512
+
+### NON-COMPRESSED
+
+      tex_cache_transactions    29960813
+        l2_read_transactions    22386535
+      dram_read_transactions     9362633
+          tex_cache_hit_rate      72.14%
+             l2_tex_hit_rate      50.51%
+          achieved_occupancy    0.907049
+                         ipc    0.979335
+      issue_slot_utilization      24.49%
+              gld_efficiency      91.06%
+gld_transactions_per_request    6.757846
+     stall_memory_dependency      77.81%
+       stall_exec_dependency       6.53%
+    gld_requested_throughput  2976.7GB/s .
+              gld_throughput  3269.1GB/s ^
+        tex_cache_throughput  4319.9GB/s ^^
+      l2_tex_read_throughput  806.97GB/s ^
+        dram_read_throughput  337.49GB/s ^
+
+### COMPRESSED
+
+      tex_cache_transactions    31753062
+        l2_read_transactions    20826547
+      dram_read_transactions     9381421
+          tex_cache_hit_rate      73.93%
+             l2_tex_hit_rate      47.40%
+          achieved_occupancy    0.907408
+                         ipc    1.149570
+      issue_slot_utilization      28.75%
+              gld_efficiency      77.44%
+gld_transactions_per_request    5.696873
+     stall_memory_dependency      77.34%
+       stall_exec_dependency       8.68%
+    gld_requested_throughput  2781.9GB/s
+              gld_throughput  3592.3GB/s
+        tex_cache_throughput  5005.4GB/s
+      l2_tex_read_throughput  820.72GB/s
+        dram_read_throughput  369.71GB/s
+
+# LAPLAP Z-CURVES
+
+## SIZE 64
+
+### NON-COMPRESSED
+
+      tex_cache_transactions      434337 ^
+        l2_read_transactions      283047
+      dram_read_transactions        2647
+          tex_cache_hit_rate      74.07%
+             l2_tex_hit_rate      89.24%
+          achieved_occupancy    0.687297
+                         ipc    1.308004
+      issue_slot_utilization      32.96%
+              gld_efficiency      87.75%
+gld_transactions_per_request    6.898346
+     stall_memory_dependency      28.65%
+       stall_exec_dependency      10.16%
+    gld_requested_throughput  3096.4GB/s .
+              gld_throughput  3528.8GB/s .
+        tex_cache_throughput  4915.5GB/s ^
+      l2_tex_read_throughput  802.28GB/s .
+        dram_read_throughput  7.4917GB/s .
+
+### COMPRESSED
+
+      tex_cache_transactions      486491
+        l2_read_transactions      235388
+      dram_read_transactions        2735
+          tex_cache_hit_rate      78.20%
+             l2_tex_hit_rate      88.93%
+          achieved_occupancy    0.682468
+                         ipc    1.286255
+      issue_slot_utilization      32.51%
+              gld_efficiency      73.19%
+gld_transactions_per_request    5.892513
+     stall_memory_dependency      29.79%
+       stall_exec_dependency       9.39%
+    gld_requested_throughput  2478.7GB/s
+              gld_throughput  3386.5GB/s
+        tex_cache_throughput  5154.8GB/s
+      l2_tex_read_throughput  623.31GB/s
+        dram_read_throughput  7.2468GB/s
+
+## SIZE 128
+
+### NON-COMPRESSED
+
+      tex_cache_transactions     1783760
+        l2_read_transactions     1210233
+      dram_read_transactions      262165
+          tex_cache_hit_rate      73.49%
+             l2_tex_hit_rate      67.80%
+          achieved_occupancy    0.847104
+                         ipc    1.239318
+      issue_slot_utilization      31.08%
+              gld_efficiency      90.51%
+gld_transactions_per_request    6.710865
+     stall_memory_dependency      58.73%
+       stall_exec_dependency       8.06%
+    gld_requested_throughput  3898.9GB/s .
+              gld_throughput  4308.0GB/s .
+        tex_cache_throughput  5951.5GB/s ^
+      l2_tex_read_throughput  1009.5GB/s .
+        dram_read_throughput  218.68GB/s .
+
+### COMPRESSED
+
+      tex_cache_transactions     1921819
+        l2_read_transactions      806202
+      dram_read_transactions      262168
+          tex_cache_hit_rate      81.50%
+             l2_tex_hit_rate      54.75%
+          achieved_occupancy    0.809031
+                         ipc    1.280221
+      issue_slot_utilization      32.15%
+              gld_efficiency      73.70%
+gld_transactions_per_request    5.855166
+     stall_memory_dependency      56.37%
+       stall_exec_dependency       8.30%
+    gld_requested_throughput  3133.9GB/s
+              gld_throughput  4252.6GB/s
+        tex_cache_throughput  6045.6GB/s
+      l2_tex_read_throughput  633.91GB/s
+        dram_read_throughput  206.18GB/s
+
+## SIZE 512
+
+### NON-COMPRESSED
+
+      tex_cache_transactions     1793420 ^
+        l2_read_transactions     1399291
+      dram_read_transactions      262167
+          tex_cache_hit_rate      70.05%
+             l2_tex_hit_rate      71.48%
+          achieved_occupancy    0.872887
+                         ipc    1.237641
+      issue_slot_utilization      31.00%
+              gld_efficiency      90.26%
+gld_transactions_per_request    6.729211
+     stall_memory_dependency      65.07%
+       stall_exec_dependency       7.80%
+    gld_requested_throughput  3901.7GB/s .
+              gld_throughput  4322.8GB/s .
+        tex_cache_throughput  5987.9GB/s ^^
+      l2_tex_read_throughput  1168.3GB/s .
+        dram_read_throughput  218.83GB/s .
+
+### COMPRESSED
+
+      tex_cache_transactions     2076883
+        l2_read_transactions     1035046
+      dram_read_transactions      262170
+          tex_cache_hit_rate      77.92%
+             l2_tex_hit_rate      66.70%
+          achieved_occupancy    0.847612
+                         ipc    1.263457
+      issue_slot_utilization      31.63%
+              gld_efficiency      72.39%
+gld_transactions_per_request    5.785163
+     stall_memory_dependency      64.85%
+       stall_exec_dependency       7.63%
+    gld_requested_throughput  3056.8GB/s
+              gld_throughput  4222.4GB/s
+        tex_cache_throughput  6367.0GB/s
+      l2_tex_read_throughput  792.50GB/s
+        dram_read_throughput  200.93GB/s
+
+
+# FASTWAVES Z-CURVES
+
+## SIZE 64
+
+### NON-COMPRESSED
+
+      tex_cache_transactions      548129
+        l2_read_transactions      917344
+      dram_read_transactions      489796
+          tex_cache_hit_rate      44.71%
+             l2_tex_hit_rate      43.82%
+          achieved_occupancy    0.433328
+                         ipc    0.504525
+      issue_slot_utilization      12.71%
+              gld_efficiency      95.04%
+gld_transactions_per_request    8.117992
+     stall_memory_dependency      78.00%
+       stall_exec_dependency       7.74%
+    gld_requested_throughput  1293.5GB/s .
+              gld_throughput  1360.9GB/s .
+        tex_cache_throughput  1722.9GB/s ^
+      l2_tex_read_throughput  721.61GB/s .
+        dram_read_throughput  384.88GB/s .
+
+### COMPRESSED
+
+      tex_cache_transactions      559868
+        l2_read_transactions      910594
+      dram_read_transactions      489845
+          tex_cache_hit_rate      45.57%
+             l2_tex_hit_rate      43.49%
+          achieved_occupancy    0.432153
+                         ipc    0.501888
+      issue_slot_utilization      12.65%
+              gld_efficiency      93.14%
+gld_transactions_per_request    7.935551
+     stall_memory_dependency      79.24%
+       stall_exec_dependency       7.82%
+    gld_requested_throughput  1265.2GB/s
+              gld_throughput  1358.3GB/s
+        tex_cache_throughput  1742.3GB/s
+      l2_tex_read_throughput  707.80GB/s
+        dram_read_throughput  381.11GB/s
+
+## SIZE 128
+
+### NON-COMPRESSED
+
+      tex_cache_transactions     2152651 ^
+        l2_read_transactions     4501667
+      dram_read_transactions     2115699
+          tex_cache_hit_rate      37.00%
+             l2_tex_hit_rate      49.75%
+          achieved_occupancy    0.576521
+                         ipc    0.508939
+      issue_slot_utilization      12.74%
+              gld_efficiency      96.00%
+gld_transactions_per_request    8.064750
+     stall_memory_dependency      89.20%
+       stall_exec_dependency       5.92%
+    gld_requested_throughput  1494.9GB/s .
+              gld_throughput  1557.3GB/s .
+        tex_cache_throughput  1830.9GB/s ^
+      l2_tex_read_throughput  957.10GB/s ^
+        dram_read_throughput  449.87GB/s .
+
+### COMPRESSED
+
+      tex_cache_transactions     2210853
+        l2_read_transactions     4761173
+      dram_read_transactions     2115024
+          tex_cache_hit_rate      34.21%
+             l2_tex_hit_rate      52.45%
+          achieved_occupancy    0.573388
+                         ipc    0.509880
+      issue_slot_utilization      12.76%
+              gld_efficiency      93.55%
+gld_transactions_per_request    7.925770
+     stall_memory_dependency      90.56%
+       stall_exec_dependency       5.90%
+    gld_requested_throughput  1456.0GB/s
+              gld_throughput  1556.4GB/s
+        tex_cache_throughput  1854.3GB/s
+      l2_tex_read_throughput  998.37GB/s
+        dram_read_throughput  443.48GB/s
+
+## SIZE 512
+
+### NON-COMPRESSED
+
+      tex_cache_transactions    33957449 ^
+        l2_read_transactions    61897556
+      dram_read_transactions    39309147
+          tex_cache_hit_rate      46.55%
+             l2_tex_hit_rate      34.44%
+          achieved_occupancy    0.594263
+                         ipc    0.462044
+      issue_slot_utilization      11.55%
+              gld_efficiency      96.47%
+gld_transactions_per_request    8.033438
+     stall_memory_dependency      91.06%
+       stall_exec_dependency       5.24%
+    gld_requested_throughput  1400.7GB/s .
+              gld_throughput  1452.1GB/s .
+        tex_cache_throughput  1612.4GB/s ^
+      l2_tex_read_throughput  734.76GB/s .
+        dram_read_throughput  466.63GB/s .
+
+### COMPRESSED
+
+      tex_cache_transactions    35312321
+        l2_read_transactions    57112536
+      dram_read_transactions    36831629
+          tex_cache_hit_rate      50.62%
+             l2_tex_hit_rate      33.24%
+          achieved_occupancy    0.590614
+                         ipc    0.455418
+      issue_slot_utilization      11.39%
+              gld_efficiency      94.43%
+gld_transactions_per_request    7.854827
+     stall_memory_dependency      91.05%
+       stall_exec_dependency       5.22%
+    gld_requested_throughput  1339.0GB/s
+              gld_throughput  1417.9GB/s
+        tex_cache_throughput  1623.8GB/s
+      l2_tex_read_throughput  656.59GB/s
+        dram_read_throughput  423.41GB/s
+
+
+
+
+
+
+
+
+
+
+
+  stencil    size  z-curves   comp  threads    median
+$64\times64\times64$   &  $-$          & $4106.3$ & $599.58$ & $102.70$ & $85.92\%$ & $  18\mu s$ \\ 
+$64\times64\times64$   &  $\checkmark$ & $4208.1$ & $829.48$ & $99.033$ & $74.44\%$ & $  19\mu s$ \\
+$128\times128\times64$ &  $-$          & $4971.8$ & $948.26$ & $328.20$ & $87.70\%$ & $  51\mu s$ \\
+$128\times128\times64$ &  $\checkmark$ & $5197.4$ & $891.35$ & $318.81$ & $75.30\%$ & $  53\mu s$ \\
+$512\times512\times64$ &  $-$          & $4319.9$ & $806.97$ & $337.49$ & $91.06\%$ & $ 820\mu s$ \\
+$512\times512\times64$ &  $\checkmark$ & $5005.4$ & $820.72$ & $369.71$ & $77.34\%$ & $ 741\mu s$ \\
+
+# HDIFF Z-CURVES
+
+## SIZE 64
+
+### NON-COMPRESSED
+
+      tex_cache_transactions      467924
+        l2_read_transactions      273406
+      dram_read_transactions       46810
+          tex_cache_hit_rate      76.45%
+             l2_tex_hit_rate      68.41%
+          achieved_occupancy    0.709806
+                         ipc    1.206453
+      issue_slot_utilization      30.50%
+              gld_efficiency      85.92%
+gld_transactions_per_request    7.130244
+     stall_memory_dependency      38.45%
+       stall_exec_dependency      10.18%
+    gld_requested_throughput  2527.4GB/s .
+              gld_throughput  2941.4GB/s .
+        tex_cache_throughput  4106.3GB/s ^
+      l2_tex_read_throughput  599.58GB/s ^
+        dram_read_throughput  102.70GB/s .
+
+$4106.3$ & $599.58$  & $102.70$  & $85.92%$ 
+
+
+### COMPRESSED
+
+      tex_cache_transactions      527102
+        l2_read_transactions      415962
+      dram_read_transactions       49619
+          tex_cache_hit_rate      66.34%
+             l2_tex_hit_rate      78.19%
+          achieved_occupancy    0.639533
+                         ipc    1.155709
+      issue_slot_utilization      29.02%
+              gld_efficiency      $74.44%$
+gld_transactions_per_request    5.952527
+     stall_memory_dependency      56.59%
+       stall_exec_dependency      11.94%
+$1982.8$ & $2663.5$ & $4208.1$ & $829.48$ & $99.033$ &
+
+## SIZE 128
+
+### NON-COMPRESSED
+
+      tex_cache_transactions     1924729
+        l2_read_transactions     1468718
+      dram_read_transactions      508233
+          tex_cache_hit_rate      70.94%
+             l2_tex_hit_rate      57.37%
+          achieved_occupancy    0.866140
+                         ipc    1.157219
+      issue_slot_utilization      29.01%
+              gld_efficiency      $87.70%$
+gld_transactions_per_request    7.009695
+     stall_memory_dependency      67.29%
+       stall_exec_dependency       8.07%
+
+$3177.4$ & $3623.1$ & $4971.8$ & $948.26$ & $328.20$ &
+
+### COMPRESSED
+
+      tex_cache_transactions     2071258
+        l2_read_transactions     1421427
+      dram_read_transactions      508202
+          tex_cache_hit_rate      71.82%
+             l2_tex_hit_rate      56.68%
+          achieved_occupancy    0.845783
+                         ipc    1.208285
+      issue_slot_utilization      30.24%
+              gld_efficiency      $75.30%$
+gld_transactions_per_request    5.888095
+     stall_memory_dependency      75.87%
+       stall_exec_dependency       9.50%
+$2654.4$ & $3525.0$ & $5197.4$ & $891.35$ & $318.81$ &
+
+## SIZE 512
+
+### NON-COMPRESSED
+
+      tex_cache_transactions    29960813
+        l2_read_transactions    22386535
+      dram_read_transactions     9362633
+          tex_cache_hit_rate      72.14%
+             l2_tex_hit_rate      50.51%
+          achieved_occupancy    0.907049
+                         ipc    0.979335
+      issue_slot_utilization      24.49%
+              gld_efficiency      $91.06%$
+gld_transactions_per_request    6.757846
+     stall_memory_dependency      77.81%
+       stall_exec_dependency       6.53%
+$2976.7$ & $3269.1$ & $4319.9$ & $806.97$ & $337.49$
+
+### COMPRESSED
+
+      tex_cache_transactions    31753062
+        l2_read_transactions    20826547
+      dram_read_transactions     9381421
+          tex_cache_hit_rate      73.93%
+             l2_tex_hit_rate      47.40%
+          achieved_occupancy    0.907408
+                         ipc    1.149570
+      issue_slot_utilization      28.75%
+              gld_efficiency      77.44%
+gld_transactions_per_request    5.696873
+     stall_memory_dependency      $77.34%$
+       stall_exec_dependency       8.68%
+$2781.9$ & $3592.3$ & $5005.4$ & $820.72$ & $369.71$ &
+
