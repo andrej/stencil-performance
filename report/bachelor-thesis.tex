@@ -64,13 +64,6 @@ Stencil computations on unstructured grids with a regular Z-dimension are freque
 
 In this thesis, we explore various approaches of storing unstructured grids with one regular dimension and accessing them from the GPU in a stencil computation. We benchmark the performance of three real-world stencils of varying complexity on various unstructured grid implementations, some of which make explicit use of the Z-regularity. In our initial naive approaches, we observe slowdowns of $122\%$ (simple stencil), $52\%$ (medium-complexity stencil) and $5\%$ (complex stencil) compared to executing the same stencils on entirely regular grids. Notably, through a neighborship table compression scheme, we are able to improve those values to $49\%$, $30\%$ and $5\%$ (no improvement) respectively. We also detail the foundations of the Nvidia CUDA GPU architecture.
 
-% Unstructured grid with regular Z-dimension
-% Storage of Grid
-% Access of Grid on GPU
-% Optimizations making use of Z
-% Compression
-% Results, relative slowdown compared to regular grids
-
 \include{tex/introduction}
 \include{tex/related-work}
 

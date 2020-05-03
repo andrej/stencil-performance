@@ -1,5 +1,11 @@
 \section{Effect of Problem Domain Size and Precision} \label{sec:res-size}
 
+This section gives some insight into how the performance relates to the input domain size. The relative overhead of using unstructured grids varies strongly depending on the size of the grid. Generally, stencils applied on small unstructured grids are relatively closer to regular grid runtimes than the same stencils applied to large unstructured grids. At smaller sizes, the cache can be used more effectively.
+
+Also of special interest are size changes in the Z-dimension only. Changing the Z-size and measuring the accompanying slowdowns reveals how well the different implementations are able to make use of the regularity in the Z-dimension. We investigate this in section \ref{sec:res-z-size-change}.
+
+We also noticed that some grid storage optimizations are only effective on grids of certain sizes. This is not adressed in this section, but in section \ref{sec:res-storage}.
+
 \subsection{Change in X and Y Domain Size}
 
 \begin{figure}
@@ -18,6 +24,7 @@ For small domains, the runtimes of unstructured variants are generally close to 
 The \emph{z-loop} grid access variant is the only exception to the described charateristics. Its relative slowdown decreases for larger grid sizes. This is probably due to two reasons. First, the z-loop variants already suffer from low occupancy in large grids. In small grids, occupancy is even lower, not making use of the complete parallelism capabilities of the GPU. Second, in small grids, the neighborship table may be in cache in its entirety after one read. This allows subsequent neighborship table accesses to be practically free. This offsets the supposed optimization of the z-loop variant, which aims to reduce the number of reads of neighborship table entries. This optimization only begins to provide a benefit in large grids.
 
 \subsection{Change in Z domain size}
+\label{sec:res-z-size-change}
 
 \begin{figure}
 	% dat = pd.read_csv("results/ultimate-reformat.csv")

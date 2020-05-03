@@ -127,7 +127,7 @@ Some stencils will require neighboring cells beyond directly adjacent ones, i.e.
 
 To avoid the issue of \emph{pointer chasing} it can be beneficial to store all neighbors-of-neigbhors up to a certain depth $l$ in additional neighborship tables. This increases the memory footprint, but can enable faster access to neighbors-of-neighbors.
 
-In a grid where each cell is limited to four direct neighbors, storing all neighbors and neighbors-of-neighbors up to a depth of $l$ requires $2\cdot l(l+1)$ (four times the $l$-th triangular number) pointers per cell in the X-Y-plane.
+In a grid where each cell is limited to four direct neighbors, storing all neighbors and neighbors-of-neighbors up to a depth of $l$ requires $2\cdot l(l+1)$ pointers per cell in the X-Y-plane.
 
 \subsubsection{Compression} \label{sec:compression}
 
@@ -143,7 +143,11 @@ The structure of the grid is described by neighborship offsets $o = (o_1, \dots,
 
 \paragraph{Stencil phase}
 
-During the stencil computation, a thread operating on a cell with index $i$ looks up the pattern of its neighborships by reading $\mathtt{pattern[}i \mod d_xd_y\mathtt{]}$. (The optimized access strategies seperate the X-Y-component in the index $i$ from the Z-coordinate and as such do not require the modulo computation in their actual implementation.) For any subsequent neighborship lookup, the neighbor pointers are read from the pattern array, using the previously obtained index.
+During the stencil computation, a thread operating on a cell with index $i$ looks up the pattern of its neighborships by reading $\mathtt{pattern[}i \mod d_xd_y\mathtt{]}$. (The optimized access strategies seperate the X-Y-component in the index $i$ from the Z-coordinate and as such do not require the modulo computation in their actual implementation.) For any subsequent neighborship lookup, the neighbor pointers are read from the neighborship tables using the previously obtained index from the pattern array. The previously described equation \ref{eq:unstr-neigh} for neighborship access is altered to the following:
+
+\begin{gather}
+	\text{neighbor}_k(i) = i + \underbrace{\mathtt{neigh[}d_xd_y\cdot k + \overbrace{\mathtt{pattern[}(i \mod d_xd_y)\mathtt{]}}^\text{pattern lookup}\mathtt{]}}_\text{(hopefully cached) neighbor lookup} \label{eq:unstr-neigh-comp}
+\end{gather}
 
 Compare this to the uncompressed variant: there, the initial lookup of patterns is skipped, and neighborship tables are accessed at $i\mod d_xd_y$. In the uncompressed case, each entry in the neighborship table is only relevant to one cell, and only accessed by one thread per Z-level. In contrast, if compression is effective, there will be relatively few patterns, and the same few neighborship table entries will be accessed by many threads. We anticipate that those few neighborship table entries will reside in the caches due to their large number of accesses. We note that compression adds one indirect lookup (pointer chasing through the pattern array). For this scheme to be effective at reducing the runtime, the positive effect due to caching of the second lookup must outweigh the cost of the required additional pattern lookup.
 
@@ -203,7 +207,7 @@ The index in Z-order curve ordering is then given by:
 
 In this thesis, we have implemented a memory layout wich uses a modified Z-curve layout in the X-Y-plane. To make use of CUDA's vector instructions, which can consume up to 32 bytes of consecutive memory at once when properly aligned, the Z-curve implemented is a stretched out variant. The last five bits are \emph{not} intertwined. To ensure the indices are dense, the cells are then ordered by the number obtained due to this intertwining way and are indexed in a consecutive manner from lowest to highest intertwined number.
 
-Using this, we get repeated lines of 32 cells which share their relative neighborship offsets with other such lines; this allows better coalesced accesses. Using a width of 32 ensures that coalescing is possible even for one-byte data types; when using four- or eight-byte floating point types, the width could be reduced. Despite this optimization, neighborship offsets are more varied with this layout than for the row-major layout, rendering both compression and coalescing less efficient.
+Using this, we get repeated lines of 32 cells which share their relative neighborship offsets with other such lines; this allows better coalesced accesses. Using a width of 32 ensures that coalescing is possible even for one-byte data types; when using four- or eight-byte floating point types, the width could be reduced. We briefly experimented with smaller stretchings of the Z-curve and observed only minimal differences in runtimes. In the z-curves layout, neighborship offsets are more varied than in a row-major layout, rendering both compression and coalescing less efficient. This is thus a more realistic and useful scenario for modeling an real unstructured grid.
 
 Using a truly arbitrary, randomized memory layout was also considered, but not pursued further after initial tests. In grids with a randomized layout, cache locality was completely destroyed, leading to runtimes around eight times the row-major or z-curve variants. For example, the \emph{Laplace-of-Laplace} stencil described in section \ref{sec:results} completed in around $814 \mu s$ for a row-major layout, whereas it took $6999 \mu s$ in a completely random layout in otherwise identical conditions. However, such a completely random memory layout is highly unrealistic. Even in real unstructured meteorology applications, large portions of the grid would remain regular. Unstructuredness only occurs in boundary areas, e.g. between areas of different resolutions. Evaluating the performance implications of a completely random layout provide little value to the implementation of meteorological stencils and possible optimizations would be very limited.
 
@@ -222,10 +226,13 @@ The struct-of-arrays approach is highly beneficial to most GPU stencil implement
 
 \begin{table}
 	\begin{tabular}{l c c}
+		\hline
 		\textbf{Benchmark} & \textbf{Run Time} & \textbf{Load Efficiency} \\
 		\hline
+		\hline
 		Array of Structs & $8282 \mu s$ & $25.73\%$\\
-		Struct of Arrays & $2546 \mu s$ & $99.39\%$
+		Struct of Arrays & $2546 \mu s$ & $99.39\%$ \\
+		\hline
 	\end{tabular}
 	\caption{\label{tab:array-of-structs} Comparison of run times and global load efficiency (ratio of requested loads to performed loads, where bad coalescing leads to more loads being performed than needed) for the fast waves benchmark with domain size $512\times 512\times 64$ and block size of $128\times 1\times 2$.}
 \end{table}

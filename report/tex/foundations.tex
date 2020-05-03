@@ -93,13 +93,13 @@ When a kernel is launched, the programmer may specify how many threads should be
 
 \subsection{Memories} \label{sec:memories}
 
-There are several types of memory address spaces available in kernel code. Figure \ref{fig:memory-hierarchy} shows these address spaces in the programming model on the left, and how they are implemented in hardware with caches in the Volta architecture on the right. 
-
 \begin{figure}
 	\makebox[\textwidth]{
 	\input{tex/memory-hierarchy.tex}}
 	\caption{\label{fig:memory-hierarchy} Memory Hierarchy of the Nvidia Volta architecture (compute capability 7.0). Global memory accesses are only cached in the unified L1 data/texture cache if they are read-only. Illustration based on information provided in \cite[Sections 2.3, 5.3.2, H.6]{cuda-programming}.}
 \end{figure}
+
+There are several types of memory address spaces available in kernel code. Figure \ref{fig:memory-hierarchy} shows these address spaces in the programming model on the left, and how they are implemented in hardware with caches in the Volta architecture on the right. 
 
 \subsubsection{Local Memory}
 Local memory is visible only to one thread and is almost always implemented using registers. There is a limited number of registers available in the SM. Using a large number of registers in a kernel thus reduces the amount of threads that can be launched on the same SM. Registers can be spilled to local memory, but this incurs a cost; registers are on-chip per SM, whereas spilled registers require access to device memory.
@@ -172,11 +172,11 @@ Nvidia provides a command-line profiling tool called \texttt{nvprof}. This tool 
 	\hline
 	\raggedright \texttt{l2\_\allowbreak tex\_\allowbreak hit\_\allowbreak rate} & L2 cache hit rate. This cache is shared among SMs. Higher is better. \\
 	\hline
-	\raggedright \texttt{tex\_\allowbreak cache\_\allowbreak transactions} & Sum of arrows $1$ and $2$ in figure \ref{fig:memory-hierarchy}. Absolute number of transactions seen at L1 cache. \\
+	\raggedright \texttt{tex\_\allowbreak cache\_\allowbreak transactions/throughput} & Sum of arrows $1$ and $2$ in figure \ref{fig:memory-hierarchy}. Absolute number of transactions seen at L1 cache. \\
 	\hline
-	\raggedright \texttt{l2\_\allowbreak read\_\allowbreak transactions} & Arrow $3$ in figure \ref{fig:memory-hierarchy}. Absolute number of transactions at L2 cache. \\
+	\raggedright \texttt{l2\_\allowbreak read\_\allowbreak transactions/throughput} & Arrow $3$ in figure \ref{fig:memory-hierarchy}. Absolute number of transactions at L2 cache. \\
 	\hline
-	\raggedright \texttt{dram\_\allowbreak read\_\allowbreak transactions} & Arrow $4$ in figure \ref{fig:memory-hierarchy}. Absolute number of device memory reads (uncached). \\
+	\raggedright \texttt{dram\_\allowbreak read\_\allowbreak transactions/throughput} & Arrow $4$ in figure \ref{fig:memory-hierarchy}. Absolute number of device memory reads (uncached). \\
 	\hline
 	\raggedright \texttt{global\_\allowbreak hit\_\allowbreak rate} & Arrow $1$ in figure \ref{fig:memory-hierarchy}. Hit rate at L1 cache \emph{only} for global memory reads (excludes texture memory). \\
 	
