@@ -166,7 +166,8 @@ laplap-unstr-idxvar-cmem-comp       ,    double, 512, 512,  64,   2, 508,  64, 2
 laplap-unstr-idxvar-z-curves-4      ,    double, 512, 512,  64,   2, 508,  64, 256,   1,   1,    778175,    778990,    771070,    785390
 laplap-unstr-idxvar-comp-z-curves-4 ,    double, 512, 512,  64,   2, 508,  64, 256,   1,   1,    562292,    561945,    557220,    570630
 laplap-unstr-idxvar-cmem-comp-z-curves-4,    double, 512, 512,  64,   2, 508,  64, 256,   1,   1,    638830,    638870,    633790,    643250}
-
+	
+	\begin{center}
     \begin{tabular}{l l l l}
         \hline \hline 
         \textbf{Storage} & \textbf{Compression} & \textbf{Constant Memory} & \textbf{Runtime} \\
@@ -180,6 +181,7 @@ laplap-unstr-idxvar-cmem-comp-z-curves-4,    double, 512, 512,  64,   2, 508,  6
         z-curves & \checkmark & \checkmark & $639\mu s$ \\
         \hline \hline
     \end{tabular}
+	\end{center}
     \caption{\label{tab:constmem} Effect of using constant memory applying the \emph{Laplace-of-Laplace} stencil on a $512\times 512\times 64$-sized grid with $256\times 1\times 1$ threads. Using constant memory gives a slight $5\%$ advantage in the highly regular row-major grids; for the more realistic z-curve scenario, it results in a slowdown of $14\%$.}
 \end{table}
 
@@ -192,7 +194,9 @@ In these emulated unstructured grids, we stored the same values as in the regula
 The memory layout of the emulated unstructured grid using a row-major layout is almost identical to the one for regular grids. The only difference lies in the different handling of the halo values, which is done as described in section \ref{sec:unstructured-indexing}. 
 
 \begin{figure}
+	\begin{center}
     \includegraphics[width=\textwidth]{layouts.pdf}
+	\end{center}
     \caption{\label{fig:layouts} The different memory layouts described. The blue lines illustrate the order in which the cells in the X-Y-plane of the grid are stored in memory. The lowest memory index always starts at the top-left corner. Left: Row-major indexing. Middle: Normal z-order curve. Right: Widened z-order curve.}
 \end{figure}
 
@@ -225,6 +229,7 @@ In the struct-of-arrays layout, there are $k$ arrays for $k$ fields. This is con
 The struct-of-arrays approach is highly beneficial to most GPU stencil implementations because of coalescing. When a stencil is implemented such that each thread is responsible for the calculation of one output value, all threads will most likely try to access the same field on different cells concurrently. In the struct-of-array layout, these accesses are able to coalesce (if the cells appear consecutively in memory).  Because of this, we have implemented all our benchmarks in this fashion, i.e. as multiple one-field grids. To verify the claim that array-of-structs is slower than struct-of-arrays, we have implemented both variants for the \emph{fast waves} benchmark, see table \ref{tab:array-of-structs}.
 
 \begin{table}
+	\begin{center}
     \begin{tabular}{l c c}
         \hline
         \textbf{Benchmark} & \textbf{Run Time} & \textbf{Load Efficiency} \\
@@ -234,6 +239,7 @@ The struct-of-arrays approach is highly beneficial to most GPU stencil implement
         Struct of Arrays & $2546 \mu s$ & $99.39\%$ \\
         \hline
     \end{tabular}
+	\end{center}
     \caption{\label{tab:array-of-structs} Comparison of run times and global load efficiency (ratio of requested loads to performed loads, where bad coalescing leads to more loads being performed than needed) for the fast waves benchmark with domain size $512\times 512\times 64$ and block size of $128\times 1\times 2$.}
 \end{table}
 

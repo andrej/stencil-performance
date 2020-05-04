@@ -22,7 +22,9 @@ In large grids, for both the \emph{hdiff} and \emph{laplap} stencils, compressin
     32178   hdiff     512     512      64          True  idxvar-shared      True      True  False         32          1         16  819000.0  854000.0  838000.0  841000.0
     31541   hdiff     512     512      64          True          naive      True      True   True        128          1          2  707000.0  721000.0  713000.0  710000.0
     }
+	\begin{center}
     \includegraphics[scale=0.75]{hdiff-z-curves-sizes-storage.pdf}
+	\end{center}
     \caption{\label{fig:hdiff-sizes-storage} Relative slowdowns for the horizontal diffusion stencil on a small and a larger grid. The fastest access variant is plotted for each bar, which is one of \emph{index variables}, \emph{naive} and \emph{idxvar-shared} for the shown benchmarks. This example for the horizontal diffusion stencil is representative for the other two benchmarks as well, where the slowdowns follow a similar pattern. (Note that in the fastwaves stencils, pointer chasing is not applicable as there only direct neighbors are accessed.) Baseline: fastest regular grid implementation.}
 \end{figure}
 
@@ -31,6 +33,7 @@ In large grids, for both the \emph{hdiff} and \emph{laplap} stencils, compressin
 
 \begin{table}
     %chase-v-no-chase.txt
+	\begin{center}
     \begin{tabular}{l c p{1.5cm} p{1.5cm} p{2.5cm} l}
         \hline
         \textbf{Size} & \textbf{Chasing?} & \textbf{\texttt{tex\_\allowbreak cache\_\allowbreak hit\_\allowbreak rate}} & \textbf{\texttt{l2\_\allowbreak tex\_\allowbreak hit\_\allowbreak rate}} & \textbf{\texttt{stall\_\allowbreak memory\_\allowbreak dependency}} & \textbf{Runtime} \\
@@ -43,6 +46,7 @@ In large grids, for both the \emph{hdiff} and \emph{laplap} stencils, compressin
         $512\times 512\times 64$ & \checkmark & $63\%$ & $37\%$ & $60\%$ & $\mu s$ \\
         \hline
     \end{tabular}
+	\end{center}
     \caption{\label{tab:chasing} Selected metrics for runs of the horizontal diffusion stencil on different types of grids (all of them in \emph{z-curves} layout). The fastest found variant and launch configuration was chosen for each configuration seperately.}
 \end{table}
 
@@ -63,6 +67,7 @@ In this section, we first elaborate on the efficacy of our compression scheme in
 \subsubsection{Distribution of Neighborship Table Entries After Compression}
 
 \begin{table}
+	\begin{center}
     \begin{tabular}{l l l l l l}
         \hline
         \textbf{Compressed?} & \textbf{Chasing?} & \textbf{Storage} & \textbf{\# Entries} & \textbf{Ratio\textsuperscript{*}} & \textbf{Freq.\textsuperscript{\dag}} \\
@@ -76,6 +81,7 @@ In this section, we first elaborate on the efficacy of our compression scheme in
         \checkmark & - & z-curves & $5299$ & $0.00202$ & $8.1\%$ \\
         \hline
     \end{tabular}
+	\end{center}
     \caption{\label{tab:compression} Properties of neighborship table before and after compression for different types of grids. \textsuperscript{*}Ratio of number of compressed neighborship table entries to number of uncompressed neighborship table entries. \textsuperscript{\dag}Frequency of the most common entry in the neighborship table. }
 \end{table}
 

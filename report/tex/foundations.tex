@@ -94,7 +94,7 @@ When a kernel is launched, the programmer may specify how many threads should be
 \subsection{Memories} \label{sec:memories}
 
 \begin{figure}
-    \makebox[\textwidth]{
+    \makebox[\textwidth][c]{
     \input{tex/memory-hierarchy.tex}}
     \caption{\label{fig:memory-hierarchy} Memory Hierarchy of the Nvidia Volta architecture (compute capability 7.0). Global memory accesses are only cached in the unified L1 data/texture cache if they are read-only. Illustration based on information provided in \cite[Sections 2.3, 5.3.2, H.6]{cuda-programming}.}
 \end{figure}
@@ -124,6 +124,7 @@ Additionally to global/unified memory, there also exist \emph{constant} and \emp
 \subsubsection{Caches} Caching of memory accesses turned out to be another major factor in determining the runtimes of our implemented stencils. In the used Volta architecture, there is an L1 and an L2 cache for global and constant memory accesses. The L1 cache is private to each SM and shares its space with shared memory; using shared memory can therefore also be seen as an explicitly managed cache. Only read-only accesses to global memory are cached in L1, as this cache is per-SM and writes would require inter-SM synchronization. A second, separate L1 cache services constant memory reads and writes. The L2 cache is shared between SMs. It functions as a cache for global reads/writes as well as for local memory spilled from registers and constant accesses missing the L1 constant cache. In \cite[Chapter 3]{dissecting}, the latency for an L1 hit is reported at 28 cycles, and at about 193 cycles for an L2 hit. A more detailed overview of the memory structure and caches is also given in that paper.
 
 \subsection{Arguing About Performance}
+\label{sec:arguing}
 
 To understand the GPU performance of a kernel, it is important to understand the benefits of latency hiding. Instructions that load from (slow) memory or depend on the result of a previous instruction that has not yet been completed can cause so-called \emph{stalls} in both CPUs and GPUs. While on the CPU, many performance optimizations target reducing the number and the effect of these stalls (i.e. reducing latency), GPUs have the capability to \emph{hide} stalls by means of simply switching to a different warp that is not blocked. To analyze the performance of GPU applications we are therefore interested in two main characteristics of the execution:
 
@@ -138,6 +139,7 @@ Considering these two characteristics gives an overview of what the main limitin
 
 Nvidia provides a command-line profiling tool called \texttt{nvprof}. This tool supports collecting several metrics as kernels are executed. Some of these metrics which are of particular interest for the analyses to follow are:
 
+\begin{center}
 \begin{longtable}{p{0.3\textwidth} p{0.65\textwidth}}
     \multicolumn{2}{c}{\textbf{Occupancy metrics}} \\
     \hline
@@ -150,6 +152,7 @@ Nvidia provides a command-line profiling tool called \texttt{nvprof}. This tool 
     \raggedright \texttt{ipc} & Warp-level instructions executed per cycle. If there are many stalls, this ratio drops. Furthermore, this captures how well the SMs are able to pipeline instruction streams of a kernel. As pipelining is not as sophisticated as on CPUs, simple measures such as loop unrolling may yield better numbers here. Higher is better. \\
     
     \\
+	\newpage
     \multicolumn{2}{c}{\textbf{Stall reason metrics}} \\
     \hline
     \hline
@@ -181,11 +184,13 @@ Nvidia provides a command-line profiling tool called \texttt{nvprof}. This tool 
     \raggedright \texttt{global\_\allowbreak hit\_\allowbreak rate} & Arrow $1$ in figure \ref{fig:memory-hierarchy}. Hit rate at L1 cache \emph{only} for global memory reads (excludes texture memory). \\
     
     \\
+	\newpage
     \multicolumn{2}{c}{\textbf{Verification}} \\
     \hline
     \hline
     \raggedright \texttt{gst\_\allowbreak transactions} & Profiling also provides a simple means of verifying the correctness of the kernel. Checking whether the number of global store transactions is as expected gives an indication whether the kernel is behaving as expected. \\
     \hline
 \end{longtable}
+\end{center}
 
-One aspect of profiling a CUDA application in specific that also must not go unmentioned is the just-in-time compilation of kernels. The PTX instructions stored in CUDA binaries are not yet truly low-level machine code for the graphics card. In order to support running the same application on various platforms, these instructions are instead compiled on-the-fly for each host program run by the Nvidia driver. It is expected that the first execution of a kernel takes more time than subsequent executions due to this compilation step. In our benchmarks in section \ref{sec:results}, we, therefore, did not include the first run of a kernel.
+One aspect of profiling a CUDA application in specific that also must not go unmentioned is the \emph{just-in-time compilation} of kernels. The PTX instructions stored in CUDA binaries are not low-level machine code for the graphics card. In order to support running the same application on various platforms, these instructions are instead compiled on-the-fly for each host program run by the Nvidia driver. It is expected that the first execution of a kernel takes more time than subsequent executions due to this compilation step. In our benchmarks in section \ref{sec:results}, we, therefore, did not include the first run of a kernel.

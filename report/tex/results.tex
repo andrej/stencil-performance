@@ -1,15 +1,15 @@
 \chapter{Benchmark Results}    \label{sec:results}
 
-In this section, we compare the run times of several benchmarks on unstructured and regular grids on three real-world stencils. By applying the same set of stencils on both regular and unstructured grids, we show the effectiveness of the various previously described strategies for grid access and grid storage (see sections \ref{sec:grid-implementations}, \ref{sec:optimizations}). Furthermore, we use key metrics that are made available through the Nvidia profiler to better understand what causes the differences in performance.
+In this section, we compare the runtimes of three real-world stencils on regular and unstructured grids. By applying the same stencils on both types of grids, we show the effectiveness of the various previously described strategies for grid access and grid storage (see sections \ref{sec:grid-implementations}, \ref{sec:optimizations}). We use key profiler metrics to better understand what causes the differences in performance.
 
-Real-world stencil applications are applied in a multitude of different scenarios which result in differing problem domain sizes, precision requirements and properties of the stencils themselves. In combination with the different grid access and storage methods described in this report, this leads to a large number of potential setups to be tested. The benchmarks we executed can be characterized by the following properties:
+Real-world stencil applications are applied in a multitude of different scenarios: problem domain sizes, precision requirements and properties of the stencils vary. In combination with the various grid access and grid storage methods we described in this report this leaves a large number of combinations to be tested. The benchmarks we executed can be characterized by the following properties:
 
 \begin{itemize}
     \item 
         Input/output conditions 
         \begin{itemize}
             \item Domain size (size of the input and output grids)
-            \item Required precision (single or double precision)
+            \item Required precision (single or double floating-point number precision)
         \end{itemize}
     \item
         Stencil properties
@@ -23,46 +23,44 @@ Real-world stencil applications are applied in a multitude of different scenario
     \item
         Grid storage implementation properties
         \begin{itemize}
-            \item Memory layout and potential regular patterns of stored values
+            \item Memory layout and potential regular patterns in grid structure
             \item 
                 Memory layout of neighborship storage
                 \begin{itemize}
-                    \item Depth of stored neighbor pointers (pointer chasing)
+                    \item Depth of stored neighbor pointers (pointer \emph{chasing} vs. \emph{non-chasing})
                     \item Compression of neighborship table
                 \end{itemize}
         \end{itemize}
     \item
-        Used grid access implementations
+        Used grid access scheme
 \end{itemize}
-
-In the following, an overview of the benchmark results for the different possible combinations of these properties is given.
 
 \section{Benchmarked Stencils}\label{sec:benchmark-setup}
 
-We benchmark three stencils called \emph{laplace of laplace} (\emph{laplap} for short), \emph{horizontal diffusion} (\emph{hdiff} for short) and \emph{fast waves}. These stencils represent real-world use cases in meteorology applications. Table \ref{tab:benchmarked-stencils} details the values of the main stencil characteristics as listed in the bullet list above.
+The three benchmarked stencils are called \emph{laplace of laplace} (\emph{laplap}), \emph{horizontal diffusion} (\emph{hdiff}) and \emph{fastwaves}. These stencils represent real-world use cases in meteorology. Table \ref{tab:benchmarked-stencils} details the values of the main stencil characteristics listed in the bullet list above. Note the increasing complexity and number of fields required from the \emph{laplap} to the \emph{fastwaves} stencil. Also note that the \emph{fastwaves} stencil, otherwise the most complex, does not require access to neighbors-of-neighbors.
 
-The definitions of all three stencils are given in terms of a regular grid. Thus, to measure the overhead of using an unstructured grid with indirect addressing, we represent the same regular grid in an unstructured fashion, using two memory layouts, \emph{row-major} and \emph{z-order-curves} (see section \ref{sec:emulating}). This can be thought of as ``simulating'' an unstructured grid, even if the actual grid structure is entirely regular. Retaining this regularity even in the unstructured representation is required to maintain comparability of the results of the unstructured variants with the regular variants.
+The calculations performed by the stencils are defined in terms of a regular grid. All three stencils require neighborships as in regular grids (top, left, bottom, right, front, back). To measure the cost of using an unstructured grid, we represent the same regular grid in an unstructured fashion, using two memory layouts, \emph{row-major} and \emph{z-order-curves} (see section \ref{sec:emulating}). This can be thought of as \emph{emulating} an unstructured grid. Even if the grid structure is entirely regular, we store and access it in the same fashion as we would for a truly unstructured grid in the unstructured benchmarks. Retaining regularity even in the unstructured representation is required to maintain comparability of the results of the unstructured variants with the regular variants. We note that this approach to benchmarking might fail to capture some effects of real unstructured grids with actual irregularities.
 
-We implement each stencil in several variations as different Cuda kernels; one variant for every one of the grid access optimizations described in section \ref{sec:optimizations}. During the implementation process, the results of each of those variants are verified against an unoptimized reference implementation of the stencil which runs on the CPU to assure the correctness of the results.
+For all stencils, we created several variants; for each of the grid access optimizations described in section \ref{sec:optimizations} we implemented a separate Cuda kernel. During the implementation process, the results of each of those variants are verified against an unoptimized reference implementation of the stencil running on the CPU to assure the correctness of the results. In all variants, the implementation of the actual output calculations (as per stencil definition) remains completely unchanged. Only the portions of code responsible for index calculations/lookups (for neighborship access) are swapped out. This is achieved by using \emph{C preprocessor macro definitions} in all places where indexing or neighborship access is required. The macro definitions are then redefined in each variant to either use direct or indirect addressing for the regular and unstructured grids, respectively (with further variations for non-chasing/chasing and compressed/uncompressed neighborship tables).
 
-A regular and an unstructured version of all grid access variants are implemented; one for regular grids and one for unstructured grids. In all variants, the implementation of the actual output value calculations performed in accordance with the stencil definition remains completely unchanged. Only the portions of code responsible for indexing cells and neighbors are swapped to facilitate running the calculations on top of the different grid representations. This is achieved by using \emph{C preprocessor macro definitions} in all places where indexing or neighborship access is required. These macro definitions are then redefined to either use direct or indirect addressing for the respective grids.
+The stencils were benchmarked on a \emph{Nvidia Tesla V100} GPU. This GPU implements the \emph{Volta} architecture by Nvidia with compute capability $7.0$. The reported run times are the median of 20 timed kernel runs. Before the first one of the timed kernel runs, an untimed \emph{warm-up run} is performed (see the last paragraph section \ref{sec:arguing} for the reasoning behind this). The GPU is reset using an API call to \texttt{cudaDeviceReset()} between each run to flush caches and to free device memory from previous runs. The grid values and neighborship relations (for unstructured grids) are stored in unified global memory and are pre-transferred to the GPU and back to the host (\texttt{cudaMemPrefetchAsync()}) before respectively after the kernels are run. Memory transfer from host to device and back is, therefore, \emph{not} part of the reported run times.
 
-The stencils were benchmarked on a \emph{Nvidia Tesla V100} GPU. This GPU implements the \emph{Volta} architecture by Nvidia with compute capability $7.0$. The reported run times are the median of 20 timed kernel runs. Before the first one of the timed kernel runs, an untimed \emph{warm-up run} is performed (see section \ref{sec:foundations}). The GPU is reset using an API call to \texttt{cudaDeviceReset()} between each run to flush caches and free device memory from previous runs. The grid values and neighborship relations (for unstructured grids) are stored in unified global memory and are pre-transferred to the GPU and back to the host (\texttt{cudaMemPrefetchAsync()}) before respectively after the kernels are run. Memory transfer from host to device and back is, therefore, \emph{not} part of the reported run times.
-
-\begin{table}                                            
-\begin{tabular}{l c c c c p{4cm}}
-    \hline
-    \textbf{Stencil}  &  \multicolumn{3}{c}{\textbf{Neighborhood}}  &  \textbf{Fields}  &  \textbf{Arithmetic Intensity} \\
-    \cline{2-4}
-    &  \textbf{X}  &  \textbf{Y}  &  \textbf{Z}  & \\
-    \hline
-	\hline
-    \emph{laplap}  &  (-2, 2)  &  (-2, 2)  &  0  &  1  &  Add., Mult., Sub. \\
-    \emph{hdiff}  &  (-2, 2)  &  (-2, 2)  &  0  &  2  &  Add., Mult., Sub., Branches \\
-    \emph{fastwaves}  &  (0, 1)  &  (0, 1)  &  (-1, 1)  &  9  & Add., Mult., Sub., Div., Branches \\
-    \hline
-\end{tabular}
-\caption{\label{tab:benchmarked-stencils}Stencil Characteristics}
+\begin{table}
+	\begin{center}                                     
+		\begin{tabular}{l c c c c p{4cm}}
+		    \hline
+		    \textbf{Stencil}  &  \multicolumn{3}{c}{\textbf{Neighborhood}}  &  \textbf{Fields}  &  \textbf{Arithmetic Intensity} \\
+		    \cline{2-4}
+		    &  \textbf{X}  &  \textbf{Y}  &  \textbf{Z}  & \\
+		    \hline
+			\hline
+		    \emph{laplap}  &  (-2, 2)  &  (-2, 2)  &  0  &  1  &  Add., Mult., Sub. \\
+		    \emph{hdiff}  &  (-2, 2)  &  (-2, 2)  &  0  &  2  &  Add., Mult., Sub., Branches \\
+		    \emph{fastwaves}  &  (0, 1)  &  (0, 1)  &  (-1, 1)  &  9  & Add., Mult., Sub., Div., Branches \\
+		    \hline
+		\end{tabular}
+	\end{center}
+	\caption{\label{tab:benchmarked-stencils}Stencil Characteristics}
 \end{table}
 
 \section{Overview of Results}
@@ -81,18 +79,87 @@ The stencils were benchmarked on a \emph{Nvidia Tesla V100} GPU. This GPU implem
     % >>> fig=u.plotdone(legend=2)
     % >>> fig.set_size_inches(6,3)
     % >>> u.plotsave("report/img/overview-fastwaves.pdf", fig)
+	\begin{center}
+	    \includegraphics[scale=0.75]{overview-laplap.pdf}
     
-    \includegraphics[scale=0.75]{overview-laplap.pdf}
+	    \vspace{0.5cm}
     
-    \vspace{0.5cm}
+	    \includegraphics[scale=0.75]{overview-hdiff.pdf}
     
-    \includegraphics[scale=0.75]{overview-hdiff.pdf}
+	    \vspace{0.5cm}
     
-    \vspace{0.5cm}
-    
-    \includegraphics[scale=0.75]{overview-fastwaves.pdf}
-    
+	    \includegraphics[scale=0.75]{overview-fastwaves.pdf}
+		
+    \end{center}
     \caption{\label{fig:storage-access} Median runtimes across 20 runs for all combinations of storage and access strategy, for stencils on a $512\times512\times 64$-sized unstructured grid (z-curves layout).}
 \end{figure}
 
-Overall, we observed slowdowns around $50\%$, $30\%$ and $5\%$ compared to fastest regular grid performance for the \emph{laplap}, \emph{hdiff} and \emph{fastwaves} stencils, respectively. Figure \ref{fig:storage-access} shows an overview of the overhead for all tested combinations of storage and access strategy on a large grid of size $512\times 512\times 64$. For different domain sizes, see section \ref{sec:res-size}. We chose to display the results for a \emph{z-curve} layout, but results for the \emph{row-major} benchmarks are similar. The fastest launch configuration is plotted for each bar; for a more detailed analysis of what block sizes are beneficial to the different access strategies, see section \ref{sec:res-blocksize}. A more in-depth analysis of the different storage and access strategies is given in section \ref{sec:res-storage} and \ref{sec:res-access} respectively.
+Overall, we observed slowdowns around $50\%$, $30\%$ and $5\%$ compared to fastest regular grid performance for the \emph{laplap}, \emph{hdiff} and \emph{fastwaves} stencils, respectively. Figure \ref{fig:storage-access} shows an overview of the overhead for all tested combinations of storage and access strategy on a large grid of size $512\times 512\times 64$. Table \ref{tab:overview} lists the fastest access strategy, the runtimes and the overheads for the three stencils in all possible storage configurations. For different domain sizes, see section \ref{sec:res-size}. We chose to display the results for a \emph{z-curve} layout, but results for the \emph{row-major} benchmarks are similar. The fastest launch configuration is plotted for each bar; for a more detailed analysis of what block sizes are beneficial to the different access strategies, see section \ref{sec:res-blocksize}. A more in-depth analysis of the different storage and access strategies is given in section \ref{sec:res-storage} and \ref{sec:res-access} respectively
+
+\begin{table}
+	\begin{center}
+    \begin{tabular}{l c c l c r} % c c}        
+        \multicolumn{6}{c}{\textbf{Laplace-of-Laplace Stencil}} \\
+        \hline
+        \hline
+        %& & & & \multicolumn{2}{c}{$512\times 512\times 64$ Grid} & \multicolumn{2}{c}{$128\times 128\times 64$ Grid} \\
+        %\cline{5-6} %\cline{7-8} 
+        Storage & (1) & (2) & Access Strategy  & Runtime & Slowdown \\ %& Runtime & Slowdown \\
+        \hline 
+        \multicolumn{3}{c}{regular grid baseline} & index variables & $353 \mu s$ & -\\
+        \hline
+         row-major & \checkmark & \checkmark & index variables &  $\mathbf{512 \mu s}$ & $\mathbf{45 \%}$ \\
+         row-major & - & \checkmark & index variables & $515 \mu s$ & $46 \%$ \\
+         row-major & \checkmark & - & sliced z-loop & $582 \mu s$ & $65\%$ \\
+         row-major & - & - & sliced z-loop & $608 \mu s$ & $72 \%$ \\
+        \hline
+         z-curves & - & \checkmark & naive & $\mathbf{528 \mu s}$ & $\mathbf{50 \%}$ \\
+         z-curves & \checkmark & \checkmark & index variables & $532 \mu s$ & $51 \%$ \\
+         z-curves & \checkmark & - &  z-loop & $546\mu s$ & $55 \%$ \\
+         z-curves & - & - & z-loop & $603 \mu s$ & $71 \%$ \\
+        
+        \hline
+        \hline \\
+        \multicolumn{6}{c}{\textbf{Horizontal Diffusion Stencil}} \\
+        \hline
+        \hline
+        Storage & (1) & (2) & Access Strategy  & Runtime & Slowdown \\
+        \hline
+        \multicolumn{3}{c}{regular grid baseline} & index variables & $546 \mu s$ & - \\
+        \hline
+          row-major & - & \checkmark & naive & $\mathbf{683 \mu s}$ & $\mathbf{25 \%}$ \\
+        
+         row-major & \checkmark & \checkmark & index variables & $731 \mu s$ & $34 \%$ \\
+        
+         row-major & \checkmark & - & index variables & $804\mu s$ & $47\%$ \\
+         &   & &  shared (tie) & $804\mu s$ & $47\%$ \\
+         row-major & - & - & naive & $845 \mu s$ & $55 \%$ \\
+        \hline
+         z-curves & - & \checkmark & naive & $\mathbf{710 \mu s}$ & $\mathbf{30 \%}$ \\
+         z-curves & \checkmark & \checkmark & index variables & $741 \mu s$ & $36 \%$ \\
+         z-curves & \checkmark & - & index variables & $820\mu s$ &  $50 \%$ \\
+         z-curves & - & - & shared & $841 \mu s$ & $54 \%$ \\
+        
+        \hline
+        \hline\\
+        \multicolumn{6}{c}{\textbf{Fastwaves Stencil}}\\
+        \hline
+        \hline
+        Storage & (1) & (2) & Access Strategy  & Runtime & Slowdown \\
+        \hline
+        \multicolumn{3}{c}{regular grid baseline} & naive & $2298 \mu s$ & - \\
+        \hline
+        row-major & & - & naive & $\mathbf{2400\mu s}$ & $\mathbf{4.4 \%}$ \\
+        row-major & & \checkmark & naive & $2433\mu s$ & $5.9 \%$ \\
+        \hline
+        z-curves & & - & naive & $\mathbf{2426\mu s}$ & $\mathbf{5.6 \%}$ \\
+        z-curves & & \checkmark & naive & $2438\mu s$ & $6.1 \%$ \\
+        \hline\hline
+    \end{tabular}
+	\end{center}
+    \begin{enumerate}[label=(\arabic*)]
+        \item Pointer Chasing? (Checkmark if only direct neighbors are stored, no neighbors-of-neighbors, and pointer chasing occurs.)
+        \item Compressed? (Checkmark if neighborship table was compressed.)
+    \end{enumerate}
+    \caption{\label{tab:overview} Fastest access strategy, runtimes (median of 20 runs) and relative slowdown given the grid storage type for the three benchmarked stencils on a $512\times 512\times 64$-sized grid of doubles.}
+\end{table}

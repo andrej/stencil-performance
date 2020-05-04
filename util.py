@@ -1,3 +1,5 @@
+# coding=utf-8
+
 # Utilities for working with reformatted output CSVs and plotting
 import numpy as np
 import pandas as pd
