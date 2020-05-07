@@ -9,14 +9,14 @@ We also noticed that some grid \emph{storage optimizations} are only effective o
 \subsection{Change in X and Y Domain Size}
 
 \begin{figure}
-    % dat=pd.concat([large, medium, small])
+%     dat=pd.concat([large, medium, small])
 % dat["rel"]=u.relmingroup(dat,by=u.col.size+u.col.stencil)
 % fastest=u.groupmin(dat, by=u.col.problem+u.col.variant+u.col.storage)
-    % u.barplot(fastest[fastest["unstructured"]&(fastest["size-z"]==64)&(fastest["stencil"]=="laplap")], cat=u.col.size, grp=u.col.variant, y="rel", tickrot=0)
+%     u.barplot(fastest[fastest["unstructured"]&(fastest["size-z"]==64)&(fastest["stencil"]=="laplap")], cat=u.col.size, grp=u.col.variant, y="rel", tickrot=0)
 	\begin{center}
-    \includegraphics[scale=0.75]{variants-gridsizes.pdf}
+    \includegraphics[scale=0.75]{laplap-z-curves-sizes.pdf}
 	\end{center}
-    \caption{\label{fig:variants-gridsizes} Relative runtime of different variants of the Laplace-of-Laplace benchmark at different X-Y-sizes with respect to the fastest regular variant. For each bar, the fastest storage variant is considered (fastest of \emph{compression/chasing/z-curves}). Baseline: fastest regular grid implementation.}
+    \caption{\label{fig:variants-gridsizes} Relative runtime overhead compated to fastest regular variant of different implementations (access strategies) of the \emph{laplap} stencil on an unstructured grid with \emph{z-curves} memory layout. For each bar, the fastest storage variant is plotted (i.e. all combinations of \emph{compressed} and \emph{uncompressed}, \emph{chasing} and \emph{non-chasing} were benchmarked and fastest was plotted). Baseline: fastest regular grid implementation.}
 \end{figure}
 
 We have evaluated combinations of grid storage and access variants for the three stencils on grids of X-Y size $64\times 64$ (small grid), $128\times 128$ (medium grid) and $512\times 512$ (large grid). We observed that, relatively seen, increases in the X-Y-domain size affect the unstructured variants more negatively than the regular ones.

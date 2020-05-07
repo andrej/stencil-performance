@@ -1,4 +1,4 @@
-\chapter{Foundations}                                    \label{sec:foundations}
+\chapter{Background}                                    \label{sec:foundations}
 
 \section{Grids}                                            \label{sec:grids}
 
@@ -17,7 +17,7 @@ While an unstructured grid theoretically supports arbitrary neighborship relatio
 
 In our implementations, cells in a grid are identified by \emph{coordinates}, which relate a cell to its real-world position and \emph{indices} which give the storage location of a cell in memory. 
 
-Throughout the rest of this report we refer to the dimensions of a grid as the \emph{maximum number of elements} in each dimension, and denote it by the vector
+Throughout the rest of this report we refer to the size of a grid as the \emph{maximum number of elements} in each dimension, and denote it by the vector
 $$d = \begin{pmatrix}d_x \\ d_y \\ d_z\end{pmatrix}.$$
 A unique identifier for each cell on the grid is given by its coordinates, denoted in similar fashion by a vector
 $$p = \begin{pmatrix}p_x \\ p_y \\ p_z\end{pmatrix}.$$
@@ -27,7 +27,7 @@ As memory is one-dimensional, a mapping from the three-dimensional coordinates o
 
 \section{Stencils}                                    \label{sec:stencils}
 
-Finding approximate numerical solutions to the governing equations of physical processes, as in meteorology, often entails performing certain unchanging calculations on every cell of a grid. The result of this process is again a grid of similar dimensions. For each cell, the calculated output value is dependent only on a bounded small number of neighboring cells' values (\emph{neighborhood}). Such a computation is called \emph{stencil}. Simple stencils may require only the values of the current cell as well as directly adjacent (face-touching) neighbors in order to calculate the output value, while more complex ones could also depend on diagonal neighbors, neighbors-of-neighbors, etc. Yet, some spatial locality is guaranteed. 
+Finding approximate numerical solutions to the governing equations of physical processes, as in meteorology, often entails performing certain unchanging calculations on every cell of a grid. The result of this process is again a grid of similar size. For each cell, the calculated output value is dependent only on a bounded small number of neighboring cells' values (\emph{neighborhood}). Such a computation is called \emph{stencil}. Simple stencils may require only the values of the current cell as well as directly adjacent (face-touching) neighbors in order to calculate the output value, while more complex ones could also depend on diagonal neighbors, neighbors-of-neighbors, etc. Yet, some spatial locality is guaranteed. 
 
 \paragraph{Halo} \label{sec:halo} In stencil computations, special consideration needs to be given to the boundary cells of the grid. Cells at the boundary of a grid have fewer neighbors than inner cells. As such, the output value for a stencil depending on neighbors is unclear for cells who do not have those neighbors. One way to address this issue is to execute the stencil only on the safe inner values of a grid, separated from the boundary by a certain amount of padding. The amount of padding used depends on the size of the neighborhood which a stencil requires for its computation. We call the set of cells residing in the padding around the boundaries of the grid \emph{halo}. Stencil implementations may include a branch instruction that prevents any computations if a cell lies in the halo. Alternatively, for ease of implementation and performance, it can be beneficial to store the halo separately in memory.
 
@@ -123,7 +123,7 @@ Additionally to global/unified memory, there also exist \emph{constant} and \emp
 
 \subsubsection{Caches} Caching of memory accesses turned out to be another major factor in determining the runtimes of our implemented stencils. In the used Volta architecture, there is an L1 and an L2 cache for global and constant memory accesses. The L1 cache is private to each SM and shares its space with shared memory; using shared memory can therefore also be seen as an explicitly managed cache. Only read-only accesses to global memory are cached in L1, as this cache is per-SM and writes would require inter-SM synchronization. A second, separate L1 cache services constant memory reads and writes. The L2 cache is shared between SMs. It functions as a cache for global reads/writes as well as for local memory spilled from registers and constant accesses missing the L1 constant cache. In \cite[Chapter 3]{dissecting}, the latency for an L1 hit is reported at 28 cycles, and at about 193 cycles for an L2 hit. A more detailed overview of the memory structure and caches is also given in that paper.
 
-\subsection{Arguing About Performance}
+\subsection{Performance Considerations}
 \label{sec:arguing}
 
 To understand the GPU performance of a kernel, it is important to understand the benefits of latency hiding. Instructions that load from (slow) memory or depend on the result of a previous instruction that has not yet been completed can cause so-called \emph{stalls} in both CPUs and GPUs. While on the CPU, many performance optimizations target reducing the number and the effect of these stalls (i.e. reducing latency), GPUs have the capability to \emph{hide} stalls by means of simply switching to a different warp that is not blocked. To analyze the performance of GPU applications we are therefore interested in two main characteristics of the execution:
