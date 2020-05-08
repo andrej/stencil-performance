@@ -1,6 +1,6 @@
 \section{Effect of Problem Domain Size and Precision} \label{sec:res-size}
 
-This section gives some insight into how the performance of unstructured grid stencil computations relates to the input domain size. The relative overhead caused by unstructured grids varies strongly depending on the size of the grid. Generally, stencils applied to small unstructured grids are closer to regular grid runtimes than the same stencils applied to large unstructured grids (in relative terms). At smaller sizes, the cache can be used more effectively.
+In previous sections, we mainly focused our performance analyses on large grids of size $512\times 512\times 64$. This section gives some insight into how the performance of unstructured grid stencil computations relates to different input domain sizes. As we noticed, the relative overhead caused by unstructured grids varies strongly depending on the size of the grid. Generally, stencils applied to small unstructured grids are closer to regular grid runtimes than the same stencils applied to large unstructured grids (in relative terms). At smaller sizes, the cache can be used more effectively.
 
 Of special interest are size changes in the Z-dimension only. Changing the Z-size and measuring the accompanying slowdowns reveals how well the different implementations are able to make use of the regularity in the Z-dimension. We investigate this in section \ref{sec:res-z-size-change}.
 
@@ -16,10 +16,10 @@ We also noticed that some grid \emph{storage optimizations} are only effective o
 	\begin{center}
     \includegraphics[scale=0.75]{laplap-z-curves-sizes.pdf}
 	\end{center}
-    \caption{\label{fig:variants-gridsizes} Relative runtime overhead compated to fastest regular variant of different implementations (access strategies) of the \emph{laplap} stencil on an unstructured grid with \emph{z-curves} memory layout. For each bar, the fastest storage variant is plotted (i.e. all combinations of \emph{compressed} and \emph{uncompressed}, \emph{chasing} and \emph{non-chasing} were benchmarked and fastest was plotted). Baseline: fastest regular grid implementation.}
+    \caption{\label{fig:variants-gridsizes} Relative overhead compared to fastest regular variant of different implementations of the \emph{laplap} stencil on an unstructured grid with \emph{z-curves} memory layout. For each bar, the fastest neighborship table implementation was plotted (i.e. all combinations of \emph{compressed} and \emph{uncompressed}, \emph{chasing} and \emph{non-chasing} were benchmarked and the fastest setup was chosen). Baseline: fastest regular grid implementation.}
 \end{figure}
 
-We have evaluated combinations of grid storage and access variants for the three stencils on grids of X-Y size $64\times 64$ (small grid), $128\times 128$ (medium grid) and $512\times 512$ (large grid). We observed that, relatively seen, increases in the X-Y-domain size affect the unstructured variants more negatively than the regular ones.
+We have evaluated combinations of grid storage and access variants for the three stencils on grids of X-Y size $64\times 64$ (small grid), $128\times 128$ (medium grid) and $512\times 512$ (large grid). We observed that relatively seen, increases in the X-Y-domain size affect the unstructured variants more negatively than the regular ones.
 
 For small domains, the runtimes of unstructured variants are generally close to those of their regular counterparts. With increased domain size, there is an increase in the relative slowdown of the unstructured variant with respect to the fastest regular implementation. We assume this is due to cache sizes; while in smaller grids, entire neighborship tables and cell values remain cached, larger grids necessitate larger neighborship tables that cannot fit into the cache as a whole. Figure \ref{fig:variants-gridsizes} shows this trend for the \emph{laplap} benchmark, but the same characteristics apply to the other stencils as well.
 
@@ -36,7 +36,7 @@ The \emph{z-loop} grid access variant is the only exception to the described cha
 	\begin{center}
     \includegraphics[scale=0.75]{laplap-idxvar-z-sizes.pdf}
 	\end{center}
-    \caption{\label{fig:laplap-z-sizes} Relative slowdowns of the \emph{laplap} stencil on unstructured grids of various Z-sizes. Baseline: fastest regular grid implementation. The other two stencils show similar characteristics.}
+    \caption{\label{fig:laplap-z-sizes} Relative slowdowns of the \emph{laplap} stencil, implemented using the \emph{idxvar} access strategy, on unstructured grids of various Z-sizes (\emph{z-curves} memory layout with \emph{double} precision). Baseline: fastest regular grid implementation. The other two stencils show similar characteristics.}
 \end{figure}
 
 Given a $512\times 512$-sized base grid, we benchmarked our stencils with various Z-sizes ranging from $1$ to $64$. Analyzing the relative unstructured grid overhead, we observed two main patterns, which can be seen in figure \ref{fig:laplap-z-sizes}. Which pattern the overhead follows depends on the chosen grid storage. The observed patterns are as follows:
@@ -51,10 +51,10 @@ On the other hand, as our grids are regular in the Z-dimension, neighborship poi
 
 The observed relative overheads result from a combination of the two described effects (\emph{once-per-cell} and \emph{once-per-pillar} costs). In the uncompressed variants, the \emph{once-per-pillar costs} appear to dominate; thus, an increase in Z-size leads to better relative runtimes.
 
-Some of our optimized access strategies aim to make explicit use of the \emph{once-per-pillar} nature of neighborship reads (\emph{shared}, \emph{z-loop} and \emph{z-loop-sliced}). Even the access strategies that do not explicitly exploit Z-regularity benefit from it if neighborship pointers happen to reside in caches.  In the best-case scenario, all neighborship pointers are already in the L1 cache (\emph{idxvar}), shared memory (\emph{shared} access strategy), or loaded into registers at the beginning of a loop (\emph{z-loop}) when a thread begins computation.
+Some of our optimized access strategies aim to make explicit use of the \emph{once-per-pillar} nature of neighborship reads (\emph{shared}, \emph{z-loop}, and \emph{z-loop-sliced}). Even the access strategies that do not explicitly exploit Z-regularity benefit from it if neighborship pointers happen to reside in caches.  In the best-case scenario, all neighborship pointers are already in the L1 cache (\emph{idxvar}), shared memory (\emph{shared} access strategy), or loaded into registers at the beginning of a loop (\emph{z-loop}) when a thread begins computation.
 
 \subsection{Effect of Floating-Point Precision}
 
 We observed no significant differences in the relative slowdown when using single-precision floating-point data types instead of double-precision data types. As expected, the absolute runtimes decrease with lower precision. This happens in the same proportions for both regular grid and unstructured grid implementations -- both are roughly $40\%$ faster than double-precision speeds.
 
-As it appears to have no effect on the characteristics of our benchmarks, we consistently used double precision data types in all other experiments apart from this section.
+As it appears to not affect the characteristics of our benchmarks, we consistently used double precision data types in all other experiments apart from this section.

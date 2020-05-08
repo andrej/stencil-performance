@@ -1,10 +1,6 @@
 \section{Effect of Grid Storage} \label{sec:res-storage}
 
-In section \ref{sec:grid-implementations}, we described different approaches to storing an unstructured grid. Four storage approaches were benchmarked as a result of varying the following two properties: First, the depth of the neighborship table, i.e. whether only neighbors (\emph{chasing} variant) or also neighbors-of-neighbors (\emph{non-chasing} variant) were stored. Second, whether the neighborship table was \emph{compressed} or \emph{uncompressed}.
-
-We observed that \emph{pointer chasing} does inhibit performance in most cases, but not as strongly as one might anticipate. In fact, for large grids with an uncompressed neighborship table, performing pointer chasing in stencils is faster than \emph{non-chasing} variants (probably due to the large number of neighborship table entries a non-chasing variant requires in this scenario). In all other cases, however, specifically grids of small size or compressed grids, using \emph{non-chasing} neighborship tables improves runtimes.
-
-In large grids, for both the \emph{hdiff} and \emph{laplap} stencils, compressing the neighborship table provides a significant benefit. However, the additional memory lookup required and unavoidable uncoalesced accesses to the neighborship table limit the possible advantage. In the \emph{fastwaves} stencil, the additional overhead of compression is counter-productive and slows execution down. The same is the case for small grids.
+Having implemented the stencils using the various grid access strategies, we then went on to explore optimization possibilities in the grid storage, namely how the neighborship tables could be stored in a way to enable faster accesses. The different approaches are described in section \ref{sec:grid-implementations}. We evaluated four different neighborship table structures, resulting from the combinations of the following two properties: First, the depth of the neighborship table, i.e. whether only neighbors (\emph{chasing} variant) or also neighbors-of-neighbors (\emph{non-chasing} variant) were stored. Second, whether the neighborship table was \emph{compressed} or \emph{uncompressed}.
 
 \begin{figure}
     % ax=u.barplot(df64mins[(df64mins["stencil"]=="hdiff")&df64mins["z-curves"]&(df64mins["size-x"]>=128)], grp=u.col.stencil+u.col.size, cat=u.col.storage, tickrot=0, y="rel")
@@ -25,7 +21,7 @@ In large grids, for both the \emph{hdiff} and \emph{laplap} stencils, compressin
 	\begin{center}
     \includegraphics[scale=0.75]{hdiff-z-curves-sizes-storage.pdf}
 	\end{center}
-    \caption{\label{fig:hdiff-sizes-storage} Relative slowdowns for the horizontal diffusion stencil on a small and a larger grid. The fastest access variant is plotted for each bar, which is one of \emph{index variables}, \emph{naive} and \emph{idxvar-shared} for the shown benchmarks. This example for the horizontal diffusion stencil is representative for the other two benchmarks as well, where the slowdowns follow a similar pattern. (Note that in the fastwaves stencils, pointer chasing is not applicable as there only direct neighbors are accessed.) Baseline: fastest regular grid implementation.}
+    \caption{\label{fig:hdiff-sizes-storage} Effect of neighborship table properties on runtime depending on problem size. This shows the slowdowns relative to the fastest regular grid implementations for the \emph{hdiff} stencil on a small and a large grid (both \emph{z-curves} memory layout with \emph{double} precision). The respective fastest access variant is plotted for each bar, which is one of \emph{idxvar}, \emph{naive}, and \emph{shared} for the shown benchmarks. This example for the \emph{hdiff} stencil is representative of the other two benchmarks as well, where the slowdowns follow a similar pattern. (Note that in the \emph{fastwaves} stencil, pointer chasing is not applicable as there only direct neighbors are accessed.) Baseline: fastest regular grid implementation.}
 \end{figure}
 
 \subsection{Pointer Chasing vs. Neighbor-of-Neighbor Storage}
@@ -39,30 +35,36 @@ In large grids, for both the \emph{hdiff} and \emph{laplap} stencils, compressin
         \textbf{Size} & \textbf{Chasing?} & \textbf{\texttt{tex\_\allowbreak cache\_\allowbreak hit\_\allowbreak rate}} & \textbf{\texttt{l2\_\allowbreak tex\_\allowbreak hit\_\allowbreak rate}} & \textbf{\texttt{stall\_\allowbreak memory\_\allowbreak dependency}} & \textbf{Runtime} \\
         \hline
         \hline
-        $128\times 128\times 64$ & - &             $73\%$ & $68\%$ & $59\%$ & $\mu s$ \\
-        $128\times 128\times 64$ & \checkmark & $67\%$ & $72\%$ & $54\%$ & $\mu s$ \\
+        $128\times 128\times 64$ & \checkmark &             $73\%$ & $68\%$ & $59\%$ & $41 \mu s$ \\
+        $128\times 128\times 64$ & - & $67\%$ & $72\%$ & $54\%$ & $40 \mu s$ \\
         \hline
-        $512\times 512\times 64$ & - &             $68\%$ & $58\%$ & $74\%$ & $\mu s$ \\
-        $512\times 512\times 64$ & \checkmark & $63\%$ & $37\%$ & $60\%$ & $\mu s$ \\
+        $512\times 512\times 64$ & \checkmark &             $68\%$ & $684\%$ & $74\%$ & $841 \mu s$ \\
+        $512\times 512\times 64$ & - & $63\%$ & $37\%$ & $60\%$ & $1042 \mu s$ \\
         \hline
     \end{tabular}
 	\end{center}
-    \caption{\label{tab:chasing} Selected metrics for runs of the horizontal diffusion stencil on unstructured grids of different sizes (all of them in \emph{z-curves} layout), both with and without pointer chasing. The fastest found variant and launch configuration was chosen for each configuration seperately.}
+    \caption{\label{tab:chasing} Selected metrics for runs of the \emph{laplap} stencil on unstructured grids of different sizes (all of them in \emph{z-curves} memory layout with \emph{double} precision, \emph{uncompressed} neighborship table), both with and without pointer chasing. The \emph{idxvar} access strategy was used with a fixed launch configuration of $64\times 4\times 2$ threads.}
 \end{table}
 
-Two of the three benchmarked stencils, Laplace-of-Laplace and Horizontal Diffusion, access neighbors beyond the directly face-touching cells (neighbors of neighbors). For those stencils, two implementations were benchmarked: First, we assessed the performance when only direct neighbors are explicitly stored. This approach requires \emph{pointer chasing}: To access the neighbor of a neighbor, two sequential lookups become necessary. As the second lookup can only be started when the first one completed, a higher latency may occur in this variant. Therefore, we then also tested variants in which the neighbors-of-neighbors were explicitly stored in memory, reducing the number of required memory lookups for those cells from two to one. This comes at the cost of a higher memory footprint, however.
+Two of the three benchmarked stencils, \emph{Laplace-of-Laplace} and \emph{horizontal diffusion}, access neighbors beyond the directly face-touching cells (neighbors-of-neighbors). For those stencils, we first assessed the performance when only direct neighbors are explicitly stored. This approach requires \emph{pointer chasing}: To access the neighbor of a neighbor, two sequential lookups to the neighborship table become necessary. As the second lookup can only be started once the first one has completed, a higher latency  occurs in this variant. Therefore, we then also tested variants in which the neighbors-of-neighbors were explicitly stored in memory, reducing the number of required memory lookups for these types of accesses from two to one. We call this \emph{non-chasing} neighborship storage. This approach comes at the cost of a higher memory footprint.
 
-Generally, we observe the following trend: If the grid is small or compressed, pointer chasing becomes an issue (and thus \emph{non-chasing} variants profit). In larger uncompressed grids, the latency of the two lookups required in pointer chasing for neighbors-of-neighbors can be effectively hidden. This is visible in figure \ref{fig:hdiff-sizes-storage}, which outlines the differences of the storage approaches for the fastest respective variant of the horizontal diffusion stencil on grids of different sizes. 
+Generally, we observed the following trend: If the grid is small or compressed, pointer chasing becomes an issue, and thus the \emph{non-chasing} variants provide an advantage. In larger \emph{uncompressed} grids, the latency of the two lookups required for neighbors-of-neighbor access can be effectively hidden. This is visible in figure \ref{fig:hdiff-sizes-storage}, which outlines the differences of the storage approaches for the fastest respective variant of the \emph{hdiff} stencil on grids of different sizes. 
 
-In all cases, a higher total number of device memory and L2 cache reads is observed in the \texttt{nvprof} metrics for the non-chasing variants. This is to be expected, as non-chasing variants need to store and read more information from a larger number of different addresses. The L1 cache hit rate lowers by around $6\%$ in both large and small grids when pointers to neighbors-of-neighbors are explicitly stored. In large grids, the L2 cache hit rate also drops dramatically; for smaller grids, it is unaffected and remains high. Thus, the additional neighbor-of-neighbor information stored hurts cache locality more in larger grids, putting non-chasing variants at a disadvantage there. This is due to the fact that larger grids require more of this information, while the cache size remains constant -- consequently, some data has to be evicted from the cache. This does not happen as often in a smaller grid. The variants that perform pointer chasing experience a higher percentage of stalls due to memory dependencies due to the second lookup depending on the result of the first for neighbor-of-neighbor reads.  We conclude that non-chasing storage is beneficial to small grids, where it is effective in reducing latency, and unfavorable for larger grids due to the caused cache evictions (especially in the L2 cache), that increase the latency of neighbor accesses. Table \ref{tab:chasing} shows an overview of the metrics discussed in this paragraph for an exemplary stencil configuration of the horizontal diffusion stencil.
+In all cases, a higher total number of device memory and L2 cache reads was observed for the \emph{non-chasing} variants. This is to be expected, as \emph{non-chasing} variants need to store and read more information from a larger number of different addresses. When pointers to neighbors-of-neighbors are explicitly stored, the L1 cache hit rate lowers by around $6\%$ in both large and small grids. In large grids, the L2 cache hit rate also drops dramatically; for smaller grids, it remains unaffected.
+
+In large \emph{non-chasing} grids, the additional neighbor-of-neighbor entries affect cache locality more negatively than in small grids. This is because larger grids have more neighborship table entries, while the cache size remains constant -- consequently, some data has to be evicted from the cache. This does not happen as often in a smaller grid. The variants that perform pointer chasing experience a higher percentage of stalls caused by memory dependencies; neighbor-of-neighbor reads block progress as the second lookup waits for the result of the first one. 
+
+We conclude that non-chasing storage is beneficial to small grids, where it is effective in reducing latency, and unfavorable for larger grids due to the caused cache evictions (especially in the L2 cache) increasing the latency of neighbor accesses. Table \ref{tab:chasing} shows an overview of the metrics discussed in this paragraph for an exemplary stencil run.
 
 \subsection{Effect of Neighborship Table Compression}
 
-In section \ref{sec:compression}, we described a very simple compression scheme for the neighborship tables. Here, we evaluate its usefulness. On large $512\times 512\times 64$-sized grids, we saw a reduction in runtimes using compressed neighborship tables for most benchmarks. The highest relative speedups were attained for the \emph{laplap} stencil, which ran $23\%$ faster. In the \emph{hdiff} stencil, we achieved a speedup of $21\%$. In contrast, the \emph{fastwaves} stencil was slightly slowed down by the added overhead of compression and ran $3\%$ slower.
+As most unstructured grids have irregularities only in few places, much of the information in the neighborship tables is redundant. Moving forward, we wanted to investigate whether this redundancy could be made use of to further reduce unstructured stencil runtimes. In section \ref{sec:compression}, we described a very simple compression scheme for the neighborship tables motivated by this idea. In this section, we elaborate on its performance implications.
+
+Using \emph{compressed} neighborship tables, we saw a reduction in runtimes  for most benchmarks on large $512\times 512\times 64$-sized grids. The highest relative speedups were attained for the \emph{laplap} stencil, which ran $23\%$ faster. In the \emph{hdiff} stencil, we achieved a speedup of $21\%$. In contrast, the \emph{fastwaves} stencil was slightly slowed down by the added overhead of compression and ran $3\%$ slower.
 
 In smaller grids ($128\times 128\times 64$ and $64\times 64\times 64$), the additional level of indirection introduced by our compression scheme also mostly led to a deterioration in run times. The interplay of grid size and compression can also be seen in figure \ref{fig:hdiff-sizes-storage}.
 
-In this section, we first elaborate on the efficacy of our compression scheme in terms of (reduced) memory requirements and then detail the effects on runtime in an attempt to explain the observed runtimes.
+In the following two subsections we will further elaborate on the efficacy of our compression scheme in terms of (reduced) memory requirements and detail the effects on parallel execution in an attempt to explain the observed runtimes.
 
 \subsubsection{Distribution of Neighborship Table Entries After Compression}
 
@@ -82,13 +84,14 @@ In this section, we first elaborate on the efficacy of our compression scheme in
         \hline
     \end{tabular}
 	\end{center}
-    \caption{\label{tab:compression} Properties of neighborship table before and after compression for grids with different memory layouts (\emph{z-curves} and \emph{row-major}) and both chasing and non-chasing neighborship tables. \textsuperscript{*}Ratio of number of compressed neighborship table entries to number of uncompressed neighborship table entries. \textsuperscript{\dag}Frequency of the most common entry in the neighborship table. }
+	\textsuperscript{*}Ratio of number of compressed neighborship table entries to number of uncompressed neighborship table entries. \textsuperscript{\dag}Frequency of the most common entry in the neighborship table. 
+    \caption{\label{tab:compression} Properties of neighborship table before and after compression for $512\times 512\times 64$-sized grids with different memory layouts (\emph{z-curves} and \emph{row-major}), for both \emph{chasing} and \emph{non-chasing} implementations. }
 \end{table}
 
 \begin{figure}
 	\begin{center}
 		\includegraphics[scale=0.75]{dist-scaled.pdf}
-		\caption{\label{fig:comp-dist} Distribution of the neighborship table entries. The y-axis shows how many cells share the same relative neighborship offsets. The x-axis shows the index at which neighborship offsets are stored in the neighborship table. \emph{Note the different scale in the bottom row!}}
+		\caption{\label{fig:comp-dist} Distribution of the first 40 neighborship table entries of a $512\times 512\times 64$-sized grid for both benchmarked memory layouts and \emph{chasing} and \emph{non-chasing} implementations. The y-axis shows how many cells share the same relative neighborship offsets. The x-axis is the index in the neighborship table. A sharper peak means more effective compression. As an example, the first two entries in the \emph{chasing} neighborship table of a grid with \emph{z-curves} memory layout are shared by $53340$ cells. Compare this to the uncompressed case (not plotted), where each entry is shared across Z-levels between cells with equal X- and Y-coordinates, i.e. $64$ times in this example. \emph{Note the different scale in the bottom row!}}
 	\end{center}
 \end{figure}
 
@@ -98,29 +101,29 @@ Note that a completely random grid would result in a very even distribution. In 
 
 \subsubsection{Runtime Effects of Compression on Stencil Execution}
 
-The motivating idea behind implementing compression for the neighborship tables is an anticipated improvement to the caching of frequently used neighborship table entries. As we observed, neighborship information is distributed favorably and concentrates around a few frequently used entries (see table \ref{tab:compression} in the previous section). By using compression, we hope that these entries remain in the L1 cache, and thus reduce the number of expensive reads to the L2 cache (or even device memory) required for neighborship index lookups. Yet, because cells with identical neighborship patterns share neighborship table entries in the compressed scheme, a mapping from cell index to pattern index must be implemented. This mapping introduces an additional lookup, whose latency may offset the advantage of cached neighborship table entries.
+The motivating idea behind implementing compression for the neighborship tables was an anticipated improvement to the caching of frequently used neighborship table entries. As we observed, neighborship information is distributed favorably and concentrates around a few frequently used entries (see table \ref{tab:compression} in the previous section). By using compression, we hoped that these entries remain in the L1 cache, and thus reduce the number of expensive reads to the L2 cache (or even device memory) required for neighborship index lookups. Yet, because cells with identical neighborship patterns share neighborship table entries in the compressed scheme, a mapping from cell index to pattern index must be implemented. This mapping introduces an additional lookup, whose latency may offset the advantage of cached neighborship table entries.
 
 \begin{table}
     \makebox[\textwidth][c]{
     \begin{tabular}{l c p{2cm} p{2cm} p{2cm} p{2cm} l}
         \hline
-        \textbf{Size} & \textbf{Comp.?} & \textbf{\texttt{tex\_\allowbreak cache\_\allowbreak throughput}} & \textbf{\texttt{l2\_\allowbreak tex\_\allowbreak read\_\allowbreak throughput}} & \textbf{\texttt{dram\_\allowbreak read\_\allowbreak throughput}} & \textbf{\texttt{gld\_\allowbreak efficiency}} & \textbf{Runtime} \\
+        \textbf{Size} & \textbf{Comp.?} & \textbf{\texttt{tex\_\allowbreak cache\_\allowbreak transactions}} & \textbf{\texttt{l2\_\allowbreak tex\_\allowbreak read\_\allowbreak transactions}} & \textbf{\texttt{dram\_\allowbreak read\_\allowbreak transactions}} & \textbf{\texttt{gld\_\allowbreak efficiency}} & \textbf{Runtime} \\
         \hline
-        $64\times64\times64$   &  $-$          & $4106$ & $599$ & $102$ & $85\%$ & $\mathbf{18\mu s}$ \\ 
-        $64\times64\times64$   &  $\checkmark$ & $\mathbf{4208}$ & $829$ & $99$ & $74\%$ & $  19\mu s$ \\
-        \hline
-        $128\times128\times64$ &  $-$          & $4971$ & $948$ & $328$ & $87\%$ & $\mathbf{51\mu s}$ \\
-        $128\times128\times64$ &  $\checkmark$ & $\mathbf{5197}$ & $891$ & $318$ & $75\%$ & $  53\mu s$ \\
-        \hline
-        $512\times512\times64$ &  $-$          & $4319$ & $806$ & $337$ & $91\%$ & $ 820\mu s$ \\
-        $512\times512\times64$ &  $\checkmark$ & $\mathbf{5005}$ & $820$ & $369$ & $77\%$ & $ \mathbf{741\mu s}$ \\
+        $64\times64\times64$   & -            &    $466,815$ &    $273,384$ &     $57,658$ & $85\%$ & $\mathbf{18\mu s}$ \\ 
+	    $64\times64\times64$   & $\checkmark$ &    $\mathbf{528,064}$ &    $415,834$ &     $51,676$ & $74\%$ & $  19\mu s$ \\
+        \hline                   
+        $128\times128\times64$ & -            &  $1,925,279$ &  $1,468,085$ &    $508,748$ & $87\%$ & $\mathbf{51\mu s}$ \\
+	    $128\times128\times64$ & $\checkmark$ &  $\mathbf{2,071,128}$ &  $1,420,441$ &    $508,208$ & $75\%$ & $  53\mu s$ \\
+        \hline                   
+        $512\times512\times64$ & -            & $29,980,144$ & $22,391,916$ &  $9,392,553$ & $91\%$ & $ 820\mu s$ \\
+	    $512\times512\times64$ & $\checkmark$ & $\mathbf{31,760,437}$ & $20,805,522$ &  $9,402,833$ & $77\%$ & $ \mathbf{741\mu s}$ \\
         
         \hline
         %\\
         \hline
     \end{tabular}
     }
-    \caption{\label{tab:comp-runtime} Runtimes and relevant metrics comparing executions of stencils on compressed and uncompressed grids (\emph{non-chasing} grid, \emph{z-curve} layout, \emph{idxvar} access strategy). The optimal (fastest) launch configuration block size was chosen for each row, which varied for uncompressed and compressed grids. Throughputs in GB/s. Refer to section \ref{sec:metrics} for explanation of the metrics. Note the higher L1 cache throughputs and lower global load efficiencies (bad coalescing) in compressed variants.}
+	\caption{\label{tab:comp-runtime} Runtimes and relevant metrics comparing executions of \emph{hdiff} stencil on \emph{compressed} and \emph{uncompressed} grids (\emph{z-curves} memory layout with \emph{double} precision, \emph{chasing} neighborship table), implemented using the \emph{idxvar} access strategy. The optimal (fastest) launch configuration block size was chosen for each row, which is different for \emph{uncompressed} and \emph{compressed} grids. Note the higher L1 cache traffic (\texttt{tex\_ read\_ transactions}) and lower global load efficiencies (bad coalescing, \texttt{gld\_ efficiency}) in all compressed variants.}
 \end{table}
 
 Encouragingly, the desired improvements to caching seem to take place. We observed that more frequent use of the L1 cache occurs across all benchmarks using compressed storage (i.e. all memory layouts, all access strategies, and all grid sizes). We measured a larger number of L1 cache transactions and a higher throughput from the L1 cache to the processor. In total, more data was transferred from the L1 cache and less data had to be loaded from the L2 cache and device memory. The measures in table \ref{tab:comp-runtime} confirm that the anticipated caching of neighborship table entries does indeed happen. 
@@ -143,3 +146,9 @@ In conclusion, the added overheads of the described compression scheme diminish 
 % mention that block size has to be right; for 64x1x4, idxvar is faster (z-curves); similar argument to below for small grids (if we have repeating z-levels, then direct caching of neighborship pointer is faster than additional pointer chase through patterns array; compressed gets its speed from the fact that we can use block sizes that are more natural for the VALUES of the grid, i.e. 256x1x1 block size to read many values at once)
 
  % small grids: pattern lookup another "hoop to jump through"; after first Z-level, neighborship pointers in cache anyways; this is evidenced by the fact that for 128x128x1, compressed is faster again (slightly; pattern is in cache then after first cell; no advantage of cache for multiple z-levels as there is only one)
+
+\subsection{Summary}
+
+We observed that \emph{pointer chasing} does inhibit performance in all grids with few entries in the neighborship table, specifically small and medium-sized grids, as well as large grids using neighborship table compression. In these cases, explicitly storing neighbors-of-neighbors in the neighborship tables improves runtimes, but not as strongly as one might anticipate. For large grids with an uncompressed neighborship table, performing pointer \emph{chasing} in stencils is faster than \emph{non-chasing} variants (probably due to the large number of neighborship table entries a \emph{non-chasing} variant requires in this scenario).
+
+Experimenting with a simple compression scheme, we determined the following: In large grids, for both the \emph{hdiff} and \emph{laplap} stencils, compressing the neighborship table provides a significant benefit. However, the additional memory lookup required and unavoidable uncoalesced accesses to the neighborship table limit the possible advantage. In the \emph{fastwaves} stencil, the additional overhead of compression is counter-productive and slows execution down. The same is the case for small grids.

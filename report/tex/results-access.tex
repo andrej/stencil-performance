@@ -1,10 +1,6 @@
-\section{Effect of Access Strategy} \label{sec:res-access}
+\section{Effect of Access Strategy in Stencil Implementation} \label{sec:res-access}
 
-In section \ref{sec:optimizations}, we discussed various approaches for accessing grids in a stencil application. Figure \ref{fig:storage-access} gives an overview of the possible storage/access-combinations and their performance. Table \ref{tab:overview} lists the fastest access strategy for all possible grid storage combinations.
-
-No access strategy clearly dominates in all situations, but the \emph{idxvar} access strategy is often a good choice. Which implementation is fastest depends on the combination with the grid storage strategy, as well as on the stencil properties. Surprisingly, the \emph{naive} access strategy is competitive. It often performs similarly as the \emph{idxvar} strategy. In situations where a lot of pointer chasing occurs (\emph{chasing} grids and \emph{compressed} grids), using the \emph{idxvar} strategy is advantageous. We observed that the \emph{shared} access strategy behaves very similarly to the \emph{idxvar} strategy. We assume this is due to caching in the \emph{idxvar} strategy having the same effect as the explicitly used shared memory. The \emph{z-loop} and \emph{sliced z-loop} access strategies only gave an advantage in one configuration, namely for the \emph{laplap} stencil in grids stored in uncompressed (both chasing and non-chasing) fashion.
-
-% Idea: percentage effect of access strategy given fixed storage; how important is access strategy?
+Before benchmarking, all stencils had to be reimplemented in a way that supports unstructured grids. In this section, we explore the performance implications of the access variants described in section \ref{sec:optimizations}, starting from the \emph{naive} variant and moving to the contrived optimizations.
 
 \subsection{\emph{Naive} and \emph{Idxvar} Access Strategies}
 
@@ -24,18 +20,58 @@ No access strategy clearly dominates in all situations, but the \emph{idxvar} ac
         \hline
     \end{tabular}
 	\end{center}
-    \caption{\label{tab:fastwaves-naive-idxvar-metrics}Selection of metrics for \emph{fastwaves} stencil run on a $512\times 512\times 1$-sized unstructured grid (\emph{z-curves} layout, \emph{compressed}, \emph{chasing}) with $32\times 1\times 8$ threads, which is the fastest block size for both variants. The \emph{naive} implementation is faster, even though it redoes the index lookups in the neighborship tables. The total global transaction count shows that the \emph{idxvar} variant does reduce the number of lookups performed. However, the cache transactions (L1 and L2) indicate that the \emph{naive} variant keeps cache contents fresher, which results in more cache hits. This is evidenced by the lower number of actual device memory reads in the naive approach, even though more memory is requested than in the \emph{idxvar} approach.}
+    \caption{\label{tab:fastwaves-naive-idxvar-metrics}Selection of metrics for the \emph{fastwaves} stencil run on a $512\times 512\times 64$-sized unstructured grid (\emph{z-curves} memory layout with \emph{double} precision, \emph{compressed} and \emph{chasing} neighborship table) with $32\times 1\times 8$ threads, which is the fastest block size for both displayed access variants. The \emph{naive} implementation is faster, even though it redoes the index lookups in the neighborship tables. The total global transaction count shows that the \emph{idxvar} variant does reduce the number of lookups performed. However, the cache transactions (L1 and L2) indicate that the \emph{naive} variant keeps cache contents fresher, which results in more cache hits. This is evidenced by the lower number of actual device memory reads in the naive approach, even though more memory is requested than in the \emph{idxvar} approach.}
 \end{table}
 
-The \emph{naive} and \emph{idxvar} (index variables) access strategies are among the fastest for all three stencils. We observe that caching of neighborship table entries plays a paramount role in neighborship access, and note that neighborship table lookups become fairly efficient once cached.
+The \emph{naive} strategy was the first we implemented. At each neighbor access in the reference regular-grid-stencil, an indirect lookup into the neighborship table is inserted for the unstructured variant. As such, this implementation performs repeated redundant lookups for the same neighborship table entries if the same neighbor is accessed multiple times in one thread. Our initial tests occurred on a $512\times 512\times 64$-sized grid (\emph{uncompressed}, \emph{chasing}, \emph{row-major}), and using \emph{naive} access strategy, we observed slowdowns of $107\%$, $54\%$ and $4.4\%$ (compared to the fastest regular implementations) for the \emph{laplap}, \emph{hdiff} and \emph{fastwaves} stencils, respectively.
 
-In some cases, the \emph{naive} access strategy is faster than the \emph{idxvar} variant by a slight margin. This is the case, for example, in the \emph{fastwaves} stencil or the horizontal diffusion stencil executed on a \emph{non-chasing}, \emph{compressed} grid. This surprises at first, as the \emph{naive} strategy performs repeated redudant lookups for the same neighborship table entries. The \emph{idxvar} approach tries to reduce these redundant lookups by storing the needed neighborship indices in temporary variables at the start of the kernel execution. However, this is not always beneficial.
+We then moved to a straightforward optimization, the \emph{idxvar} variant. This approach tries to eliminate redundant lookups by storing the needed neighborship indices in temporary variables at the start of the kernel execution. In the $512\times 512\times 64$ grid (\emph{uncompressed}, \emph{chasing}, \emph{row-major}), this reduced the overheads to $77\%$ and $47\%$ for the \emph{laplap} and \emph{hdiff} stencils.
 
-There are two likely explanations for the occasional advantage of the \emph{naive} variant: First, reading the same memory location a second time becomes almost as cheap as a register access after it has been read for the first time, as it will be held in the L1 cache. Reaccessing the same memory location increases its chances of remaining in cache. As such, when a different thread requires the same memory location from the neighborship table, it is more likely to be in cache in the \emph{naive} variant due to its larger number of accesses.
+Comparing the \emph{naive} and \emph{idxvar} strategies to the more optimized variants (discussed below), we observed that caching of neighborship table entries plays a paramount role in unstructured stencil performance. We discovered that neighborship table lookups become fairly efficient once cached. Due to their simplicity and efficient cache use (at the right block sizes), the \emph{naive} and \emph{idxvar} access strategies are thus generally among the fastest for all three stencils, even though (or because) they do not implement any advanced intricacies.
 
-Second, the \emph{naive} approach has better \emph{instruction level parallelism}. Because the index variables are assigned at the start of a \emph{idxvar} thread, all neighborship table loads must be executed before anything else. Output calculations may only start once \emph{all} required neighborship pointers are loaded. In the \emph{naive} approach, on the other hand, neighborship pointers reads are not gathered at the beginning of the kernel. Instead, they are (re-)loaded at every point they are required in calculations. Thus, after one (or a few) neighbors have been loaded, useful intermediate calculations may already be performed, thus hiding some latency. Table \ref{tab:fastwaves-naive-idxvar-metrics} details profiler metrics that support these claims.
+Surprisingly, for the grid described above, using the \emph{idxvar} strategy with the \emph{fastwaves} increased the overhead to $6.8\%$ (from $4.4\%$ in the \emph{naive} approach). As we later experimented with different grid storage strategies, such as \emph{non-chasing}, \emph{compressed} grids, the \emph{idxvar} strategy also turned out to not always be beneficial.
+
+There are two likely explanations for the occasional advantage of the \emph{naive} variant: First, reading the same memory location a second time becomes almost as cheap as register access after it has been read for the first time, as it will be held in the L1 cache. Reaccessing the same memory location increases its chances of remaining in cache. As such, when a different thread requires the same memory location from the neighborship table, it is more likely to be in cache in the \emph{naive} variant due to its larger number of accesses.
+
+Second, the \emph{naive} approach has better \emph{instruction-level parallelism}. Because the index variables are assigned at the start of an \emph{idxvar} thread, all neighborship table loads must be executed before anything else. Output calculations may only start once \emph{all} required neighborship pointers are loaded. In the \emph{naive} approach, on the other hand, neighborship pointer reads are not gathered at the beginning of the kernel. Instead, they are (re-)loaded at every point they are required in calculations. Thus, after one (or a few) neighbors have been loaded, useful intermediate calculations may already be performed, thus hiding some latency. Table \ref{tab:fastwaves-naive-idxvar-metrics} details profiler metrics that support these claims.
 
 % main advantage idxvar vs naive: all neighbor pointers loaded together in the beginning; for non-chasing this is a disadvantage (all accesses bundled together; with naive some things can happen in between while load is happening); for chasing an advantage for idxvar (first load all level-one pointers, then all level two; re-loading all of this is costly for naive but has to be done because it can't know the first pointer hasn't changed in the meantime)
+
+
+\subsection{\emph{Z-loop} and \emph{Z-loop-sliced} Access Strategies}
+
+\begin{table}
+	\begin{center}
+    \begin{tabular}{l l p{2.5cm} p{2.5cm} p{2.5cm}}
+        \hline
+        \textbf{Stencil} & \textbf{Access} & \textbf{\texttt{achieved\_\allowbreak occupancy}} & \textbf{\texttt{ipc}} & \textbf{\texttt{dram\_\allowbreak read\_\allowbreak transactions}} \\
+        \hline
+        \hline
+        \emph{laplap} & \emph{idxvar} & $0.947077$ & $0.812799$ & $11,946,136$ \\
+        & \emph{z-loop} & $0.407226$ & $0.515881$ & $4,715,455$ \\
+        & \emph{z-loop-sliced} & $0.421727$ & $0.638366$ & $4,729,444$ \\
+        \hline
+        \emph{hdiff} & \emph{idxvar} & $0.935448$ & $0.793701$ & $16,606,211$ \\
+        & \emph{z-loop} & $0.363111$ & $0.481847$ & $9,330,226$ \\
+        & \emph{z-loop-sliced} & $0.301747$ & $0.600179$ & $9,354,882$ \\
+        \hline
+    \end{tabular}
+	\end{center}
+    \caption{\label{tab:access-z-loop} Relevant metrics for the comparison of the \emph{z-loop} and \emph{idxvar} access strategies, on a $512\times 512\times 64$-sized grid (\emph{z-curves} memory layout with \emph{double} precision, \emph{uncompressed} and \emph{chasing} neighborship table) with $64\times 2\times 1$ threads. Observe that the \emph{z-loop} strategies effectively reuse neighborship pointers, leading to a lower number of device memory transactions, but suffer from a much lower occupancy and fail to use the full parallel computing capabilities of the GPU.}
+\end{table}
+
+The next obvious step was to try to make use of the Z-regularity of the grid. By loading the neighborship pointers once and reusing them for multiple Z-levels, we hoped for further improvements in runtime. 
+
+However, for the \emph{hdiff} and \emph{fastwaves} stencils, the two \emph{z-loop} access strategies perform noticeably slower than the other available access strategies, across all tested grid storage configurations. The same is the case for the \emph{laplap} stencil for \emph{compressed} grids. The one exception is the \emph{laplap} stencil on an \emph{uncompressed} grid: In this case, the \emph{z-loop} access strategy is the fastest.
+
+The hoped-for advantage of the two \emph{z-loop} access strategies is the reduced number of required neighborship table reads. Indeed, the number of reads to device memory is greatly reduced using this access strategy in all stencils (more than halved for \emph{laplap}, $56\%$ for \emph{hdiff}). In the case of the computationally simple \emph{laplap} stencil on an uncompressed grid, this reduced number of reads pays its dividends; the \emph{z-loop} access strategy is the fastest for this specific benchmark.
+
+For other stencils (and the \emph{laplap} stencil in compressed grids), however, using the \emph{z-loop} access strategy is slower than all the alternatives.  We assume that this is due to the much lower (compared to other access strategies) occupancy of this loop-based access strategy. In the more computationally complex stencils, many latencies in the result computations may occur. To hide those latencies, a large number of threads are required. In the \emph{z-loop} access strategy, sequential processing of all elements with the same X- and Y-coordinates is prescribed by the code -- hindering parallel execution on the GPU. Presumably, this is less of an issue in the \emph{laplap} stencil due to its more simplistic result computation and fewer fields, which leads to fewer stalls in need of latency hiding.
+
+In the \emph{z-loop-sliced} variant, we tried to address some of the low-occupancy issues by splitting the loop into smaller, parallelizable chunks. This approach tries to combine the best of both worlds: Reuse of neighborship table reads in a loop and more parallelism thanks to more threads. While the performance does improve in comparison with the \emph{z-loop} access strategy (confirming our theory that occupancy is indeed the bottleneck), it still falls short of the other access strategies due to the added overhead of managing a loop (which requires additional registers and a branch).
+
+Table \ref{tab:access-z-loop} shows the relevant metrics of the described observations for an exemplary benchmark run.
+
 
 \subsection{\emph{Shared} Access Strategy}
 
@@ -61,20 +97,22 @@ Second, the \emph{naive} approach has better \emph{instruction level parallelism
         \textbf{Metric} & \textbf{\emph{idxvar}} & \textbf{\emph{shared}} \\
         \hline
         \hline
-        L1 Cache Transactions & $29,962,684$ & $26,589,268$ \\
-        Shared Memory Transactions & $0$ & $5,666,573$ \\
-        Device Memory Transactions & $9,362,526$ & $9,355,089$ \\
+        \texttt{tex\_ cache\_ transactions} & $29,962,684$ & $26,589,268$ \\
+        \texttt{shared\_ load\_ transactions} & $0$ & $5,666,573$ \\
+        \texttt{dram\_ read\_ transactions} & $9,362,526$ & $9,355,089$ \\
         \hline
     \end{tabular}
 	\end{center}
-    \caption{\label{tab:access-shared} Number of transactions per access strategy at various levels of the memory hierarchy for a benchmark of the \emph{hdiff} stencil (grid of size $512\times 512\times 64$, \emph{z-curves}, pointer \emph{chasing}, \emph{uncompressed}) at $64\times 1\times 8$ threads per block (optimal for both access strategies). A number of L1 cache hits in the \emph{idxvar} strategy are simply shifted to equally performant shared memory hits in the \emph{shared} strategy. The number of reads encountered at device memory is similar, further indicating that shared memory usage simply serves as a explicit, manually managed cache, taking the same role as the L1 cache in the \emph{idxvar} access strategy.}
+    \caption{\label{tab:access-shared} Number of transactions for the \emph{idxvar} and \emph{shared} access strategies at various levels of the memory hierarchy for a benchmark of the \emph{hdiff} stencil (grid of size $512\times 512\times 64$, \emph{z-curves} memory layout with \emph{double} precision, \emph{uncompressed} and \emph{chasing} neighborship table) at $64\times 1\times 8$ threads per block (optimal for both access strategies). Many L1 cache hits (\texttt{tex\_ cache\_ transactions}) in the \emph{idxvar} strategy are simply shifted to equally performant shared memory hits (\texttt{shared\_ load\_ transactions}) in the \emph{shared} strategy. The number of reads encountered at device memory is similar, further indicating that shared memory usage simply serves as an explicit, manually managed cache, taking the same role as the L1 cache in the \emph{idxvar} access strategy.}
 \end{table}
 
-The performance of the \emph{shared} access strategy varies strongly depending on the storage strategy -- specifically, whether compression for the neighborship tables is used or not.
+As both the \emph{z-loop} and \emph{z-loop-sliced} variants had issues with occupancy, we explored the use of shared memory to pass neighborship information among cells that share the same neighbor offsets. This allows exploiting the Z-regularity of the grid while maintaining a large number of threads.
 
-In all scenarios with \emph{uncompressed} neighborship storage, the \emph{shared} access strategy performs almost identically to the \emph{idxvar} access strategy. A very slight overhead is observed for the \emph{shared} access strategy due to the required thread synchronizations. The neighborship pointers loaded into shared memory appear to take the same role as the L1 cache in the \emph{idxvar} strategy. Thus, the \emph{shared} access strategy can be viewed as maintaining an \emph{explicitly managed cache}. In fact, as mentioned in section \ref{sec:memories}, shared memory and the L1 cache share the same physical memory. Table \ref{tab:access-shared} further evidences how the L1 cache is simply shifted to shared memory when using this scheme.
+The performance of the \emph{shared} variant varies strongly depending on the type of storage of the neighborship tables (i.e. storage strategy) -- specifically, whether \emph{compression} for the neighborship tables is used or not.
 
-The \emph{z-curves}, \emph{non-chasing} and \emph{uncompressed} storage strategy stands out in the \emph{shared} access strategy, as this is the only configuration in which it slightly outperforms the \emph{idxvar} scheme. In the aforementioned storage configuration, explicit management of the unified L1/shared memory provides a minor benefit. This is probably due to the very large number of neighbor pointers in this storage strategy.
+In all scenarios with \emph{uncompressed} neighborship storage, the \emph{shared} access strategy performs almost identically to the \emph{idxvar} approach. A very slight overhead is observed for the \emph{shared} access strategy due to the required thread synchronizations. In this variant, the neighborship pointers loaded into shared memory appear to take the same role as the L1 cache. Thus, the \emph{shared} access strategy can be viewed as maintaining an \emph{explicitly managed cache}. In fact, as mentioned in section \ref{sec:memories}, shared memory and the L1 cache share the same physical memory. Table \ref{tab:access-shared} further evidences how the L1 cache is simply shifted to shared memory when using this scheme.
+
+As we later discovered in our experiments with different grid storage strategies, grids stored using a \emph{z-curves}, \emph{non-chasing} and \emph{uncompressed} approach stand out in the \emph{shared} access strategy, as this is the only configuration in which the \emph{idxvar} scheme is slightly outperformed. With the aforementioned storage properties, explicit management of the unified L1/shared memory provides a minor benefit. This is probably due to the very large number of neighbor pointers in this storage strategy.
 
 When using compressed neighborship tables, the \emph{shared} access strategy is noticeably slower than the \emph{idxvar} strategy. As there are relatively few neighborship pointers in compressed tables, those remain in \emph{L1} cache in the \emph{idxvar} variant permanently. In the \emph{shared} variant, those same (few) pointers must be explicitly (re-)loaded into shared memory for each thread block, which is less efficient.
 
@@ -85,71 +123,11 @@ When using compressed neighborship tables, the \emph{shared} access strategy is 
 % worse for compressed storage -> overhead of explicit shared memory management, possibly less efficient manual allocation?
 
 
-\subsection{\emph{Z-loop} and \emph{Z-loop-sliced} Access Strategies}
 
-\begin{table}
-	\begin{center}
-    \begin{tabular}{l l p{2.5cm} p{2.5cm} p{2.5cm}}
-        \hline
-        \textbf{Stencil} & \textbf{Access} & \textbf{\texttt{achieved\_\allowbreak occupancy}} & \textbf{\texttt{ipc}} & \textbf{\texttt{dram\_\allowbreak read\_\allowbreak transactions}} \\
-        \hline
-        \hline
-        \emph{laplap} & \emph{idxvar} & $0.947077$ & $0.812799$ & $11,946,136$ \\
-        & \emph{z-loop} & $0.407226$ & $0.515881$ & $4,715,455$ \\
-        & \emph{z-loop-sliced} & $0.421727$ & $0.638366$ & $4,729,444$ \\
-        \hline
-        \emph{hdiff} & \emph{idxvar} & $0.935448$ & $0.793701$ & $16,606,211$ \\
-        & \emph{z-loop} & $0.363111$ & $0.481847$ & $9,330,226$ \\
-        & \emph{z-loop-sliced} & $0.301747$ & $0.600179$ & $9,354,882$ \\
-        \hline
-    \end{tabular}
-	\end{center}
-    \caption{\label{tab:access-z-loop} Relevant metrics for comparison of \emph{z-loop} and \emph{idxvar} access strategies on two stencils, on a $512\times 512\times 64$-sized grid (uncompressed, pointer chasing, z-curves layout) with $64\times 2\times 1$ threads.}
-\end{table}
+\subsection{Summary}
 
-For the \emph{hdiff} and \emph{fastwaves} stencils, the two \emph{z-loop} access strategies performed noticeably slower than the other available access strategies, across all tested grid storage configurations. The same was the case for the \emph{laplap} stencil for \emph{compressed} grids. The one exception is the \emph{laplap} stencil on an \emph{uncompressed} grid: In this case, the \emph{z-loop} access strategy was the fastest.
+Figure \ref{fig:storage-access} gives an overview of the possible storage/access-combinations and their performance. Table \ref{tab:overview} lists the fastest access strategy for all possible grid storage combinations.
 
-The hoped-for advantage of the two \emph{z-loop} access strategies is the reduced number of required neighborship table reads. Indeed, the number of reads to device memory is greatly reduced using this access strategy in all stencils (more than halved for \emph{laplap}, $56\%$ for \emph{hdiff}). In the case of the computationally simple \emph{laplap} stencil on an uncompressed grid, this reduced number of reads pays its dividends; the \emph{z-loop} access strategy is the fastest for this specific benchmark.
+No access strategy clearly dominates in all situations, but the \emph{idxvar} access strategy is often a good choice. Which implementation is fastest depends on the combination with the grid storage strategy, as well as on the stencil properties. Surprisingly, the \emph{naive} access strategy is competitive. It often performs similarly as the \emph{idxvar} strategy. In situations where a lot of pointer chasing occurs (\emph{chasing} grids and \emph{compressed} grids), using the \emph{idxvar} strategy is advantageous. We observed that the \emph{shared} access strategy behaves very similarly to the \emph{idxvar} strategy. We assume this is due to caching in the \emph{idxvar} strategy having the same effect as the explicitly used shared memory. The \emph{z-loop} and \emph{sliced z-loop} access strategies only gave an advantage in one configuration, namely for the \emph{laplap} stencil in grids stored in uncompressed (both chasing and non-chasing) fashion.
 
-For other stencils (and the \emph{laplap} stencil in compressed grids), using the \emph{z-loop} access strategy is slower than all the alternatives.  We assume that this is due to the much lower (compared to other access strategies) occupancy of this loop-based access strategy. In the more computationally complex stencils, a larger number of latencies in the result computations may occur, which requires a large number of threads to be hidden. In the \emph{z-loop} access strategy, sequential processing of all elements with the same X- and Y-coordinates is prescribed by the code -- hindering parallel execution on the GPU. Presumably, this is less of an issue in the \emph{laplap} stencil due to its more simplistic result computation and fewer fields, which leads to fewer stalls in need of latency hiding.
-
-The \emph{z-loop-sliced} variant tries to address some of the low-occupancy issues by splitting the loop into smaller, parallelizable chunks. The idea is to get the best of both worlds: Reuse of neighborship table reads in a loop and more parallelism thanks to more threads. While the performance does improve in comparison with the \emph{z-loop} access strategy (confirming our theory that occupancy is indeed the bottleneck), it still falls short of the other access strategies due to the added overhead of managing a loop (which requires additional registers and a branch).
-
-Table \ref{tab:access-z-loop} shows the relevant metrics of the described observations for an exemplary benchmark run.
-
-% As with the \emph{shared} access strategy, the two \emph{z-loop} strategies aim to improve performance by maximizing the use of a cell's neighborship pointers once they have been loaded. Instead of performing only the output calculation for one cell, the result for cells of all Z-levels (a set of 8 threads in the \emph{z-loop-sliced} variant) is computed.
-
-% + laplap, uncompressed (fastest!)
-% - hdiff, fastwaves (low occupancy maybe? -> hdiff more compute expensive w branches)
-
-% This optimization does reduce the number of reads to the neighborship tables. However, once the neighborship pointers are loaded into L1 and L2 caches,  re-reads of the same neighborship pointers complete in the same order of magnitude as register reads.
-
-% ==13459== Profiling application: ./gridbenchmark --size 512x512x64 --no-verify --threads 64x2x1 hdiff-unstr-idxvar-kloop laplap-unstr-idxvar-kloop hdiff-unstr-idxvar laplap-unstr-idxvar
-% ==13459== Profiling result:
-% ==13459== Metric result:
-% Invocations                               Metric Name                           Metric Description         Min         Max         Avg
-% Device "Tesla V100-PCIE-32GB (0)"
-%     Kernel: void HdiffCudaUnstr::Chasing::hdiff_idxvar<double>(_coord3<int>, int const *, int, int, double const *, int const **, double const )
-%          21                        achieved_occupancy                           Achieved Occupancy    0.934729    0.936472    0.935356
-%          21                                       ipc                                 Executed IPC    0.754605    0.806749    0.791383
-%          21                    issue_slot_utilization                       Issue Slot Utilization      18.87%      20.17%      19.79%
-%          21                     stall_exec_dependency   Issue Stall Reasons (Execution Dependency)       4.67%       5.05%       4.95%
-%          21                    dram_read_transactions              Device Memory Read Transactions    16579735    16691044    16608391
-%     Kernel: void HdiffCudaUnstr::Chasing::hdiff_idxvar_kloop<double>(_coord3<int>, int const *, int, int, double const *, int const **, double const )
-%          21                        achieved_occupancy                           Achieved Occupancy    0.360505    0.366742    0.363722
-%          21                                       ipc                                 Executed IPC    0.423041    0.505123    0.483726
-%          21                    issue_slot_utilization                       Issue Slot Utilization      10.58%      12.63%      12.10%
-%          21                     stall_exec_dependency   Issue Stall Reasons (Execution Dependency)       6.46%       7.39%       7.06%
-%          21                    dram_read_transactions              Device Memory Read Transactions     9195785     9933908     9352489
-%     Kernel: void LapLapUnstr::Chasing::laplap_idxvar_kloop<double>(int const *, int, int, _coord3<int>, double const *, _coord3<int>*)
-%          21                        achieved_occupancy                           Achieved Occupancy    0.402836    0.410686    0.407008
-%          21                                       ipc                                 Executed IPC    0.488878    0.584792    0.522810
-%          21                    issue_slot_utilization                       Issue Slot Utilization      12.22%      14.62%      13.07%
-%          21                     stall_exec_dependency   Issue Stall Reasons (Execution Dependency)       5.71%       6.69%       6.06%
-%          21                    dram_read_transactions              Device Memory Read Transactions     4577237     4805963     4702576
-%     Kernel: void LapLapUnstr::Chasing::laplap_idxvar<double>(int const *, int, int, _coord3<int>, double const *, _coord3<int>*)
-%          21                        achieved_occupancy                           Achieved Occupancy    0.946763    0.947602    0.947077
-%          21                                       ipc                                 Executed IPC    0.805199    0.818363    0.812799
-%          21                    issue_slot_utilization                       Issue Slot Utilization      20.13%      20.46%      20.32%
-%          21                     stall_exec_dependency   Issue Stall Reasons (Execution Dependency)       5.11%       5.20%       5.16%
-%          21                    dram_read_transactions              Device Memory Read Transactions    11926443    12023609    11946136
+% Idea: percentage effect of access strategy given fixed storage; how important is access strategy?
