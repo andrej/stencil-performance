@@ -61,7 +61,7 @@ We conclude that non-chasing storage is beneficial to small grids, where it is e
 
 As most unstructured grids have irregularities only in few places, much of the information in the neighborship tables is redundant. Moving forward, we wanted to investigate whether this redundancy could be made use of to further reduce unstructured stencil runtimes. In section \ref{sec:compression}, we described a very simple compression scheme for the neighborship tables motivated by this idea. In this section, we elaborate on its performance implications.
 
-Using \emph{compressed} neighborship tables, we saw a reduction in runtimes  for most benchmarks on large $512\times 512\times 64$-sized grids. The highest relative speedups were attained for the \emph{laplap} stencil, which ran $23\%$ faster. In the \emph{hdiff} stencil, we achieved a speedup of $21\%$. In contrast, the \emph{fastwaves} stencil was slightly slowed down by the added overhead of compression and ran $3\%$ slower.
+Using \emph{compressed} neighborship tables, we saw a reduction in runtimes  for most benchmarks on large $512\times 512\times 64$-sized grids. The highest relative speedups were attained for the \emph{laplap} stencil, which ran $23\%$ faster than its \emph{uncompressed} counterpart. In the \emph{hdiff} stencil, we achieved a speedup of $21\%$. In contrast, the \emph{fastwaves} stencil was slightly slowed down by the added overhead of compression and ran $3\%$ slower.
 
 In smaller grids ($128\times 128\times 64$ and $64\times 64\times 64$), the additional level of indirection introduced by our compression scheme also mostly led to a deterioration in run times. The interplay of grid size and compression can also be seen in figure \ref{fig:hdiff-sizes-storage}.
 
