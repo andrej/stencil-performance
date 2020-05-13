@@ -10,7 +10,7 @@
 \usepackage{longtable}
 
 % Bibliography
-\usepackage{biblatex} 
+\usepackage[sorting=none]{biblatex} 
 \usepackage[hidelinks]{hyperref} \addbibresource{bibliography.bib}
 
 % Listings
@@ -33,38 +33,39 @@
 \newgeometry{centering}
 \begin{titlepage}
 	\begin{center}
-		\vspace*{2cm}
-		{\Huge \textbf{Efficient GPU Implementation of Stencils on Unstructured Grids}}
-		\vspace{2cm}
+		\vspace*{0cm}
+		{\Huge \textbf{Efficient GPU Implementation of Stencils on Unstructured Grids} \par}
+
+		\vfill\vfill\vfill\vfill\vfill\vfill % 6, golden ratio 6:10
 		
-		{\Large \textit{Bachelor Thesis}}
-		\vspace{2cm}
+		{\LARGE \textit{Bachelor Thesis} \par}
 		
-		André Albert Rösti
+		\vfill\vfill\vfill\vfill\vfill\vfill\vfill\vfill\vfill\vfill % 10, golden ratio 10:16
 		
-		May 14, 2020
+		{\Large André A. Rösti \par}
+		
+		\vspace{0.16cm}
+		
+		{\Large May 14, 2020 \par}
 	\end{center}
-	\vfill
+	
+	\vfill\vfill\vfill\vfill\vfill\vfill\vfill\vfill\vfill\vfill\vfill\vfill\vfill\vfill\vfill\vfill % 16
+	
 	\raggedleft Advisors: Dr. T. Gysi, Dr. T. Grosser, Prof. T. Hoefler
-		
+	
+	\vspace{0.1cm}
+	
 	\raggedleft Department of Computer Science, ETH Zürich
-	\vspace*{2cm}
 \end{titlepage}
 \restoregeometry
 
 \thispagestyle{empty}
 
-\pagenumbering{roman}
+\frontmatter
+\include{tex/abstract}
 \tableofcontents
 
-\chapter*{Abstract}
-
-Stencil computations on unstructured grids with a regular Z-dimension are frequently performed in meteorology for atmospheric modeling. While using a GPU to parallelize execution of such stencils promises fast runtimes, supporting the irregular structure in two dimensions complicates their implementation, as neighborship access necessitates indirect memory lookups.
-
-In this thesis, we explore various approaches of storing unstructured grids with one regular dimension and accessing them from the GPU in a stencil computation. We benchmark the performance of three real-world stencils of varying complexity on various unstructured grid implementations, some of which make explicit use of the Z-regularity. In our initial naive approaches, we observe slowdowns of $122\%$ (simple stencil), $52\%$ (medium-complexity stencil), and $5\%$ (complex stencil) compared to executing the same stencils on entirely regular grids. Notably, through a neighborship table compression scheme, we are able to improve those values to $49\%$, $30\%$ and $5\%$ (no improvement) respectively. Other optimizations are explored. We also detail the foundations of the Nvidia CUDA GPU architecture.
-
-\pagenumbering{arabic}
-
+\mainmatter
 \include{tex/introduction}
 \include{tex/related-work}
 \include{tex/foundations}

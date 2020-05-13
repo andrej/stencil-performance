@@ -16,7 +16,7 @@ We also noticed that some grid \emph{storage optimizations} are only effective o
 	\begin{center}
     \includegraphics[scale=0.75]{laplap-z-curves-sizes.pdf}
 	\end{center}
-    \caption{\label{fig:variants-gridsizes} Relative overhead compared to fastest regular variant of different implementations of the \emph{laplap} stencil on an unstructured grid with \emph{z-curves} memory layout. For each bar, the fastest neighborship table implementation was plotted (i.e. all combinations of \emph{compressed} and \emph{uncompressed}, \emph{chasing} and \emph{non-chasing} were benchmarked and the fastest setup was chosen). Baseline: fastest regular grid implementation.}
+    \caption{\label{fig:variants-gridsizes} Relative overhead compared to the fastest regular variant of different implementations of the \emph{laplap} stencil on an unstructured grid with \emph{z-curves} memory layout. For each bar, the fastest neighborship table implementation was plotted (i.e. all combinations of \emph{compressed} and \emph{uncompressed}, \emph{chasing} and \emph{non-chasing} were benchmarked and the fastest setup was chosen). Baseline: fastest regular grid implementation.}
 \end{figure}
 
 We have evaluated combinations of grid storage and access variants for the three stencils on grids of X-Y size $64\times 64$ (small grid), $128\times 128$ (medium grid) and $512\times 512$ (large grid). We observed that relatively seen, increases in the X-Y-domain size affect the unstructured variants more negatively than the regular ones.

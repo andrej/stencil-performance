@@ -43,7 +43,7 @@ Having implemented the stencils using the various grid access strategies, we the
         \hline
     \end{tabular}
 	\end{center}
-    \caption{\label{tab:chasing} Selected metrics for runs of the \emph{laplap} stencil on unstructured grids of different sizes (all of them in \emph{z-curves} memory layout with \emph{double} precision, \emph{uncompressed} neighborship table), both with and without pointer chasing. The \emph{idxvar} access strategy was used with a fixed launch configuration of $64\times 4\times 2$ threads.}
+    \caption{\label{tab:chasing} Selected metrics, including L1 cache hit rate (\texttt{tex\_\allowbreak cache\_\allowbreak hit\_\allowbreak rate}), for runs of the \emph{laplap} stencil on unstructured grids of different sizes (all of them in \emph{z-curves} memory layout with \emph{double} precision, \emph{uncompressed} neighborship table), both with and without pointer chasing. The \emph{idxvar} access strategy was used with a fixed launch configuration of $64\times 4\times 2$ threads.}
 \end{table}
 
 Two of the three benchmarked stencils, \emph{Laplace-of-Laplace} and \emph{horizontal diffusion}, access neighbors beyond the directly face-touching cells (neighbors-of-neighbors). For those stencils, we first assessed the performance when only direct neighbors are explicitly stored. This approach requires \emph{pointer chasing}: To access the neighbor of a neighbor, two sequential lookups to the neighborship table become necessary. As the second lookup can only be started once the first one has completed, a higher latency  occurs in this variant. Therefore, we then also tested variants in which the neighbors-of-neighbors were explicitly stored in memory, reducing the number of required memory lookups for these types of accesses from two to one. We call this \emph{non-chasing} neighborship storage. This approach comes at the cost of a higher memory footprint.
@@ -57,6 +57,7 @@ In large \emph{non-chasing} grids, the additional neighbor-of-neighbor entries a
 We conclude that non-chasing storage is beneficial to small grids, where it is effective in reducing latency, and unfavorable for larger grids due to the caused cache evictions (especially in the L2 cache) increasing the latency of neighbor accesses. Table \ref{tab:chasing} shows an overview of the metrics discussed in this paragraph for an exemplary stencil run.
 
 \subsection{Effect of Neighborship Table Compression}
+\label{sec:results-comp}
 
 As most unstructured grids have irregularities only in few places, much of the information in the neighborship tables is redundant. Moving forward, we wanted to investigate whether this redundancy could be made use of to further reduce unstructured stencil runtimes. In section \ref{sec:compression}, we described a very simple compression scheme for the neighborship tables motivated by this idea. In this section, we elaborate on its performance implications.
 
@@ -99,7 +100,7 @@ Using the compression scheme, cells with the same neighbor \emph{patterns} can s
 
 Note that a completely random grid would result in a very even distribution. In such a scenario, compression would not be able to reduce the number of entries meaningfully. 
 
-\subsubsection{Runtime Effects of Compression on Stencil Execution}
+\subsubsection{Runtime Effects of Compression on Stencil Execution} 
 
 The motivating idea behind implementing compression for the neighborship tables was an anticipated improvement to the caching of frequently used neighborship table entries. As we observed, neighborship information is distributed favorably and concentrates around a few frequently used entries (see table \ref{tab:compression} in the previous section). By using compression, we hoped that these entries remain in the L1 cache, and thus reduce the number of expensive reads to the L2 cache (or even device memory) required for neighborship index lookups. Yet, because cells with identical neighborship patterns share neighborship table entries in the compressed scheme, a mapping from cell index to pattern index must be implemented. This mapping introduces an additional lookup, whose latency may offset the advantage of cached neighborship table entries.
 
@@ -123,7 +124,7 @@ The motivating idea behind implementing compression for the neighborship tables 
         \hline
     \end{tabular}
     }
-	\caption{\label{tab:comp-runtime} Runtimes and relevant metrics comparing executions of \emph{hdiff} stencil on \emph{compressed} and \emph{uncompressed} grids (\emph{z-curves} memory layout with \emph{double} precision, \emph{chasing} neighborship table), implemented using the \emph{idxvar} access strategy. The optimal (fastest) launch configuration block size was chosen for each row, which is different for \emph{uncompressed} and \emph{compressed} grids. Note the higher L1 cache traffic (\texttt{tex\_ read\_ transactions}) and lower global load efficiencies (bad coalescing, \texttt{gld\_ efficiency}) in all compressed variants.}
+	\caption{\label{tab:comp-runtime} Runtimes and relevant metrics comparing executions of \emph{hdiff} stencil on \emph{compressed} and \emph{uncompressed} grids (\emph{z-curves} memory layout with \emph{double} precision, \emph{chasing} neighborship table), implemented using the \emph{idxvar} access strategy. The optimal (fastest) launch configuration block size was chosen for each row, which is different for \emph{uncompressed} and \emph{compressed} grids. Note the higher L1 cache traffic (\texttt{tex\_read\_transactions}) and lower global load efficiencies (bad coalescing, \texttt{gld\_efficiency}) in all compressed variants.}
 \end{table}
 
 Encouragingly, the desired improvements to caching seem to take place. We observed that more frequent use of the L1 cache occurs across all benchmarks using compressed storage (i.e. all memory layouts, all access strategies, and all grid sizes). We measured a larger number of L1 cache transactions and a higher throughput from the L1 cache to the processor. In total, more data was transferred from the L1 cache and less data had to be loaded from the L2 cache and device memory. The measures in table \ref{tab:comp-runtime} confirm that the anticipated caching of neighborship table entries does indeed happen. 
