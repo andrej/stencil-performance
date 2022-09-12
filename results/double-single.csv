@@ -1,0 +1,35 @@
+./gridbenchmark --size 512x512x1 512x512x2 512x512x4 512x512x8 512x512x16 512x512x32 512x512x56 512x512x64 --no-verify --single-prec --double-prec --threads 64x1x8 laplap-regular-idxvar laplap-unstr-idxvar 
+Benchmark                           , Precision, Domain size,,, Blocks     ,,, Threads    ,,, Kernel-only execution time                
+                                    ,          ,   X,   Y,   Z,   X,   Y,   Z,   X,   Y,   Z,   Average,    Median,   Minimum,   Maximum
+laplap-regular-idxvar               ,    single, 512, 512,   1,   8, 508,   1,  64,   1,   1,     16805,     16378,     16184,     22778
+laplap-unstr-idxvar                 ,    single, 512, 512,   1,   8, 508,   1,  64,   1,   1,     18560,     18592,     17947,     19790
+laplap-regular-idxvar               ,    double, 512, 512,   1,   8, 508,   1,  64,   1,   1,     17900,     17182,     16490,     30899
+laplap-unstr-idxvar                 ,    double, 512, 512,   1,   8, 508,   1,  64,   1,   1,     25495,     25242,     24678,     26829
+laplap-regular-idxvar               ,    single, 512, 512,   2,   8, 508,   1,  64,   1,   2,     16646,     16432,     16163,     17515
+laplap-unstr-idxvar                 ,    single, 512, 512,   2,   8, 508,   1,  64,   1,   2,     26785,     26720,     26101,     27902
+laplap-regular-idxvar               ,    double, 512, 512,   2,   8, 508,   1,  64,   1,   2,     23501,     23378,     21640,     26950
+laplap-unstr-idxvar                 ,    double, 512, 512,   2,   8, 508,   1,  64,   1,   2,     34179,     33632,     32458,     36430
+laplap-regular-idxvar               ,    single, 512, 512,   4,   8, 508,   1,  64,   1,   4,     28294,     27948,     26224,     36775
+laplap-unstr-idxvar                 ,    single, 512, 512,   4,   8, 508,   1,  64,   1,   4,     39884,     39824,     38929,     40812
+laplap-regular-idxvar               ,    double, 512, 512,   4,   8, 508,   1,  64,   1,   4,     37952,     38398,     34982,     40625
+laplap-unstr-idxvar                 ,    double, 512, 512,   4,   8, 508,   1,  64,   1,   4,     52327,     52782,     47474,     54945
+laplap-regular-idxvar               ,    single, 512, 512,   8,   8, 508,   1,  64,   1,   8,     48264,     48228,     46925,     52255
+laplap-unstr-idxvar                 ,    single, 512, 512,   8,   8, 508,   1,  64,   1,   8,     61653,     61858,     59819,     63167
+laplap-regular-idxvar               ,    double, 512, 512,   8,   8, 508,   1,  64,   1,   8,     68970,     69403,     61453,     80725
+laplap-unstr-idxvar                 ,    double, 512, 512,   8,   8, 508,   1,  64,   1,   8,     90530,     91840,     80685,     95555
+laplap-regular-idxvar               ,    single, 512, 512,  16,   8, 508,   2,  64,   1,   8,     86360,     86774,     84255,     87360
+laplap-unstr-idxvar                 ,    single, 512, 512,  16,   8, 508,   2,  64,   1,   8,    113981,    113662,    112102,    116679
+laplap-regular-idxvar               ,    double, 512, 512,  16,   8, 508,   2,  64,   1,   8,    122935,    123026,    117472,    130413
+laplap-unstr-idxvar                 ,    double, 512, 512,  16,   8, 508,   2,  64,   1,   8,    167912,    170398,    157165,    174873
+laplap-regular-idxvar               ,    single, 512, 512,  32,   8, 508,   4,  64,   1,   8,    162165,    161771,    159136,    166875
+laplap-unstr-idxvar                 ,    single, 512, 512,  32,   8, 508,   4,  64,   1,   8,    219017,    219162,    215224,    222592
+laplap-regular-idxvar               ,    double, 512, 512,  32,   8, 508,   4,  64,   1,   8,    234942,    237296,    225648,    243696
+laplap-unstr-idxvar                 ,    double, 512, 512,  32,   8, 508,   4,  64,   1,   8,    322004,    322780,    309298,    329352
+laplap-regular-idxvar               ,    single, 512, 512,  56,   8, 508,   7,  64,   1,   8,    272790,    272628,    268600,    277414
+laplap-unstr-idxvar                 ,    single, 512, 512,  56,   8, 508,   7,  64,   1,   8,    385253,    385954,    380883,    387710
+laplap-regular-idxvar               ,    double, 512, 512,  56,   8, 508,   7,  64,   1,   8,    396237,    396812,    380938,    414854
+laplap-unstr-idxvar                 ,    double, 512, 512,  56,   8, 508,   7,  64,   1,   8,    554682,    557331,    535580,    574430
+laplap-regular-idxvar               ,    single, 512, 512,  64,   8, 508,   8,  64,   1,   8,    319431,    319405,    315112,    324484
+laplap-unstr-idxvar                 ,    single, 512, 512,  64,   8, 508,   8,  64,   1,   8,    435070,    435381,    431204,    440501
+laplap-regular-idxvar               ,    double, 512, 512,  64,   8, 508,   8,  64,   1,   8,    459281,    458192,    434431,    475945
+laplap-unstr-idxvar                 ,    double, 512, 512,  64,   8, 508,   8,  64,   1,   8,    638661,    639984,    621759,    650157

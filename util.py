@@ -28,7 +28,7 @@ class col:
 # Return dataframe reduced to one entry with minimal value to minimize per group
 def groupmin(df, by=col.problem, minimize="median"):
     tmp = df.reset_index(drop=True)
-    return tmp.loc[tmp.groupby(by)[minimize].idxmin()]
+    return tmp.loc[tmp.groupby(by, sort=False)[minimize].idxmin()]
     
 # Return series of relative values relative to minimum element in same group
 def relmingroup(df, by=col.problem, to="median"):
@@ -48,8 +48,7 @@ def setup():
     large = pd.read_csv("results/ultimate-reformat.csv")
     medium = pd.read_csv("results/ultimate-128-reformat.csv")
     small = pd.read_csv("results/ultimate-64-reformat.csv")
-    large[["avg", "min", "max", "median"]] *= 1000 # micro to nanoseconds
-    medium[["avg", "min", "max", "median"]] *= 1000
+    small[col.measurements] /= 1000 # micro to nanoseconds
     df = pd.concat([large, medium, small], ignore_index=True)
     df.sort_values("median", inplace=True)
     return df
@@ -73,10 +72,10 @@ column_titles = { "pretty" : "Benchmark",
                   "size-prod" : "Domain size",
                   "blocks-prod" : "Number of blocks",
                   "threads-prod" : "Number of threads",
-                  "kernel-avg" : "Average runtime [μs]",
-                  "kernel-median" : "Median runtime [μs]",
-                  "kernel-min" : "Minimal runtime [μs]",
-                  "kernel-max" : "Maximal runtime [μs]",
+                  "avg" : "Average runtime [μs]",
+                  "median" : "Median runtime [μs]",
+                  "min" : "Minimal runtime [μs]",
+                  "max" : "Maximal runtime [μs]",
                   "rel" : "Runtime [relative to baseline]"}
 
 # Pretty-print names for graphs
@@ -94,7 +93,7 @@ def title(df, cols=col.category, **kwargs):
     columns = [ x for x in cols if x in df and len(np.unique(df[x])) == 1 ]
     return pretty_cb(df.iloc[0], columns, **kwargs)
 
-def pretty_cb(row, cols=col.category, fmt="{0}: {1}", join=",  ", 
+def pretty_cb(row, cols=col.category, fmt="{1}", join=", ", 
               formatters={ "unstructured" : lambda x, r: "unstructured" if x else "regular",
                            "z-curves"     : lambda x, r: ("z-curves" if x else "row-major") if not ("unstructured" in r and not r["unstructured"]) else None,
                            "no-chase"     : lambda x, r: ("non-chasing" if x else "chasing") if not ("unstructured" in r and not r["unstructured"]) else None,
@@ -199,7 +198,7 @@ def barplot(df, cat=col.access, grp=col.storage + col.gridtype, y="median",
     
     mins = mins.reset_index(drop=True) # ensure one entry per index only (later index is used to identify rows)
     
-    groups = mins.groupby(grp)
+    groups = mins.groupby(grp, sort=False)
     group_counts = groups[y].count()
     group_inner_no = groups.cumcount()
     group_numbers = pd.Series(np.arange(0, len(group_counts)), index=group_counts.index)

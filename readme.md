@@ -1,3 +1,12 @@
+# Efficient GPU Implementation of Stencils on Unstructured Grids
+
+This repository contains the code and some results of my evaluation and optimization of porting three stencil algorithms (Laplace-of-Laplace, Horizontal Diffusion and Fast Waves) to unstructured grids on the NVidia CUDA architecture. The goal was to minimize the additional latency introduced by switching from a regular grid to an unstructured grid.
+
+The `GridBenchmark` class used for this benchmarking, outlined below, is built modularly and could be extended to benchmark other stencils as well -- let me know if you do something fun with it!
+
+This work was done as part of my bachelor thesis at ETH Zürich in May 2020.
+
+
 # GridBenchmark
 
 Utilities for executing benchmarks on grids.

@@ -1,3 +1,9 @@
 gridbenchmark
 /.*
-!/.gitignore
+*.pyc
+__pycache__
+.DS_Store
+*.swp
+report/**.pdf
+report/sources
+

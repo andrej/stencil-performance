@@ -1,0 +1,44 @@
+512x512
+
+==25580== Profiling application: ./gridbenchmark --no-verify --size 512x512x64 --threads 128x1x2 hdiff-unstr-idxvar -z -c
+    Kernel: void HdiffCudaUnstr::Compressed::Chasing::hdiff_idxvar<double>(_coord3<int>, int*, _coord3<int>, int, int, int, double const *, int**, double const )
+         21                    tex_cache_transactions   Unified cache to Multiprocessor transactions    31755729    31763847    31760437
+         21                  l2_tex_read_transactions                L2 Transactions (Texture Reads)    20793427    20825273    20805522
+         21                    dram_read_transactions                Device Memory Read Transactions     9380542     9404277     9402833
+
+==25649== Profiling application: ./gridbenchmark --no-verify --size 512x512x64 --threads 64x1x8 hdiff-unstr-idxvar -z
+    Kernel: void HdiffCudaUnstr::Chasing::hdiff_idxvar<double>(_coord3<int>, int const *, int, int, double const *, int const **, double const )
+         21                    tex_cache_transactions   Unified cache to Multiprocessor transactions    29965334    29991467    29980144
+         21                  l2_tex_read_transactions                L2 Transactions (Texture Reads)    22380964    22401311    22391916
+         21                    dram_read_transactions                Device Memory Read Transactions     9369620     9397438     9392553
+
+
+128x128
+
+==25715== Profiling application: ./gridbenchmark --no-verify --size 128x128x64 --threads 64x2x1 hdiff-unstr-idxvar -z -c
+    Kernel: void HdiffCudaUnstr::Compressed::Chasing::hdiff_idxvar<double>(_coord3<int>, int*, _coord3<int>, int, int, int, double const *, int**, double const )
+         21                    tex_cache_transactions   Unified cache to Multiprocessor transactions     2069795     2072577     2071128
+         21                  l2_tex_read_transactions                L2 Transactions (Texture Reads)     1417067     1425186     1420441
+         21                    dram_read_transactions                Device Memory Read Transactions      508170      508446      508208
+
+==25775== Profiling application: ./gridbenchmark --no-verify --size 128x128x64 --threads 64x1x8 hdiff-unstr-idxvar -z
+    Kernel: void HdiffCudaUnstr::Chasing::hdiff_idxvar<double>(_coord3<int>, int const *, int, int, double const *, int const **, double const )
+         21                    tex_cache_transactions   Unified cache to Multiprocessor transactions     1923433     1927170     1925279
+         21                  l2_tex_read_transactions                L2 Transactions (Texture Reads)     1466617     1469318     1468085
+         21                    dram_read_transactions                Device Memory Read Transactions      508183      511282      508748
+
+
+64x64
+
+==25829== Profiling application: ./gridbenchmark --no-verify --size 128x128x64 --threads 32x1x4 hdiff-unstr-idxvar -z -c
+    Kernel: void HdiffCudaUnstr::Compressed::Chasing::hdiff_idxvar<double>(_coord3<int>, int*, _coord3<int>, int, int, int, double const *, int**, double const )
+         21                    tex_cache_transactions   Unified cache to Multiprocessor transactions     2089703     2094664     2092424
+         21                  l2_tex_read_transactions                L2 Transactions (Texture Reads)     1773127     1781209     1777234
+         21                    dram_read_transactions                Device Memory Read Transactions      508168      508186      508176
+
+
+==25876== Profiling application: ./gridbenchmark --no-verify --size 128x128x64 --threads 32x8x2 hdiff-unstr-idxvar -z
+    Kernel: void HdiffCudaUnstr::Chasing::hdiff_idxvar<double>(_coord3<int>, int const *, int, int, double const *, int const **, double const )
+         21                    tex_cache_transactions   Unified cache to Multiprocessor transactions     2020123     2022654     2021501
+         21                  l2_tex_read_transactions                L2 Transactions (Texture Reads)     1607446     1617140     1612257
+         21                    dram_read_transactions                Device Memory Read Transactions      508167      508233      508176

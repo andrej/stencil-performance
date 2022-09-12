@@ -1,0 +1,658 @@
+ptxas info    : 0 bytes gmem, 65136 bytes cmem[3]
+
+ptxas info    : Compiling entry function '_ZN11LapLapUnstr10Compressed7Chasing4Cmem13laplap_idxvarIdEEvPiS4_iii7_coord3IiEPKT_PS7_' for 'sm_60'
+ptxas info    : Function properties for _ZN11LapLapUnstr10Compressed7Chasing4Cmem13laplap_idxvarIdEEvPiS4_iii7_coord3IiEPKT_PS7_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 376 bytes cmem[0]
+
+ptxas info    : Compiling entry function '_ZN11LapLapUnstr10Compressed7Chasing4Cmem13laplap_idxvarIfEEvPiS4_iii7_coord3IiEPKT_PS7_' for 'sm_60'
+ptxas info    : Function properties for _ZN11LapLapUnstr10Compressed7Chasing4Cmem13laplap_idxvarIfEEvPiS4_iii7_coord3IiEPKT_PS7_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 30 registers, 376 bytes cmem[0]
+
+ptxas info    : Compiling entry function '_ZN11LapLapUnstr10Compressed7Chasing26laplap_idxvar_kloop_slicedIdEEvPiS3_iiii7_coord3IiEPKT_PS6_' for 'sm_60'
+ptxas info    : Function properties for _ZN11LapLapUnstr10Compressed7Chasing26laplap_idxvar_kloop_slicedIdEEvPiS3_iiii7_coord3IiEPKT_PS6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 78 registers, 384 bytes cmem[0]
+
+ptxas info    : Compiling entry function '_ZN11LapLapUnstr10Compressed7Chasing20laplap_idxvar_sharedIdEEvPiS3_iii7_coord3IiEPKT_PS6_' for 'sm_60'
+ptxas info    : Function properties for _ZN11LapLapUnstr10Compressed7Chasing20laplap_idxvar_sharedIdEEvPiS3_iii7_coord3IiEPKT_PS6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 29 registers, 376 bytes cmem[0]
+
+ptxas info    : Compiling entry function '_ZN11LapLapUnstr10Compressed7Chasing19laplap_idxvar_kloopIdEEvPiS3_iii7_coord3IiEPKT_PS6_' for 'sm_60'
+ptxas info    : Function properties for _ZN11LapLapUnstr10Compressed7Chasing19laplap_idxvar_kloopIdEEvPiS3_iii7_coord3IiEPKT_PS6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 80 registers, 376 bytes cmem[0]
+
+ptxas info    : Compiling entry function '_ZN11LapLapUnstr10Compressed7Chasing13laplap_idxvarIdEEvPiS3_iii7_coord3IiEPKT_PS6_' for 'sm_60'
+ptxas info    : Function properties for _ZN11LapLapUnstr10Compressed7Chasing13laplap_idxvarIdEEvPiS3_iii7_coord3IiEPKT_PS6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 376 bytes cmem[0]
+
+ptxas info    : Compiling entry function '_ZN11LapLapUnstr10Compressed7Chasing12laplap_naiveIdEEvPiS3_iii7_coord3IiEPKT_PS6_' for 'sm_60'
+ptxas info    : Function properties for _ZN11LapLapUnstr10Compressed7Chasing12laplap_naiveIdEEvPiS3_iii7_coord3IiEPKT_PS6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 376 bytes cmem[0]
+
+ptxas info    : Compiling entry function '_ZN11LapLapUnstr10Compressed7Chasing26laplap_idxvar_kloop_slicedIfEEvPiS3_iiii7_coord3IiEPKT_PS6_' for 'sm_60'
+ptxas info    : Function properties for _ZN11LapLapUnstr10Compressed7Chasing26laplap_idxvar_kloop_slicedIfEEvPiS3_iiii7_coord3IiEPKT_PS6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 72 registers, 384 bytes cmem[0]
+
+ptxas info    : Compiling entry function '_ZN11LapLapUnstr10Compressed7Chasing20laplap_idxvar_sharedIfEEvPiS3_iii7_coord3IiEPKT_PS6_' for 'sm_60'
+ptxas info    : Function properties for _ZN11LapLapUnstr10Compressed7Chasing20laplap_idxvar_sharedIfEEvPiS3_iii7_coord3IiEPKT_PS6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 376 bytes cmem[0]
+
+ptxas info    : Compiling entry function '_ZN11LapLapUnstr10Compressed7Chasing19laplap_idxvar_kloopIfEEvPiS3_iii7_coord3IiEPKT_PS6_' for 'sm_60'
+ptxas info    : Function properties for _ZN11LapLapUnstr10Compressed7Chasing19laplap_idxvar_kloopIfEEvPiS3_iii7_coord3IiEPKT_PS6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 78 registers, 376 bytes cmem[0]
+
+ptxas info    : Compiling entry function '_ZN11LapLapUnstr10Compressed7Chasing13laplap_idxvarIfEEvPiS3_iii7_coord3IiEPKT_PS6_' for 'sm_60'
+ptxas info    : Function properties for _ZN11LapLapUnstr10Compressed7Chasing13laplap_idxvarIfEEvPiS3_iii7_coord3IiEPKT_PS6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 30 registers, 376 bytes cmem[0]
+
+ptxas info    : Compiling entry function '_ZN11LapLapUnstr10Compressed7Chasing12laplap_naiveIfEEvPiS3_iii7_coord3IiEPKT_PS6_' for 'sm_60'
+ptxas info    : Function properties for _ZN11LapLapUnstr10Compressed7Chasing12laplap_naiveIfEEvPiS3_iii7_coord3IiEPKT_PS6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 376 bytes cmem[0]
+
+ptxas info    : Compiling entry function '_ZN11LapLapUnstr10Compressed10NonChasing26laplap_idxvar_kloop_slicedIdEEvPiS3_iiii7_coord3IiEPKT_PS6_' for 'sm_60'
+ptxas info    : Function properties for _ZN11LapLapUnstr10Compressed10NonChasing26laplap_idxvar_kloop_slicedIdEEvPiS3_iiii7_coord3IiEPKT_PS6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 78 registers, 384 bytes cmem[0]
+
+ptxas info    : Compiling entry function '_ZN11LapLapUnstr10Compressed10NonChasing20laplap_idxvar_sharedIdEEvPiS3_iii7_coord3IiEPKT_PS6_' for 'sm_60'
+ptxas info    : Function properties for _ZN11LapLapUnstr10Compressed10NonChasing20laplap_idxvar_sharedIdEEvPiS3_iii7_coord3IiEPKT_PS6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 376 bytes cmem[0]
+
+ptxas info    : Compiling entry function '_ZN11LapLapUnstr10Compressed10NonChasing19laplap_idxvar_kloopIdEEvPiS3_iii7_coord3IiEPKT_PS6_' for 'sm_60'
+ptxas info    : Function properties for _ZN11LapLapUnstr10Compressed10NonChasing19laplap_idxvar_kloopIdEEvPiS3_iii7_coord3IiEPKT_PS6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 80 registers, 376 bytes cmem[0]
+
+ptxas info    : Compiling entry function '_ZN11LapLapUnstr10Compressed10NonChasing13laplap_idxvarIdEEvPiS3_iii7_coord3IiEPKT_PS6_' for 'sm_60'
+ptxas info    : Function properties for _ZN11LapLapUnstr10Compressed10NonChasing13laplap_idxvarIdEEvPiS3_iii7_coord3IiEPKT_PS6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 376 bytes cmem[0]
+
+ptxas info    : Compiling entry function '_ZN11LapLapUnstr10Compressed10NonChasing12laplap_naiveIdEEvPiS3_iii7_coord3IiEPKT_PS6_' for 'sm_60'
+ptxas info    : Function properties for _ZN11LapLapUnstr10Compressed10NonChasing12laplap_naiveIdEEvPiS3_iii7_coord3IiEPKT_PS6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 376 bytes cmem[0]
+
+
+ptxas info    : Compiling entry function '_ZN11LapLapUnstr10Compressed10NonChasing26laplap_idxvar_kloop_slicedIfEEvPiS3_iiii7_coord3IiEPKT_PS6_' for 'sm_60'
+ptxas info    : Function properties for _ZN11LapLapUnstr10Compressed10NonChasing26laplap_idxvar_kloop_slicedIfEEvPiS3_iiii7_coord3IiEPKT_PS6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 72 registers, 384 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN11LapLapUnstr10Compressed10NonChasing20laplap_idxvar_sharedIfEEvPiS3_iii7_coord3IiEPKT_PS6_' for 'sm_60'
+ptxas info    : Function properties for _ZN11LapLapUnstr10Compressed10NonChasing20laplap_idxvar_sharedIfEEvPiS3_iii7_coord3IiEPKT_PS6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 376 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN11LapLapUnstr10Compressed10NonChasing19laplap_idxvar_kloopIfEEvPiS3_iii7_coord3IiEPKT_PS6_' for 'sm_60'
+ptxas info    : Function properties for _ZN11LapLapUnstr10Compressed10NonChasing19laplap_idxvar_kloopIfEEvPiS3_iii7_coord3IiEPKT_PS6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 78 registers, 376 bytes cmem[0]
+
+ptxas info    : Compiling entry function '_ZN11LapLapUnstr10Compressed10NonChasing13laplap_idxvarIfEEvPiS3_iii7_coord3IiEPKT_PS6_' for 'sm_60'
+ptxas info    : Function properties for _ZN11LapLapUnstr10Compressed10NonChasing13laplap_idxvarIfEEvPiS3_iii7_coord3IiEPKT_PS6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 376 bytes cmem[0]
+
+ptxas info    : Compiling entry function '_ZN11LapLapUnstr10Compressed10NonChasing12laplap_naiveIfEEvPiS3_iii7_coord3IiEPKT_PS6_' for 'sm_60'
+ptxas info    : Function properties for _ZN11LapLapUnstr10Compressed10NonChasing12laplap_naiveIfEEvPiS3_iii7_coord3IiEPKT_PS6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 31 registers, 376 bytes cmem[0]
+
+ptxas info    : Compiling entry function '_ZN11LapLapUnstr7Chasing4Cmem13laplap_idxvarIdEEvPKiii7_coord3IiEPKT_PS7_' for 'sm_60'
+ptxas info    : Function properties for _ZN11LapLapUnstr7Chasing4Cmem13laplap_idxvarIdEEvPKiii7_coord3IiEPKT_PS7_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 368 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN11LapLapUnstr7Chasing4Cmem13laplap_idxvarIfEEvPKiii7_coord3IiEPKT_PS7_' for 'sm_60'
+ptxas info    : Function properties for _ZN11LapLapUnstr7Chasing4Cmem13laplap_idxvarIfEEvPKiii7_coord3IiEPKT_PS7_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 368 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN11LapLapUnstr7Chasing26laplap_idxvar_kloop_slicedIdEEvPKiiii7_coord3IiEPKT_PS6_' for 'sm_60'
+ptxas info    : Function properties for _ZN11LapLapUnstr7Chasing26laplap_idxvar_kloop_slicedIdEEvPKiiii7_coord3IiEPKT_PS6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 78 registers, 368 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN11LapLapUnstr7Chasing20laplap_idxvar_sharedIdEEvPKiii7_coord3IiEPKT_PS6_' for 'sm_60'
+ptxas info    : Function properties for _ZN11LapLapUnstr7Chasing20laplap_idxvar_sharedIdEEvPKiii7_coord3IiEPKT_PS6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 29 registers, 368 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN11LapLapUnstr7Chasing19laplap_idxvar_kloopIdEEvPKiii7_coord3IiEPKT_PS6_' for 'sm_60'
+ptxas info    : Function properties for _ZN11LapLapUnstr7Chasing19laplap_idxvar_kloopIdEEvPKiii7_coord3IiEPKT_PS6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 80 registers, 368 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN11LapLapUnstr7Chasing13laplap_idxvarIdEEvPKiii7_coord3IiEPKT_PS6_' for 'sm_60'
+ptxas info    : Function properties for _ZN11LapLapUnstr7Chasing13laplap_idxvarIdEEvPKiii7_coord3IiEPKT_PS6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 368 bytes cmem[0]
+
+ptxas info    : Compiling entry function '_ZN11LapLapUnstr7Chasing12laplap_naiveIdEEvPKiii7_coord3IiEPKT_PS6_' for 'sm_60'
+ptxas info    : Function properties for _ZN11LapLapUnstr7Chasing12laplap_naiveIdEEvPKiii7_coord3IiEPKT_PS6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 368 bytes cmem[0]
+
+ptxas info    : Compiling entry function '_ZN11LapLapUnstr7Chasing26laplap_idxvar_kloop_slicedIfEEvPKiiii7_coord3IiEPKT_PS6_' for 'sm_60'
+ptxas info    : Function properties for _ZN11LapLapUnstr7Chasing26laplap_idxvar_kloop_slicedIfEEvPKiiii7_coord3IiEPKT_PS6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 72 registers, 368 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN11LapLapUnstr7Chasing20laplap_idxvar_sharedIfEEvPKiii7_coord3IiEPKT_PS6_' for 'sm_60'
+ptxas info    : Function properties for _ZN11LapLapUnstr7Chasing20laplap_idxvar_sharedIfEEvPKiii7_coord3IiEPKT_PS6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 368 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN11LapLapUnstr7Chasing19laplap_idxvar_kloopIfEEvPKiii7_coord3IiEPKT_PS6_' for 'sm_60'
+ptxas info    : Function properties for _ZN11LapLapUnstr7Chasing19laplap_idxvar_kloopIfEEvPKiii7_coord3IiEPKT_PS6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 78 registers, 368 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN11LapLapUnstr7Chasing13laplap_idxvarIfEEvPKiii7_coord3IiEPKT_PS6_' for 'sm_60'
+ptxas info    : Function properties for _ZN11LapLapUnstr7Chasing13laplap_idxvarIfEEvPKiii7_coord3IiEPKT_PS6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 31 registers, 368 bytes cmem[0]
+
+ptxas info    : Compiling entry function '_ZN11LapLapUnstr7Chasing12laplap_naiveIfEEvPKiii7_coord3IiEPKT_PS6_' for 'sm_60'
+ptxas info    : Function properties for _ZN11LapLapUnstr7Chasing12laplap_naiveIfEEvPKiii7_coord3IiEPKT_PS6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 368 bytes cmem[0]
+
+ptxas info    : Compiling entry function '_ZN11LapLapUnstr10NonChasing26laplap_idxvar_kloop_slicedIdEEvPKiiii7_coord3IiEPKT_PS6_' for 'sm_60'
+ptxas info    : Function properties for _ZN11LapLapUnstr10NonChasing26laplap_idxvar_kloop_slicedIdEEvPKiiii7_coord3IiEPKT_PS6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 78 registers, 368 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN11LapLapUnstr10NonChasing20laplap_idxvar_sharedIdEEvPKiii7_coord3IiEPKT_PS6_' for 'sm_60'
+ptxas info    : Function properties for _ZN11LapLapUnstr10NonChasing20laplap_idxvar_sharedIdEEvPKiii7_coord3IiEPKT_PS6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 368 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN11LapLapUnstr10NonChasing19laplap_idxvar_kloopIdEEvPKiii7_coord3IiEPKT_PS6_' for 'sm_60'
+ptxas info    : Function properties for _ZN11LapLapUnstr10NonChasing19laplap_idxvar_kloopIdEEvPKiii7_coord3IiEPKT_PS6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 80 registers, 368 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN11LapLapUnstr10NonChasing13laplap_idxvarIdEEvPKiii7_coord3IiEPKT_PS6_' for 'sm_60'
+ptxas info    : Function properties for _ZN11LapLapUnstr10NonChasing13laplap_idxvarIdEEvPKiii7_coord3IiEPKT_PS6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 368 bytes cmem[0]
+
+ptxas info    : Compiling entry function '_ZN11LapLapUnstr10NonChasing12laplap_naiveIdEEvPKiii7_coord3IiEPKT_PS6_' for 'sm_60'
+ptxas info    : Function properties for _ZN11LapLapUnstr10NonChasing12laplap_naiveIdEEvPKiii7_coord3IiEPKT_PS6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 368 bytes cmem[0]
+
+ptxas info    : Compiling entry function '_ZN11LapLapUnstr10NonChasing26laplap_idxvar_kloop_slicedIfEEvPKiiii7_coord3IiEPKT_PS6_' for 'sm_60'
+ptxas info    : Function properties for _ZN11LapLapUnstr10NonChasing26laplap_idxvar_kloop_slicedIfEEvPKiiii7_coord3IiEPKT_PS6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 63 registers, 368 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN11LapLapUnstr10NonChasing20laplap_idxvar_sharedIfEEvPKiii7_coord3IiEPKT_PS6_' for 'sm_60'
+ptxas info    : Function properties for _ZN11LapLapUnstr10NonChasing20laplap_idxvar_sharedIfEEvPKiii7_coord3IiEPKT_PS6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 31 registers, 368 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN11LapLapUnstr10NonChasing19laplap_idxvar_kloopIfEEvPKiii7_coord3IiEPKT_PS6_' for 'sm_60'
+ptxas info    : Function properties for _ZN11LapLapUnstr10NonChasing19laplap_idxvar_kloopIfEEvPKiii7_coord3IiEPKT_PS6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 62 registers, 368 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN11LapLapUnstr10NonChasing13laplap_idxvarIfEEvPKiii7_coord3IiEPKT_PS6_' for 'sm_60'
+ptxas info    : Function properties for _ZN11LapLapUnstr10NonChasing13laplap_idxvarIfEEvPKiii7_coord3IiEPKT_PS6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 368 bytes cmem[0]
+
+ptxas info    : Compiling entry function '_ZN11LapLapUnstr10NonChasing12laplap_naiveIfEEvPKiii7_coord3IiEPKT_PS6_' for 'sm_60'
+ptxas info    : Function properties for _ZN11LapLapUnstr10NonChasing12laplap_naiveIfEEvPKiii7_coord3IiEPKT_PS6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 31 registers, 368 bytes cmem[0]
+
+ptxas info    : Compiling entry function '_ZN13LapLapRegular13laplap_sharedIdEEvii7_coord3IiEPKT_PS3_' for 'sm_60'
+ptxas info    : Function properties for _ZN13LapLapRegular13laplap_sharedIdEEvii7_coord3IiEPKT_PS3_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 360 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN13LapLapRegular20laplap_idxvar_sharedIdEEvii7_coord3IiEPKT_PS3_' for 'sm_60'
+ptxas info    : Function properties for _ZN13LapLapRegular20laplap_idxvar_sharedIdEEvii7_coord3IiEPKT_PS3_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 29 registers, 360 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN13LapLapRegular26laplap_idxvar_kloop_slicedIdEEviii7_coord3IiEPKT_PS3_' for 'sm_60'
+ptxas info    : Function properties for _ZN13LapLapRegular26laplap_idxvar_kloop_slicedIdEEviii7_coord3IiEPKT_PS3_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 56 registers, 360 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN13LapLapRegular19laplap_idxvar_kloopIdEEvii7_coord3IiEPKT_PS3_' for 'sm_60'
+ptxas info    : Function properties for _ZN13LapLapRegular19laplap_idxvar_kloopIdEEvii7_coord3IiEPKT_PS3_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 72 registers, 360 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN13LapLapRegular13laplap_idxvarIdEEvii7_coord3IiEPKT_PS3_' for 'sm_60'
+ptxas info    : Function properties for _ZN13LapLapRegular13laplap_idxvarIdEEvii7_coord3IiEPKT_PS3_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 31 registers, 360 bytes cmem[0]
+
+ptxas info    : Compiling entry function '_ZN13LapLapRegular12laplap_naiveIdEEvii7_coord3IiEPKT_PS3_' for 'sm_60'
+ptxas info    : Function properties for _ZN13LapLapRegular12laplap_naiveIdEEvii7_coord3IiEPKT_PS3_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 31 registers, 360 bytes cmem[0]
+
+ptxas info    : Compiling entry function '_ZN13LapLapRegular13laplap_sharedIfEEvii7_coord3IiEPKT_PS3_' for 'sm_60'
+ptxas info    : Function properties for _ZN13LapLapRegular13laplap_sharedIfEEvii7_coord3IiEPKT_PS3_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 360 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN13LapLapRegular20laplap_idxvar_sharedIfEEvii7_coord3IiEPKT_PS3_' for 'sm_60'
+ptxas info    : Function properties for _ZN13LapLapRegular20laplap_idxvar_sharedIfEEvii7_coord3IiEPKT_PS3_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 360 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN13LapLapRegular26laplap_idxvar_kloop_slicedIfEEviii7_coord3IiEPKT_PS3_' for 'sm_60'
+ptxas info    : Function properties for _ZN13LapLapRegular26laplap_idxvar_kloop_slicedIfEEviii7_coord3IiEPKT_PS3_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 48 registers, 360 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN13LapLapRegular19laplap_idxvar_kloopIfEEvii7_coord3IiEPKT_PS3_' for 'sm_60'
+ptxas info    : Function properties for _ZN13LapLapRegular19laplap_idxvar_kloopIfEEvii7_coord3IiEPKT_PS3_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 64 registers, 360 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN13LapLapRegular13laplap_idxvarIfEEvii7_coord3IiEPKT_PS3_' for 'sm_60'
+ptxas info    : Function properties for _ZN13LapLapRegular13laplap_idxvarIfEEvii7_coord3IiEPKT_PS3_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 24 registers, 360 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN13LapLapRegular12laplap_naiveIfEEvii7_coord3IiEPKT_PS3_' for 'sm_60'
+ptxas info    : Function properties for _ZN13LapLapRegular12laplap_naiveIfEEvii7_coord3IiEPKT_PS3_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 25 registers, 360 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN32FastWavesUnstrBenchmarkNamespace10Compressed20fastwaves_aos_idxvarIdEEv7_coord3IiEPKiS5_iiiiPK17fastwaves_aos_valIT_EddiPS7_SB_' for 'sm_60'
+ptxas info    : Function properties for _ZN32FastWavesUnstrBenchmarkNamespace10Compressed20fastwaves_aos_idxvarIdEEv7_coord3IiEPKiS5_iiiiPK17fastwaves_aos_valIT_EddiPS7_SB_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 42 registers, 416 bytes cmem[0], 32 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN32FastWavesUnstrBenchmarkNamespace10Compressed29fastwaves_idxvar_kloop_slicedIdEEvi7_coord3IiEPKiS5_iiiiPKT_S8_S8_S8_S8_S8_S8_S8_S8_ddiPS6_S9_' for 'sm_60'
+ptxas info    : Function properties for _ZN32FastWavesUnstrBenchmarkNamespace10Compressed29fastwaves_idxvar_kloop_slicedIdEEvi7_coord3IiEPKiS5_iiiiPKT_S8_S8_S8_S8_S8_S8_S8_S8_ddiPS6_S9_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 116 registers, 480 bytes cmem[0], 32 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN32FastWavesUnstrBenchmarkNamespace10Compressed15fastwaves_kloopIdEEv7_coord3IiEPKiS5_iiiiPKT_S8_S8_S8_S8_S8_S8_S8_S8_ddiPS6_S9_' for 'sm_60'
+ptxas info    : Function properties for _ZN32FastWavesUnstrBenchmarkNamespace10Compressed15fastwaves_kloopIdEEv7_coord3IiEPKiS5_iiiiPKT_S8_S8_S8_S8_S8_S8_S8_S8_ddiPS6_S9_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 126 registers, 480 bytes cmem[0], 32 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN32FastWavesUnstrBenchmarkNamespace10Compressed23fastwaves_idxvar_sharedIdEEv7_coord3IiEPKiS5_iiiiPKT_S8_S8_S8_S8_S8_S8_S8_S8_ddiPS6_S9_' for 'sm_60'
+ptxas info    : Function properties for _ZN32FastWavesUnstrBenchmarkNamespace10Compressed23fastwaves_idxvar_sharedIdEEv7_coord3IiEPKiS5_iiiiPKT_S8_S8_S8_S8_S8_S8_S8_S8_ddiPS6_S9_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 46 registers, 480 bytes cmem[0], 32 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN32FastWavesUnstrBenchmarkNamespace10Compressed22fastwaves_idxvar_kloopIdEEv7_coord3IiEPKiS5_iiiiPKT_S8_S8_S8_S8_S8_S8_S8_S8_ddiPS6_S9_' for 'sm_60'
+ptxas info    : Function properties for _ZN32FastWavesUnstrBenchmarkNamespace10Compressed22fastwaves_idxvar_kloopIdEEv7_coord3IiEPKiS5_iiiiPKT_S8_S8_S8_S8_S8_S8_S8_S8_ddiPS6_S9_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 136 registers, 480 bytes cmem[0], 32 bytes cmem[2]
+
+ptxas info    : Compiling entry function '_ZN32FastWavesUnstrBenchmarkNamespace10Compressed16fastwaves_idxvarIdEEv7_coord3IiEPKiS5_iiiiPKT_S8_S8_S8_S8_S8_S8_S8_S8_ddiPS6_S9_' for 'sm_60'
+ptxas info    : Function properties for _ZN32FastWavesUnstrBenchmarkNamespace10Compressed16fastwaves_idxvarIdEEv7_coord3IiEPKiS5_iiiiPKT_S8_S8_S8_S8_S8_S8_S8_S8_ddiPS6_S9_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 46 registers, 480 bytes cmem[0], 32 bytes cmem[2]
+
+ptxas info    : Compiling entry function '_ZN32FastWavesUnstrBenchmarkNamespace10Compressed15fastwaves_naiveIdEEv7_coord3IiEPKiS5_iiiiPKT_S8_S8_S8_S8_S8_S8_S8_S8_ddiPS6_S9_' for 'sm_60'
+ptxas info    : Function properties for _ZN32FastWavesUnstrBenchmarkNamespace10Compressed15fastwaves_naiveIdEEv7_coord3IiEPKiS5_iiiiPKT_S8_S8_S8_S8_S8_S8_S8_S8_ddiPS6_S9_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 44 registers, 480 bytes cmem[0], 32 bytes cmem[2]
+
+ptxas info    : Compiling entry function '_ZN32FastWavesUnstrBenchmarkNamespace10Compressed20fastwaves_aos_idxvarIfEEv7_coord3IiEPKiS5_iiiiPK17fastwaves_aos_valIT_EddiPS7_SB_' for 'sm_60'
+ptxas info    : Function properties for _ZN32FastWavesUnstrBenchmarkNamespace10Compressed20fastwaves_aos_idxvarIfEEv7_coord3IiEPKiS5_iiiiPK17fastwaves_aos_valIT_EddiPS7_SB_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 40 registers, 416 bytes cmem[0], 32 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN32FastWavesUnstrBenchmarkNamespace10Compressed29fastwaves_idxvar_kloop_slicedIfEEvi7_coord3IiEPKiS5_iiiiPKT_S8_S8_S8_S8_S8_S8_S8_S8_ddiPS6_S9_' for 'sm_60'
+ptxas info    : Function properties for _ZN32FastWavesUnstrBenchmarkNamespace10Compressed29fastwaves_idxvar_kloop_slicedIfEEvi7_coord3IiEPKiS5_iiiiPKT_S8_S8_S8_S8_S8_S8_S8_S8_ddiPS6_S9_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 109 registers, 480 bytes cmem[0], 32 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN32FastWavesUnstrBenchmarkNamespace10Compressed15fastwaves_kloopIfEEv7_coord3IiEPKiS5_iiiiPKT_S8_S8_S8_S8_S8_S8_S8_S8_ddiPS6_S9_' for 'sm_60'
+ptxas info    : Function properties for _ZN32FastWavesUnstrBenchmarkNamespace10Compressed15fastwaves_kloopIfEEv7_coord3IiEPKiS5_iiiiPKT_S8_S8_S8_S8_S8_S8_S8_S8_ddiPS6_S9_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 125 registers, 480 bytes cmem[0], 32 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN32FastWavesUnstrBenchmarkNamespace10Compressed23fastwaves_idxvar_sharedIfEEv7_coord3IiEPKiS5_iiiiPKT_S8_S8_S8_S8_S8_S8_S8_S8_ddiPS6_S9_' for 'sm_60'
+ptxas info    : Function properties for _ZN32FastWavesUnstrBenchmarkNamespace10Compressed23fastwaves_idxvar_sharedIfEEv7_coord3IiEPKiS5_iiiiPKT_S8_S8_S8_S8_S8_S8_S8_S8_ddiPS6_S9_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 44 registers, 480 bytes cmem[0], 32 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN32FastWavesUnstrBenchmarkNamespace10Compressed22fastwaves_idxvar_kloopIfEEv7_coord3IiEPKiS5_iiiiPKT_S8_S8_S8_S8_S8_S8_S8_S8_ddiPS6_S9_' for 'sm_60'
+ptxas info    : Function properties for _ZN32FastWavesUnstrBenchmarkNamespace10Compressed22fastwaves_idxvar_kloopIfEEv7_coord3IiEPKiS5_iiiiPKT_S8_S8_S8_S8_S8_S8_S8_S8_ddiPS6_S9_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 119 registers, 480 bytes cmem[0], 32 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN32FastWavesUnstrBenchmarkNamespace10Compressed16fastwaves_idxvarIfEEv7_coord3IiEPKiS5_iiiiPKT_S8_S8_S8_S8_S8_S8_S8_S8_ddiPS6_S9_' for 'sm_60'
+ptxas info    : Function properties for _ZN32FastWavesUnstrBenchmarkNamespace10Compressed16fastwaves_idxvarIfEEv7_coord3IiEPKiS5_iiiiPKT_S8_S8_S8_S8_S8_S8_S8_S8_ddiPS6_S9_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 44 registers, 480 bytes cmem[0], 32 bytes cmem[2]
+
+ptxas info    : Compiling entry function '_ZN32FastWavesUnstrBenchmarkNamespace10Compressed15fastwaves_naiveIfEEv7_coord3IiEPKiS5_iiiiPKT_S8_S8_S8_S8_S8_S8_S8_S8_ddiPS6_S9_' for 'sm_60'
+ptxas info    : Function properties for _ZN32FastWavesUnstrBenchmarkNamespace10Compressed15fastwaves_naiveIfEEv7_coord3IiEPKiS5_iiiiPKT_S8_S8_S8_S8_S8_S8_S8_S8_ddiPS6_S9_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 46 registers, 480 bytes cmem[0], 32 bytes cmem[2]
+
+ptxas info    : Compiling entry function '_ZN32FastWavesUnstrBenchmarkNamespace20fastwaves_aos_idxvarIdEEv7_coord3IiEPKiiiiPK17fastwaves_aos_valIT_EddiPS6_SA_' for 'sm_60'
+ptxas info    : Function properties for _ZN32FastWavesUnstrBenchmarkNamespace20fastwaves_aos_idxvarIdEEv7_coord3IiEPKiiiiPK17fastwaves_aos_valIT_EddiPS6_SA_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 42 registers, 408 bytes cmem[0], 32 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN32FastWavesUnstrBenchmarkNamespace29fastwaves_idxvar_kloop_slicedIdEEvi7_coord3IiEPKiiiiPKT_S7_S7_S7_S7_S7_S7_S7_S7_ddiPS5_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN32FastWavesUnstrBenchmarkNamespace29fastwaves_idxvar_kloop_slicedIdEEvi7_coord3IiEPKiiiiPKT_S7_S7_S7_S7_S7_S7_S7_S7_ddiPS5_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 116 registers, 472 bytes cmem[0], 32 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN32FastWavesUnstrBenchmarkNamespace15fastwaves_kloopIdEEv7_coord3IiEPKiiiiPKT_S7_S7_S7_S7_S7_S7_S7_S7_ddiPS5_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN32FastWavesUnstrBenchmarkNamespace15fastwaves_kloopIdEEv7_coord3IiEPKiiiiPKT_S7_S7_S7_S7_S7_S7_S7_S7_ddiPS5_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 126 registers, 472 bytes cmem[0], 32 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN32FastWavesUnstrBenchmarkNamespace23fastwaves_idxvar_sharedIdEEv7_coord3IiEPKiiiiPKT_S7_S7_S7_S7_S7_S7_S7_S7_ddiPS5_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN32FastWavesUnstrBenchmarkNamespace23fastwaves_idxvar_sharedIdEEv7_coord3IiEPKiiiiPKT_S7_S7_S7_S7_S7_S7_S7_S7_ddiPS5_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 46 registers, 472 bytes cmem[0], 32 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN32FastWavesUnstrBenchmarkNamespace22fastwaves_idxvar_kloopIdEEv7_coord3IiEPKiiiiPKT_S7_S7_S7_S7_S7_S7_S7_S7_ddiPS5_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN32FastWavesUnstrBenchmarkNamespace22fastwaves_idxvar_kloopIdEEv7_coord3IiEPKiiiiPKT_S7_S7_S7_S7_S7_S7_S7_S7_ddiPS5_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 136 registers, 472 bytes cmem[0], 32 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN32FastWavesUnstrBenchmarkNamespace16fastwaves_idxvarIdEEv7_coord3IiEPKiiiiPKT_S7_S7_S7_S7_S7_S7_S7_S7_ddiPS5_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN32FastWavesUnstrBenchmarkNamespace16fastwaves_idxvarIdEEv7_coord3IiEPKiiiiPKT_S7_S7_S7_S7_S7_S7_S7_S7_ddiPS5_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 46 registers, 472 bytes cmem[0], 32 bytes cmem[2]
+
+ptxas info    : Compiling entry function '_ZN32FastWavesUnstrBenchmarkNamespace15fastwaves_naiveIdEEv7_coord3IiEPKiiiiPKT_S7_S7_S7_S7_S7_S7_S7_S7_ddiPS5_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN32FastWavesUnstrBenchmarkNamespace15fastwaves_naiveIdEEv7_coord3IiEPKiiiiPKT_S7_S7_S7_S7_S7_S7_S7_S7_ddiPS5_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 44 registers, 472 bytes cmem[0], 32 bytes cmem[2]
+
+ptxas info    : Compiling entry function '_ZN32FastWavesUnstrBenchmarkNamespace20fastwaves_aos_idxvarIfEEv7_coord3IiEPKiiiiPK17fastwaves_aos_valIT_EddiPS6_SA_' for 'sm_60'
+ptxas info    : Function properties for _ZN32FastWavesUnstrBenchmarkNamespace20fastwaves_aos_idxvarIfEEv7_coord3IiEPKiiiiPK17fastwaves_aos_valIT_EddiPS6_SA_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 40 registers, 408 bytes cmem[0], 32 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN32FastWavesUnstrBenchmarkNamespace29fastwaves_idxvar_kloop_slicedIfEEvi7_coord3IiEPKiiiiPKT_S7_S7_S7_S7_S7_S7_S7_S7_ddiPS5_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN32FastWavesUnstrBenchmarkNamespace29fastwaves_idxvar_kloop_slicedIfEEvi7_coord3IiEPKiiiiPKT_S7_S7_S7_S7_S7_S7_S7_S7_ddiPS5_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 109 registers, 472 bytes cmem[0], 32 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN32FastWavesUnstrBenchmarkNamespace15fastwaves_kloopIfEEv7_coord3IiEPKiiiiPKT_S7_S7_S7_S7_S7_S7_S7_S7_ddiPS5_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN32FastWavesUnstrBenchmarkNamespace15fastwaves_kloopIfEEv7_coord3IiEPKiiiiPKT_S7_S7_S7_S7_S7_S7_S7_S7_ddiPS5_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 124 registers, 472 bytes cmem[0], 32 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN32FastWavesUnstrBenchmarkNamespace23fastwaves_idxvar_sharedIfEEv7_coord3IiEPKiiiiPKT_S7_S7_S7_S7_S7_S7_S7_S7_ddiPS5_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN32FastWavesUnstrBenchmarkNamespace23fastwaves_idxvar_sharedIfEEv7_coord3IiEPKiiiiPKT_S7_S7_S7_S7_S7_S7_S7_S7_ddiPS5_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 44 registers, 472 bytes cmem[0], 32 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN32FastWavesUnstrBenchmarkNamespace22fastwaves_idxvar_kloopIfEEv7_coord3IiEPKiiiiPKT_S7_S7_S7_S7_S7_S7_S7_S7_ddiPS5_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN32FastWavesUnstrBenchmarkNamespace22fastwaves_idxvar_kloopIfEEv7_coord3IiEPKiiiiPKT_S7_S7_S7_S7_S7_S7_S7_S7_ddiPS5_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 119 registers, 472 bytes cmem[0], 32 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN32FastWavesUnstrBenchmarkNamespace16fastwaves_idxvarIfEEv7_coord3IiEPKiiiiPKT_S7_S7_S7_S7_S7_S7_S7_S7_ddiPS5_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN32FastWavesUnstrBenchmarkNamespace16fastwaves_idxvarIfEEv7_coord3IiEPKiiiiPKT_S7_S7_S7_S7_S7_S7_S7_S7_ddiPS5_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 44 registers, 472 bytes cmem[0], 32 bytes cmem[2]
+
+ptxas info    : Compiling entry function '_ZN32FastWavesUnstrBenchmarkNamespace15fastwaves_naiveIfEEv7_coord3IiEPKiiiiPKT_S7_S7_S7_S7_S7_S7_S7_S7_ddiPS5_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN32FastWavesUnstrBenchmarkNamespace15fastwaves_naiveIfEEv7_coord3IiEPKiiiiPKT_S7_S7_S7_S7_S7_S7_S7_S7_ddiPS5_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 42 registers, 472 bytes cmem[0], 32 bytes cmem[2]
+
+ptxas info    : Compiling entry function '_ZN34FastWavesRegularBenchmarkNamespace29fastwaves_idxvar_kloop_slicedIdEEvi7_coord3IiEiiPKT_S5_S5_S5_S5_S5_S5_S5_S5_ddiPS3_S6_' for 'sm_60'
+ptxas info    : Function properties for _ZN34FastWavesRegularBenchmarkNamespace29fastwaves_idxvar_kloop_slicedIdEEvi7_coord3IiEiiPKT_S5_S5_S5_S5_S5_S5_S5_S5_ddiPS3_S6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 76 registers, 456 bytes cmem[0], 32 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN34FastWavesRegularBenchmarkNamespace15fastwaves_kloopIdEEv7_coord3IiEiiPKT_S5_S5_S5_S5_S5_S5_S5_S5_ddiPS3_S6_' for 'sm_60'
+ptxas info    : Function properties for _ZN34FastWavesRegularBenchmarkNamespace15fastwaves_kloopIdEEv7_coord3IiEiiPKT_S5_S5_S5_S5_S5_S5_S5_S5_ddiPS3_S6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 126 registers, 456 bytes cmem[0], 32 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN34FastWavesRegularBenchmarkNamespace23fastwaves_idxvar_sharedIdEEv7_coord3IiEiiPKT_S5_S5_S5_S5_S5_S5_S5_S5_ddiPS3_S6_' for 'sm_60'
+ptxas info    : Function properties for _ZN34FastWavesRegularBenchmarkNamespace23fastwaves_idxvar_sharedIdEEv7_coord3IiEiiPKT_S5_S5_S5_S5_S5_S5_S5_S5_ddiPS3_S6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 46 registers, 456 bytes cmem[0], 32 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN34FastWavesRegularBenchmarkNamespace22fastwaves_idxvar_kloopIdEEv7_coord3IiEiiPKT_S5_S5_S5_S5_S5_S5_S5_S5_ddiPS3_S6_' for 'sm_60'
+ptxas info    : Function properties for _ZN34FastWavesRegularBenchmarkNamespace22fastwaves_idxvar_kloopIdEEv7_coord3IiEiiPKT_S5_S5_S5_S5_S5_S5_S5_S5_ddiPS3_S6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 132 registers, 456 bytes cmem[0], 32 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN34FastWavesRegularBenchmarkNamespace16fastwaves_idxvarIdEEv7_coord3IiEiiPKT_S5_S5_S5_S5_S5_S5_S5_S5_ddiPS3_S6_' for 'sm_60'
+ptxas info    : Function properties for _ZN34FastWavesRegularBenchmarkNamespace16fastwaves_idxvarIdEEv7_coord3IiEiiPKT_S5_S5_S5_S5_S5_S5_S5_S5_ddiPS3_S6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 44 registers, 456 bytes cmem[0], 32 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN34FastWavesRegularBenchmarkNamespace15fastwaves_naiveIdEEv7_coord3IiEiiPKT_S5_S5_S5_S5_S5_S5_S5_S5_ddiPS3_S6_' for 'sm_60'
+ptxas info    : Function properties for _ZN34FastWavesRegularBenchmarkNamespace15fastwaves_naiveIdEEv7_coord3IiEiiPKT_S5_S5_S5_S5_S5_S5_S5_S5_ddiPS3_S6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 46 registers, 456 bytes cmem[0], 32 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN34FastWavesRegularBenchmarkNamespace29fastwaves_idxvar_kloop_slicedIfEEvi7_coord3IiEiiPKT_S5_S5_S5_S5_S5_S5_S5_S5_ddiPS3_S6_' for 'sm_60'
+ptxas info    : Function properties for _ZN34FastWavesRegularBenchmarkNamespace29fastwaves_idxvar_kloop_slicedIfEEvi7_coord3IiEiiPKT_S5_S5_S5_S5_S5_S5_S5_S5_ddiPS3_S6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 71 registers, 456 bytes cmem[0], 32 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN34FastWavesRegularBenchmarkNamespace15fastwaves_kloopIfEEv7_coord3IiEiiPKT_S5_S5_S5_S5_S5_S5_S5_S5_ddiPS3_S6_' for 'sm_60'
+ptxas info    : Function properties for _ZN34FastWavesRegularBenchmarkNamespace15fastwaves_kloopIfEEv7_coord3IiEiiPKT_S5_S5_S5_S5_S5_S5_S5_S5_ddiPS3_S6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 125 registers, 456 bytes cmem[0], 32 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN34FastWavesRegularBenchmarkNamespace23fastwaves_idxvar_sharedIfEEv7_coord3IiEiiPKT_S5_S5_S5_S5_S5_S5_S5_S5_ddiPS3_S6_' for 'sm_60'
+ptxas info    : Function properties for _ZN34FastWavesRegularBenchmarkNamespace23fastwaves_idxvar_sharedIfEEv7_coord3IiEiiPKT_S5_S5_S5_S5_S5_S5_S5_S5_ddiPS3_S6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 44 registers, 456 bytes cmem[0], 32 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN34FastWavesRegularBenchmarkNamespace22fastwaves_idxvar_kloopIfEEv7_coord3IiEiiPKT_S5_S5_S5_S5_S5_S5_S5_S5_ddiPS3_S6_' for 'sm_60'
+ptxas info    : Function properties for _ZN34FastWavesRegularBenchmarkNamespace22fastwaves_idxvar_kloopIfEEv7_coord3IiEiiPKT_S5_S5_S5_S5_S5_S5_S5_S5_ddiPS3_S6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 119 registers, 456 bytes cmem[0], 32 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN34FastWavesRegularBenchmarkNamespace16fastwaves_idxvarIfEEv7_coord3IiEiiPKT_S5_S5_S5_S5_S5_S5_S5_S5_ddiPS3_S6_' for 'sm_60'
+ptxas info    : Function properties for _ZN34FastWavesRegularBenchmarkNamespace16fastwaves_idxvarIfEEv7_coord3IiEiiPKT_S5_S5_S5_S5_S5_S5_S5_S5_ddiPS3_S6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 36 registers, 456 bytes cmem[0], 32 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN34FastWavesRegularBenchmarkNamespace15fastwaves_naiveIfEEv7_coord3IiEiiPKT_S5_S5_S5_S5_S5_S5_S5_S5_ddiPS3_S6_' for 'sm_60'
+ptxas info    : Function properties for _ZN34FastWavesRegularBenchmarkNamespace15fastwaves_naiveIfEEv7_coord3IiEiiPKT_S5_S5_S5_S5_S5_S5_S5_S5_ddiPS3_S6_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 38 registers, 456 bytes cmem[0], 32 bytes cmem[2]
+ptxas info    : Compiling entry function '_ZN14HdiffCudaUnstr10Compressed7Chasing25hdiff_idxvar_kloop_slicedIdEEvi7_coord3IiEPiS5_iiiPKT_PS6_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN14HdiffCudaUnstr10Compressed7Chasing25hdiff_idxvar_kloop_slicedIdEEvi7_coord3IiEPiS5_iiiPKT_PS6_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 88 registers, 392 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN14HdiffCudaUnstr10Compressed7Chasing19hdiff_idxvar_sharedIdEEv7_coord3IiEPiS5_iiiPKT_PS6_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN14HdiffCudaUnstr10Compressed7Chasing19hdiff_idxvar_sharedIdEEv7_coord3IiEPiS5_iiiPKT_PS6_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 392 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN14HdiffCudaUnstr10Compressed7Chasing18hdiff_idxvar_kloopIdEEv7_coord3IiEPiS5_iiiPKT_PS6_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN14HdiffCudaUnstr10Compressed7Chasing18hdiff_idxvar_kloopIdEEv7_coord3IiEPiS5_iiiPKT_PS6_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 88 registers, 392 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN14HdiffCudaUnstr10Compressed7Chasing11hdiff_naiveIdEEv7_coord3IiEPiS5_iiiPKT_PS6_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN14HdiffCudaUnstr10Compressed7Chasing11hdiff_naiveIdEEv7_coord3IiEPiS5_iiiPKT_PS6_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 392 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN14HdiffCudaUnstr10Compressed7Chasing12hdiff_idxvarIdEEv7_coord3IiEPiS5_iiiPKT_PS6_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN14HdiffCudaUnstr10Compressed7Chasing12hdiff_idxvarIdEEv7_coord3IiEPiS5_iiiPKT_PS6_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 40 registers, 392 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN14HdiffCudaUnstr10Compressed7Chasing25hdiff_idxvar_kloop_slicedIfEEvi7_coord3IiEPiS5_iiiPKT_PS6_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN14HdiffCudaUnstr10Compressed7Chasing25hdiff_idxvar_kloop_slicedIfEEvi7_coord3IiEPiS5_iiiPKT_PS6_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 70 registers, 392 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN14HdiffCudaUnstr10Compressed7Chasing19hdiff_idxvar_sharedIfEEv7_coord3IiEPiS5_iiiPKT_PS6_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN14HdiffCudaUnstr10Compressed7Chasing19hdiff_idxvar_sharedIfEEv7_coord3IiEPiS5_iiiPKT_PS6_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 392 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN14HdiffCudaUnstr10Compressed7Chasing18hdiff_idxvar_kloopIfEEv7_coord3IiEPiS5_iiiPKT_PS6_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN14HdiffCudaUnstr10Compressed7Chasing18hdiff_idxvar_kloopIfEEv7_coord3IiEPiS5_iiiPKT_PS6_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 71 registers, 392 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN14HdiffCudaUnstr10Compressed7Chasing11hdiff_naiveIfEEv7_coord3IiEPiS5_iiiPKT_PS6_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN14HdiffCudaUnstr10Compressed7Chasing11hdiff_naiveIfEEv7_coord3IiEPiS5_iiiPKT_PS6_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 392 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN14HdiffCudaUnstr10Compressed7Chasing12hdiff_idxvarIfEEv7_coord3IiEPiS5_iiiPKT_PS6_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN14HdiffCudaUnstr10Compressed7Chasing12hdiff_idxvarIfEEv7_coord3IiEPiS5_iiiPKT_PS6_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 392 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN14HdiffCudaUnstr10Compressed10NonChasing25hdiff_idxvar_kloop_slicedIdEEvi7_coord3IiEPiS5_iiiPKT_PS6_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN14HdiffCudaUnstr10Compressed10NonChasing25hdiff_idxvar_kloop_slicedIdEEvi7_coord3IiEPiS5_iiiPKT_PS6_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 88 registers, 392 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN14HdiffCudaUnstr10Compressed10NonChasing19hdiff_idxvar_sharedIdEEv7_coord3IiEPiS5_iiiPKT_PS6_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN14HdiffCudaUnstr10Compressed10NonChasing19hdiff_idxvar_sharedIdEEv7_coord3IiEPiS5_iiiPKT_PS6_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 392 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN14HdiffCudaUnstr10Compressed10NonChasing18hdiff_idxvar_kloopIdEEv7_coord3IiEPiS5_iiiPKT_PS6_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN14HdiffCudaUnstr10Compressed10NonChasing18hdiff_idxvar_kloopIdEEv7_coord3IiEPiS5_iiiPKT_PS6_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 88 registers, 392 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN14HdiffCudaUnstr10Compressed10NonChasing11hdiff_naiveIdEEv7_coord3IiEPiS5_iiiPKT_PS6_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN14HdiffCudaUnstr10Compressed10NonChasing11hdiff_naiveIdEEv7_coord3IiEPiS5_iiiPKT_PS6_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 392 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN14HdiffCudaUnstr10Compressed10NonChasing12hdiff_idxvarIdEEv7_coord3IiEPiS5_iiiPKT_PS6_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN14HdiffCudaUnstr10Compressed10NonChasing12hdiff_idxvarIdEEv7_coord3IiEPiS5_iiiPKT_PS6_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 392 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN14HdiffCudaUnstr10Compressed10NonChasing25hdiff_idxvar_kloop_slicedIfEEvi7_coord3IiEPiS5_iiiPKT_PS6_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN14HdiffCudaUnstr10Compressed10NonChasing25hdiff_idxvar_kloop_slicedIfEEvi7_coord3IiEPiS5_iiiPKT_PS6_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 72 registers, 392 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN14HdiffCudaUnstr10Compressed10NonChasing19hdiff_idxvar_sharedIfEEv7_coord3IiEPiS5_iiiPKT_PS6_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN14HdiffCudaUnstr10Compressed10NonChasing19hdiff_idxvar_sharedIfEEv7_coord3IiEPiS5_iiiPKT_PS6_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 392 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN14HdiffCudaUnstr10Compressed10NonChasing18hdiff_idxvar_kloopIfEEv7_coord3IiEPiS5_iiiPKT_PS6_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN14HdiffCudaUnstr10Compressed10NonChasing18hdiff_idxvar_kloopIfEEv7_coord3IiEPiS5_iiiPKT_PS6_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 71 registers, 392 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN14HdiffCudaUnstr10Compressed10NonChasing11hdiff_naiveIfEEv7_coord3IiEPiS5_iiiPKT_PS6_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN14HdiffCudaUnstr10Compressed10NonChasing11hdiff_naiveIfEEv7_coord3IiEPiS5_iiiPKT_PS6_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 30 registers, 392 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN14HdiffCudaUnstr10Compressed10NonChasing12hdiff_idxvarIfEEv7_coord3IiEPiS5_iiiPKT_PS6_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN14HdiffCudaUnstr10Compressed10NonChasing12hdiff_idxvarIfEEv7_coord3IiEPiS5_iiiPKT_PS6_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 31 registers, 392 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN14HdiffCudaUnstr7Chasing25hdiff_idxvar_kloop_slicedIdEEvi7_coord3IiEPKiiiPKT_PS6_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN14HdiffCudaUnstr7Chasing25hdiff_idxvar_kloop_slicedIdEEvi7_coord3IiEPKiiiPKT_PS6_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 88 registers, 376 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN14HdiffCudaUnstr7Chasing19hdiff_idxvar_sharedIdEEv7_coord3IiEPKiiiPKT_PS6_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN14HdiffCudaUnstr7Chasing19hdiff_idxvar_sharedIdEEv7_coord3IiEPKiiiPKT_PS6_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 376 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN14HdiffCudaUnstr7Chasing18hdiff_idxvar_kloopIdEEv7_coord3IiEPKiiiPKT_PS6_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN14HdiffCudaUnstr7Chasing18hdiff_idxvar_kloopIdEEv7_coord3IiEPKiiiPKT_PS6_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 86 registers, 376 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN14HdiffCudaUnstr7Chasing11hdiff_naiveIdEEv7_coord3IiEPKiiiPKT_PS6_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN14HdiffCudaUnstr7Chasing11hdiff_naiveIdEEv7_coord3IiEPKiiiPKT_PS6_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 376 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN14HdiffCudaUnstr7Chasing12hdiff_idxvarIdEEv7_coord3IiEPKiiiPKT_PS6_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN14HdiffCudaUnstr7Chasing12hdiff_idxvarIdEEv7_coord3IiEPKiiiPKT_PS6_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 376 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN14HdiffCudaUnstr7Chasing25hdiff_idxvar_kloop_slicedIfEEvi7_coord3IiEPKiiiPKT_PS6_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN14HdiffCudaUnstr7Chasing25hdiff_idxvar_kloop_slicedIfEEvi7_coord3IiEPKiiiPKT_PS6_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 72 registers, 376 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN14HdiffCudaUnstr7Chasing19hdiff_idxvar_sharedIfEEv7_coord3IiEPKiiiPKT_PS6_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN14HdiffCudaUnstr7Chasing19hdiff_idxvar_sharedIfEEv7_coord3IiEPKiiiPKT_PS6_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 376 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN14HdiffCudaUnstr7Chasing18hdiff_idxvar_kloopIfEEv7_coord3IiEPKiiiPKT_PS6_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN14HdiffCudaUnstr7Chasing18hdiff_idxvar_kloopIfEEv7_coord3IiEPKiiiPKT_PS6_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 71 registers, 376 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN14HdiffCudaUnstr7Chasing11hdiff_naiveIfEEv7_coord3IiEPKiiiPKT_PS6_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN14HdiffCudaUnstr7Chasing11hdiff_naiveIfEEv7_coord3IiEPKiiiPKT_PS6_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 30 registers, 376 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN14HdiffCudaUnstr7Chasing12hdiff_idxvarIfEEv7_coord3IiEPKiiiPKT_PS6_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN14HdiffCudaUnstr7Chasing12hdiff_idxvarIfEEv7_coord3IiEPKiiiPKT_PS6_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 376 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN14HdiffCudaUnstr10NonChasing25hdiff_idxvar_kloop_slicedIdEEvi7_coord3IiEPKiiiPKT_PS6_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN14HdiffCudaUnstr10NonChasing25hdiff_idxvar_kloop_slicedIdEEvi7_coord3IiEPKiiiPKT_PS6_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 88 registers, 376 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN14HdiffCudaUnstr10NonChasing19hdiff_idxvar_sharedIdEEv7_coord3IiEPKiiiPKT_PS6_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN14HdiffCudaUnstr10NonChasing19hdiff_idxvar_sharedIdEEv7_coord3IiEPKiiiPKT_PS6_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 376 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN14HdiffCudaUnstr10NonChasing18hdiff_idxvar_kloopIdEEv7_coord3IiEPKiiiPKT_PS6_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN14HdiffCudaUnstr10NonChasing18hdiff_idxvar_kloopIdEEv7_coord3IiEPKiiiPKT_PS6_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 80 registers, 376 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN14HdiffCudaUnstr10NonChasing11hdiff_naiveIdEEv7_coord3IiEPKiiiPKT_PS6_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN14HdiffCudaUnstr10NonChasing11hdiff_naiveIdEEv7_coord3IiEPKiiiPKT_PS6_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 376 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN14HdiffCudaUnstr10NonChasing12hdiff_idxvarIdEEv7_coord3IiEPKiiiPKT_PS6_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN14HdiffCudaUnstr10NonChasing12hdiff_idxvarIdEEv7_coord3IiEPKiiiPKT_PS6_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 30 registers, 376 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN14HdiffCudaUnstr10NonChasing25hdiff_idxvar_kloop_slicedIfEEvi7_coord3IiEPKiiiPKT_PS6_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN14HdiffCudaUnstr10NonChasing25hdiff_idxvar_kloop_slicedIfEEvi7_coord3IiEPKiiiPKT_PS6_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 74 registers, 376 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN14HdiffCudaUnstr10NonChasing19hdiff_idxvar_sharedIfEEv7_coord3IiEPKiiiPKT_PS6_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN14HdiffCudaUnstr10NonChasing19hdiff_idxvar_sharedIfEEv7_coord3IiEPKiiiPKT_PS6_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 376 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN14HdiffCudaUnstr10NonChasing18hdiff_idxvar_kloopIfEEv7_coord3IiEPKiiiPKT_PS6_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN14HdiffCudaUnstr10NonChasing18hdiff_idxvar_kloopIfEEv7_coord3IiEPKiiiPKT_PS6_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 71 registers, 376 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN14HdiffCudaUnstr10NonChasing11hdiff_naiveIfEEv7_coord3IiEPKiiiPKT_PS6_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN14HdiffCudaUnstr10NonChasing11hdiff_naiveIfEEv7_coord3IiEPKiiiPKT_PS6_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 29 registers, 376 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN14HdiffCudaUnstr10NonChasing12hdiff_idxvarIfEEv7_coord3IiEPKiiiPKT_PS6_S8_' for 'sm_60'
+ptxas info    : Function properties for _ZN14HdiffCudaUnstr10NonChasing12hdiff_idxvarIfEEv7_coord3IiEPKiiiPKT_PS6_S8_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 376 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN16HdiffCudaRegular25hdiff_idxvar_kloop_slicedIdEEvi7_coord3IiEiiPKT_PS3_S5_' for 'sm_60'
+ptxas info    : Function properties for _ZN16HdiffCudaRegular25hdiff_idxvar_kloop_slicedIdEEvi7_coord3IiEiiPKT_PS3_S5_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 72 registers, 368 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN16HdiffCudaRegular18hdiff_idxvar_kloopIdEEv7_coord3IiEiiPKT_PS3_S5_' for 'sm_60'
+ptxas info    : Function properties for _ZN16HdiffCudaRegular18hdiff_idxvar_kloopIdEEv7_coord3IiEiiPKT_PS3_S5_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 72 registers, 368 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN16HdiffCudaRegular19hdiff_idxvar_sharedIdEEv7_coord3IiEiiPKT_PS3_S5_' for 'sm_60'
+ptxas info    : Function properties for _ZN16HdiffCudaRegular19hdiff_idxvar_sharedIdEEv7_coord3IiEiiPKT_PS3_S5_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 368 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN16HdiffCudaRegular12hdiff_idxvarIdEEv7_coord3IiEiiPKT_PS3_S5_' for 'sm_60'
+ptxas info    : Function properties for _ZN16HdiffCudaRegular12hdiff_idxvarIdEEv7_coord3IiEiiPKT_PS3_S5_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 368 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN16HdiffCudaRegular11hdiff_iloopIdEEv7_coord3IiEiiiPKT_PS3_S5_' for 'sm_60'
+ptxas info    : Function properties for _ZN16HdiffCudaRegular11hdiff_iloopIdEEv7_coord3IiEiiiPKT_PS3_S5_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 48 registers, 368 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN16HdiffCudaRegular11hdiff_jloopIdEEv7_coord3IiEiiiPKT_PS3_S5_' for 'sm_60'
+ptxas info    : Function properties for _ZN16HdiffCudaRegular11hdiff_jloopIdEEv7_coord3IiEiiiPKT_PS3_S5_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 40 registers, 368 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN16HdiffCudaRegular12hdiff_sharedIdEEv7_coord3IiEiiPKT_PS3_S5_' for 'sm_60'
+ptxas info    : Function properties for _ZN16HdiffCudaRegular12hdiff_sharedIdEEv7_coord3IiEiiPKT_PS3_S5_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 368 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN16HdiffCudaRegular11hdiff_kloopIdEEv7_coord3IiEiiPKT_PS3_S5_' for 'sm_60'
+ptxas info    : Function properties for _ZN16HdiffCudaRegular11hdiff_kloopIdEEv7_coord3IiEiiPKT_PS3_S5_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 40 registers, 368 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN16HdiffCudaRegular11hdiff_naiveIdEEv7_coord3IiEiiPKT_PS3_S5_' for 'sm_60'
+ptxas info    : Function properties for _ZN16HdiffCudaRegular11hdiff_naiveIdEEv7_coord3IiEiiPKT_PS3_S5_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 368 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN16HdiffCudaRegular25hdiff_idxvar_kloop_slicedIfEEvi7_coord3IiEiiPKT_PS3_S5_' for 'sm_60'
+ptxas info    : Function properties for _ZN16HdiffCudaRegular25hdiff_idxvar_kloop_slicedIfEEvi7_coord3IiEiiPKT_PS3_S5_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 56 registers, 368 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN16HdiffCudaRegular18hdiff_idxvar_kloopIfEEv7_coord3IiEiiPKT_PS3_S5_' for 'sm_60'
+ptxas info    : Function properties for _ZN16HdiffCudaRegular18hdiff_idxvar_kloopIfEEv7_coord3IiEiiPKT_PS3_S5_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 64 registers, 368 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN16HdiffCudaRegular19hdiff_idxvar_sharedIfEEv7_coord3IiEiiPKT_PS3_S5_' for 'sm_60'
+ptxas info    : Function properties for _ZN16HdiffCudaRegular19hdiff_idxvar_sharedIfEEv7_coord3IiEiiPKT_PS3_S5_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 31 registers, 368 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN16HdiffCudaRegular12hdiff_idxvarIfEEv7_coord3IiEiiPKT_PS3_S5_' for 'sm_60'
+ptxas info    : Function properties for _ZN16HdiffCudaRegular12hdiff_idxvarIfEEv7_coord3IiEiiPKT_PS3_S5_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 25 registers, 368 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN16HdiffCudaRegular11hdiff_iloopIfEEv7_coord3IiEiiiPKT_PS3_S5_' for 'sm_60'
+ptxas info    : Function properties for _ZN16HdiffCudaRegular11hdiff_iloopIfEEv7_coord3IiEiiiPKT_PS3_S5_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 368 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN16HdiffCudaRegular11hdiff_jloopIfEEv7_coord3IiEiiiPKT_PS3_S5_' for 'sm_60'
+ptxas info    : Function properties for _ZN16HdiffCudaRegular11hdiff_jloopIfEEv7_coord3IiEiiiPKT_PS3_S5_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 368 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN16HdiffCudaRegular12hdiff_sharedIfEEv7_coord3IiEiiPKT_PS3_S5_' for 'sm_60'
+ptxas info    : Function properties for _ZN16HdiffCudaRegular12hdiff_sharedIfEEv7_coord3IiEiiPKT_PS3_S5_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 29 registers, 368 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN16HdiffCudaRegular11hdiff_kloopIfEEv7_coord3IiEiiPKT_PS3_S5_' for 'sm_60'
+ptxas info    : Function properties for _ZN16HdiffCudaRegular11hdiff_kloopIfEEv7_coord3IiEiiPKT_PS3_S5_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, 368 bytes cmem[0]
+ptxas info    : Compiling entry function '_ZN16HdiffCudaRegular11hdiff_naiveIfEEv7_coord3IiEiiPKT_PS3_S5_' for 'sm_60'
+ptxas info    : Function properties for _ZN16HdiffCudaRegular11hdiff_naiveIfEEv7_coord3IiEiiPKT_PS3_S5_
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 26 registers, 368 bytes cmem[0]
